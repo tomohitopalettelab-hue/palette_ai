@@ -107,25 +107,21 @@ export default function PaletteDesign() {
   };
 
   return (
-    // 修正1: h-full を h-[100dvh] に変更（スマホのツールバー対策）
-    <div className="relative w-full h-[100dvh] flex items-center justify-center p-0 md:p-8 overflow-hidden bg-slate-50">
+    /* 修正: fixed inset-0 と touch-none で全体のスクロールと揺れを物理的に禁止 */
+    <div className="fixed inset-0 w-full h-[100dvh] flex items-center justify-center p-0 md:p-8 overflow-hidden bg-slate-50 touch-none">
       
-      {/* 背景の装飾 */}
       <div className="fixed top-0 left-0 w-full h-full pointer-events-none -z-10 overflow-hidden">
         <div className="absolute w-[500px] h-[500px] bg-pink-400/10 blur-[120px] rounded-full -top-20 -left-20 animate-pulse" />
         <div className="absolute w-[600px] h-[600px] bg-cyan-400/10 blur-[150px] rounded-full -bottom-20 -right-20 animate-pulse" style={{ animationDelay: '-5s' }} />
       </div>
 
-      {/* 修正2: スマホ時は rounded を解除し、h-full で画面いっぱいに広げる */}
       <div className="w-full max-w-[1300px] h-full md:h-[90vh] bg-white/40 md:backdrop-blur-[30px] md:rounded-[60px] shadow-neu-flat flex flex-col md:flex-row border-none md:border md:border-white/60 overflow-hidden relative">
         
-        {/* スマホ用タブ切り替え */}
         <div className="absolute top-4 left-1/2 -translate-x-1/2 flex md:hidden bg-white/90 backdrop-blur-md p-1 rounded-full shadow-lg border border-white/50 z-50">
           <button onClick={() => setActiveTab('chat')} className={`px-6 py-1.5 rounded-full text-[10px] font-black transition-all ${activeTab === 'chat' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-400'}`}>CHAT</button>
           <button onClick={() => setActiveTab('preview')} className={`px-6 py-1.5 rounded-full text-[10px] font-black transition-all ${activeTab === 'preview' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-400'}`}>VIEW</button>
         </div>
 
-        {/* チャットエリア */}
         <div className={`flex flex-col p-5 md:p-10 h-full border-r border-white/20 w-full md:w-[400px] lg:w-[460px] shrink-0 ${activeTab === 'chat' ? 'flex' : 'hidden md:flex'}`}>
           <header className="flex justify-between items-center mb-6 shrink-0 pt-12 md:pt-0">
             <div className="flex flex-col text-slate-800">
@@ -137,7 +133,8 @@ export default function PaletteDesign() {
             </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto pr-1 space-y-6 custom-scrollbar flex flex-col pb-4">
+          {/* 修正: touch-auto を追加し、メッセージ部分だけスクロール可能に */}
+          <main className="flex-1 overflow-y-auto pr-1 space-y-6 custom-scrollbar flex flex-col pb-4 touch-auto">
             {messages.map((msg, index) => (
               <div key={index} className={`flex gap-3 items-start ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                 <div className="w-8 h-8 rounded-xl shadow-neu-flat bg-white/80 flex items-center justify-center shrink-0 border border-white">
@@ -161,10 +158,10 @@ export default function PaletteDesign() {
             <div ref={scrollEndRef} />
           </main>
 
-          {/* 入力エリア */}
           <div className="mt-auto pt-4 pb-2 md:pb-0">
             <div className="p-2 rounded-[30px] shadow-neu-flat bg-white/30 border border-white/50">
               <div className="flex items-end shadow-neu-inset rounded-[24px] bg-[#F0F2F5]/50 px-3 py-1">
+                {/* 修正: text-base (16px) にして自動ズームを防止。touch-auto を追加 */}
                 <textarea 
                   ref={textareaRef} 
                   value={inputText} 
@@ -172,7 +169,7 @@ export default function PaletteDesign() {
                   onKeyDown={handleKeyDown} 
                   placeholder="回答を入力..." 
                   rows={1} 
-                  className="flex-1 bg-transparent border-none py-3 text-sm focus:outline-none text-slate-700 font-medium resize-none min-h-[40px] max-h-[120px]" 
+                  className="flex-1 bg-transparent border-none py-3 text-base focus:outline-none text-slate-700 font-medium resize-none min-h-[40px] max-h-[120px] touch-auto" 
                 />
                 <button 
                   type="button" 
@@ -187,8 +184,7 @@ export default function PaletteDesign() {
           </div>
         </div>
 
-        {/* プレビューエリア（スマホ時は activeTab が preview の時だけ表示） */}
-        <div className={`${activeTab === 'preview' ? 'flex' : 'hidden'} md:flex flex-1 p-5 md:p-10 flex-col bg-slate-50/50 md:bg-white/10 overflow-hidden`}>
+        <div className={`${activeTab === 'preview' ? 'flex' : 'hidden'} md:flex flex-1 p-5 md:p-10 flex-col bg-slate-50/50 md:bg-white/10 overflow-hidden touch-auto`}>
           <div className="flex justify-between items-center mb-6 shrink-0 pt-12 md:pt-0">
              <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                <Layout className="w-4 h-4" /> Live Preview
