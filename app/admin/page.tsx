@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Layout, Check, RotateCcw, Monitor, Smartphone, Search, Eye, EyeOff, Plus, Sparkles, Loader2, Grid, Image as ImageIcon, Upload, Wand2, X } from 'lucide-react';
+import { Layout, Check, RotateCcw, Monitor, Smartphone, Search, Eye, EyeOff, Plus, Sparkles, Loader2, Grid, Image as ImageIcon, Upload, Wand2, X, Camera } from 'lucide-react';
+import html2canvas from 'html2canvas';
 import { templates, Template } from './templates';
 
 type Customer = {
@@ -53,6 +54,7 @@ export default function PaletteLab() {
   const [imageSearchQuery, setImageSearchQuery] = useState("");
   const [searchedImages, setSearchedImages] = useState<any[]>([]);
   const [isSearchingImage, setIsSearchingImage] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [imageTab, setImageTab] = useState<'upload' | 'search' | 'generate'>('search');
   const [generatedImageUrl, setGeneratedImageUrl] = useState("");
   
@@ -308,6 +310,30 @@ export default function PaletteLab() {
     }
   };
 
+  const handleScreenshot = async () => {
+    if (!iframeRef.current?.contentWindow) {
+      alert('プレビューの読み込みが完了していません。');
+      return;
+    }
+
+    try {
+      const canvas = await html2canvas(iframeRef.current.contentWindow.document.body, {
+        useCORS: true, // 外部画像を許可
+        allowTaint: true,
+        scale: 2, // 高解像度化
+      });
+      const image = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = image;
+      link.download = `palette-ai-screenshot-${Date.now()}.png`;
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Screenshot failed:', error);
+      alert('スクリーンショットの撮影に失敗しました。');
+    }
+  };
+
   // 画像適用ハンドラ
   const applyNewImage = (newSrc: string) => {
     if (!selectedCustomer || !editingImage) return;
@@ -504,6 +530,9 @@ export default function PaletteLab() {
             <button onClick={() => setViewMode('pc')} className={`p-1.5 rounded ${viewMode === 'pc' ? 'bg-slate-600' : 'hover:bg-slate-700'}`}><Monitor className="w-4 h-4" /></button>
             <button onClick={() => setViewMode('mobile')} className={`p-1.5 rounded ${viewMode === 'mobile' ? 'bg-slate-600' : 'hover:bg-slate-700'}`}><Smartphone className="w-4 h-4" /></button>
           </div>
+          <button onClick={handleScreenshot} title="Download Screenshot" className="p-2 bg-slate-800 rounded-lg border border-slate-700 hover:bg-slate-700">
+            <Camera className="w-4 h-4" />
+          </button>
           <button onClick={() => setLabMode('templates')} className={`px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-all ${labMode === 'templates' ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-700 hover:bg-slate-600 text-white'}`}>
             <Grid className="w-4 h-4" /> Templates
           </button>
@@ -595,7 +624,6 @@ export default function PaletteLab() {
                     selectedCustomer.answers.map((ans, i) => (
                       <div key={i} className="mb-2 last:mb-0">
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Q: {ans.q}</p>
-                        <p className="text-[11px] font-medium text-slate-700 leading-tight">{ans.a}</p>
                         {ans.a?.startsWith('data:image') ? (
                           <div className="mt-1">
                             <img src={ans.a} alt="Answer Image" className="max-w-full h-auto rounded-lg border border-slate-200 max-h-40 object-contain" />
@@ -701,6 +729,7 @@ export default function PaletteLab() {
                 {activeTab === 'preview' ? (
                   <div className={`bg-white transition-all duration-500 shadow-2xl relative flex flex-col ${viewMode === 'pc' ? 'w-full h-full' : 'w-[375px] h-[667px] my-auto mx-auto rounded-[40px] border-[12px] border-slate-900 overflow-hidden shrink-0'}`}>
                     <iframe 
+                      ref={iframeRef}
                       key={selectedCustomer.htmlCode}
                       srcDoc={`
                         <html>
