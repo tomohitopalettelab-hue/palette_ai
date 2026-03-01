@@ -357,6 +357,49 @@ export default function PaletteLab() {
     }
   };
 
+  // 追加: 顧客削除ハンドラ
+  const handleDeleteCustomer = async () => {
+    if (!selectedCustomer) return;
+    if (!confirm("本当にこの顧客を削除しますか？")) return;
+    try {
+      const res = await fetch('/api/delete-customer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedCustomer.id }),
+      });
+      if (res.ok) {
+        setSelectedCustomerId(null);
+        await refreshCustomers();
+        alert("削除しました。");
+      } else {
+        alert("削除に失敗しました。");
+      }
+    } catch (e) {
+      console.error("Delete Error", e);
+      alert("削除中にエラーが発生しました。");
+    }
+  };
+
+  // 共通: 顧客情報をサーバーへ保存して一覧を更新するユーティリティ
+  const updateCustomer = async (updates: Partial<Customer>) => {
+    if (!selectedCustomer) return;
+    const payload = { ...selectedCustomer, ...updates } as any;
+    try {
+      const res = await fetch('/api/save-customer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const { customer: saved } = await res.json();
+        await refreshCustomers();
+        setSelectedCustomerId(saved.id);
+      }
+    } catch (err) {
+      console.error('Update customer error', err);
+    }
+  };
+
   // 画像検索ハンドラ
   const handleImageSearch = async () => {
     if (!imageSearchQuery) return;
@@ -634,9 +677,9 @@ export default function PaletteLab() {
                   className={`w-full p-4 flex items-center justify-between border-b border-slate-50 transition-all ${selectedCustomerId === customer.id ? 'bg-indigo-50 border-r-4 border-r-indigo-500' : 'hover:bg-slate-50'}`}>
                   <div className="text-left">
                     <p className="font-bold text-sm truncate w-40">{customer.name}</p>
-                    <p className={`text-[10px] uppercase font-bold ${customer.id.startsWith('tpl-') ? 'text-purple-500' : 'text-slate-400'}`}>
-                      {customer.id.startsWith('tpl-') ? 'TEMPLATE' : customer.status}
-                    </p>
+                    {customer.id.startsWith('tpl-') && (
+                      <p className="text-[10px] uppercase font-bold text-purple-500">TEMPLATE</p>
+                    )}
                   </div>
                 </button>
               ))
@@ -667,6 +710,38 @@ export default function PaletteLab() {
                   ))}
                 </div>
               </section>
+
+              {/* 進捗ステータス（テンプレートには表示しない） */}
+              {!selectedCustomer.isTemplate && (
+                <section className="space-y-2">
+                  <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">進捗</h2>
+                  <select
+                    value={selectedCustomer.status}
+                    onChange={(e) => {
+                      const newStatus = e.target.value as Customer['status'];
+                      setCustomers(prev => prev.map(c => c.id === selectedCustomerId ? { ...c, status: newStatus } : c));
+                      updateCustomer({ status: newStatus });
+                    }}
+                    className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500"
+                  >
+                    <option value="hearing">hearing</option>
+                    <option value="reviewing">reviewing</option>
+                    <option value="completed">completed</option>
+                  </select>
+                </section>
+              )}
+
+              {/* 削除ボタン（テンプレートは消せないように） */}
+              {!selectedCustomer.isTemplate && (
+                <section className="space-y-2">
+                  <button 
+                    onClick={handleDeleteCustomer}
+                    className="w-full py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-500 transition"
+                  >
+                    顧客を削除
+                  </button>
+                </section>
+              )}
 
               {/* Generation Memo (Hearing Answersの上に配置) */}
               <section className="space-y-4">
