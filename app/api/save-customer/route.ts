@@ -1,56 +1,59 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { sql } from '@vercel/postgres';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    
-    // データ保存用ディレクトリとファイルパス
-    const dataDir = path.join(process.cwd(), 'data');
-    const filePath = path.join(dataDir, 'customers.json');
+    console.log("Saving body:", body); // サーバーのログで中身を確認できるようにする
 
-    // ディレクトリがなければ作成
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
+    // 1. IDの特定（数値・文字列どちらでも対応できるようにString化）
+    const id = body.id ? String(body.id) : `cust-${Date.now()}`;
+    const updatedAt = new Date().toISOString();
+    const status = body.status || 'hearing';
 
-    // 既存データを読み込み
-    let customers = [];
-    if (fs.existsSync(filePath)) {
-      const fileContent = fs.readFileSync(filePath, 'utf-8');
-      try {
-        customers = JSON.parse(fileContent);
-      } catch (e) {
-        console.error("JSON parse error", e);
-        customers = [];
-      }
-    }
+    // 2. フロントエンドとバックエンドの変数名のズレを吸収
+    // htmlCode でも html_code でも受け取れるようにする
+    const name = body.name || null;
+    const answers = JSON.stringify(body.answers || []);
+    const html_code = body.htmlCode || body.html_code || '';
+    const description = body.description || '';
+    const is_template = body.isTemplate === true || body.is_template === true;
 
-    // 新規データか更新か
-    // IDがない場合は新規作成とみなす
-    const newCustomer = {
-      ...body,
-      id: body.id || `cust-${Date.now()}`,
-      updatedAt: new Date().toISOString(),
-      status: body.status || 'hearing',
-    };
+    // 3. Vercel Postgresへの保存
+    await sql`
+      INSERT INTO customers (id, name, status, answers, html_code, description, is_template, updated_at)
+      VALUES (
+        ${id}, 
+        ${name}, 
+        ${status}, 
+        ${answers}, 
+        ${html_code}, 
+        ${description}, 
+        ${is_template}, 
+        ${updatedAt}
+      )
+      ON CONFLICT (id) 
+      DO UPDATE SET 
+        name = EXCLUDED.name,
+        status = EXCLUDED.status,
+        answers = EXCLUDED.answers,
+        html_code = EXCLUDED.html_code,
+        description = EXCLUDED.description,
+        is_template = EXCLUDED.is_template,
+        updated_at = EXCLUDED.updated_at;
+    `;
 
-    // IDで検索して更新、なければ追加
-    const existingIndex = customers.findIndex((c: any) => c.id === newCustomer.id);
-    if (existingIndex >= 0) {
-      customers[existingIndex] = { ...customers[existingIndex], ...newCustomer };
-    } else {
-      // 新しいものを先頭に
-      customers.unshift(newCustomer);
-    }
+    return NextResponse.json({ 
+      success: true, 
+      customer: { ...body, id, updatedAt, status } 
+    });
 
-    // 保存
-    fs.writeFileSync(filePath, JSON.stringify(customers, null, 2), 'utf-8');
-
-    return NextResponse.json({ success: true, customer: newCustomer });
-  } catch (error) {
-    console.error('Save API Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Save API Error Details:', error);
+    // 詳細なエラーをフロントに返す（デバッグ用）
+    return NextResponse.json({ 
+      error: error.message || 'Internal Server Error',
+      details: error.detail || '' 
+    }, { status: 500 });
   }
 }
