@@ -1,13 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
 export async function GET(
-  request: Request,
-  props: { params: Promise<{ id: string }> }
+  request: NextRequest,
+  props: { params: Promise<{ ID: string }> }
 ) {
   const params = await props.params;
-  const { id } = params;
+  const { ID: id } = params; // rename to keep existing logic
 
   try {
     // dataディレクトリのcustomers.jsonを参照するように修正
