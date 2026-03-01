@@ -11,6 +11,10 @@ export default function PaletteDesign() {
     { role: 'ai', content: 'こんにちは！Palette AIです。素敵なホームページを作るために、いくつか質問をさせていただきますね。まず、お名前や屋号（サービス名）を教えていただけますか？' }
   ]);
   const [generatedCode, setGeneratedCode] = useState("");
+  const [showConfirmSave, setShowConfirmSave] = useState(false);
+  const [confirmMessages, setConfirmMessages] = useState<any[]>([]);
+  const [aiExplanation, setAiExplanation] = useState(""); // AI の意思決定・方針を保存
+  const [conversationEnded, setConversationEnded] = useState(false); // ヒアリング完了フラグ
 
   const scrollEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -38,36 +42,24 @@ export default function PaletteDesign() {
     const code = match[1].trim();
     setGeneratedCode(code);
     
+    // HTML コードブロック前の「AI の説明」を抽出
+    const explanationMatch = text.match(/```html/i);
+    let explanation = "";
+    if (explanationMatch) {
+      // HTML コードブロックより前のテキスト = AI の意思決定
+      explanation = text.substring(0, explanationMatch.index || 0).trim();
+    }
+    setAiExplanation(explanation);
+    
     // 「ワイヤーフレーム」や「構成案」という言葉が含まれている場合は、DB保存をスキップ
     if (text.includes("ワイヤーフレーム") || text.includes("構成案") || text.includes("図面")) {
       console.log("ワイヤーフレームを検知しました。プレビュー表示のみ行い、DB保存はスキップします。");
       return;
     }
 
-    try {
-      // 本番デザインの場合のみ、ここから下の保存処理が実行される
-      // HTML内のtitleタグから屋号を取得し、なければ最初のユーザー発言、それもなければデフォルト値を使用
-      const titleMatch = code.match(/<title>(.*?)<\/title>/);
-      const customerName = titleMatch ? titleMatch[1] : (currentMessages.find(m => m.role === 'user')?.content || "新規顧客");
-      
-      const payload = {
-        name: customerName,
-        answers: currentMessages.map(m => ({ q: m.role, a: m.content })),
-        htmlCode: code
-      };
-
-      await fetch('/api/save-customer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      console.log("本番デザインをDBに保存しました！Labで確認できます。");
-      // alert("デザインが確定しました！Labに送信されました。"); // 必要ならコメントアウトを外してください
-
-    } catch (err) {
-      console.error("保存エラー:", err);
-    }
+    // 本番デザインと判断されたので、保存候補として情報を保持しておく
+    setConfirmMessages(currentMessages);
+    setShowConfirmSave(true); // HTMLが生成されたら即表示
 
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
       setTimeout(() => setActiveTab('preview'), 1000);
@@ -82,11 +74,17 @@ export default function PaletteDesign() {
     }
     try {
       const titleMatch = html.match(/<title>(.*?)<\/title>/);
-      const customerName = titleMatch ? titleMatch[1] : "新規プロジェクト";
+      let customerName = titleMatch ? titleMatch[1] : (currentMessages.find(m => m.role === 'user')?.content || "新規顧客");
+      // デフォルト名が単純すぎる場合はタイムスタンプを付加
+      if (!titleMatch) {
+        customerName += ` (${new Date().toLocaleTimeString()})`;
+      }
       
       const payload = {
         name: customerName,
         answers: currentMessages.map(m => ({ q: m.role, a: m.content })),
+        // 管理画面のGeneration Memoに AI の意思決定・方針を表示
+        description: aiExplanation || "デザイン方針の詳細記録なし",
         htmlCode: html
       };
 
@@ -103,7 +101,10 @@ export default function PaletteDesign() {
   };
 
   const handleSend = async (overrideText?: string, e?: React.FormEvent | React.KeyboardEvent) => {
+    if (conversationEnded) return; // 完了後は送信無効
     if (e) e.preventDefault();
+    // 新規送信があれば確認UIを閉じる
+    setShowConfirmSave(false);
     const messageToSend = overrideText || inputText;
     if (!messageToSend.trim() || isLoading) return;
 
@@ -127,7 +128,8 @@ export default function PaletteDesign() {
        (4) サイトの雰囲気・デザインの好み
        (5) 掲載したい主な内容
     3. ヒアリングが一通り完了したら、内容をまとめた**ワイヤーフレーム（HTML）**を作成して提示し、「この構成でよろしいでしょうか？」と確認してください。
-    4. ユーザーから「OK」や「承認」が得られたら、**HTMLコードは出力せず**、「ありがとうございます。ヒアリング内容をLabに保存しました。5営業日程で制作が完了しますので、少々お待ちください。」とだけ伝えて会話を終了してください。
+    4. ユーザーから「OK」や「承認」が得られたら、**HTMLコードは出力せず**、
+       「ありがとうございます。ヒアリング内容をLabに保存します。」とだけ伝えて会話を終了してください。
     
     【重要】
     - ワイヤーフレームを出力する際は、必ず \`\`\`html ... \`\`\` の形式でコードを囲ってください。
@@ -153,12 +155,11 @@ export default function PaletteDesign() {
         const newMessages = [...updatedMessages, { role: 'ai', content: aiText }];
         setMessages(newMessages);
         extractCode(aiText, newMessages);
-
-        // AIが保存完了メッセージを出した場合、フロントエンド側で保存処理を実行
-        if (aiText.includes("Labに保存しました") || aiText.includes("保存しました")) {
-          // generatedCodeステートは更新前かもしれないので、現在のstateまたは履歴からHTMLを探す
-          saveToLab(newMessages, generatedCode);
+        // AIが構成確認の文言を含んでいたらボタン表示
+        if (/よろしいでしょうか|OKであれば|確認してください/.test(aiText)) {
+          setShowConfirmSave(true);
         }
+
       } else {
         setMessages(prev => [...prev, { role: 'ai', content: "すみません、エラーが起きてしまいました。" }]);
       }
@@ -167,6 +168,19 @@ export default function PaletteDesign() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // 確認ボタンが押されたとき
+  const handleConfirmSave = () => {
+    setShowConfirmSave(false);
+    saveToLab(confirmMessages, generatedCode);
+    handleSend("OK");
+    setConversationEnded(true);
+  };
+
+  const handleRequestRevision = () => {
+    setShowConfirmSave(false);
+    handleSend("修正お願いします");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -235,6 +249,7 @@ export default function PaletteDesign() {
                   onKeyDown={handleKeyDown} 
                   placeholder="回答を入力..." 
                   rows={1} 
+                  disabled={conversationEnded}
                   className="flex-1 bg-transparent border-none py-3 text-base focus:outline-none text-slate-700 font-medium resize-none min-h-[40px] max-h-[120px] touch-auto" 
                 />
                 <button 
@@ -247,6 +262,21 @@ export default function PaletteDesign() {
                 </button>
               </div>
             </div>
+            {showConfirmSave && !conversationEnded && (
+              <div className="mt-2 flex gap-2 justify-center">
+                <button onClick={handleConfirmSave} className="px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-500">
+                  OK
+                </button>
+                <button onClick={handleRequestRevision} className="px-4 py-2 bg-yellow-500 text-white rounded-lg text-xs font-bold hover:bg-yellow-400">
+                  修正
+                </button>
+              </div>
+            )}
+            {conversationEnded && (
+              <div className="mt-4 text-center text-green-600 text-sm font-bold">
+                ヒアリングは完了しました。管理画面で結果を確認できます。
+              </div>
+            )}
           </div>
         </div>
 

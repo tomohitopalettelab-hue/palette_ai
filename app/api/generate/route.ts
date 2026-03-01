@@ -11,10 +11,14 @@ export async function POST(req: Request) {
 
     const ai = new GoogleGenAI({ apiKey });
     const body = await req.json();
-    const { message, history, images } = body;
+    // message: 通常のユーザー入力、system: システム指示（管理画面からの高度なプロンプトなど）
+    const { message, history, images, system } = body;
 
     // ユーザーメッセージの構築
-    const userParts: any[] = [{ text: String(message) }];
+    const userParts: any[] = [];
+    if (message !== undefined && message !== null && String(message).trim() !== "") {
+      userParts.push({ text: String(message) });
+    }
 
     // 画像がある場合に追加
     if (images && Array.isArray(images)) {
@@ -29,7 +33,7 @@ export async function POST(req: Request) {
     }
 
     // システムプロンプトの定義
-    const systemPrompt = `
+    const defaultSystemPrompt = `
 あなたはWebサイト制作のプロフェッショナルなヒアリング担当者です。
 ユーザーからWebサイトの要望を聞き出し、最終的にHTMLのワイヤーフレームを作成することが目標です。
 
@@ -58,20 +62,31 @@ export async function POST(req: Request) {
 
 回答は親しみやすく、丁寧な口調でお願いします。
 `;
+    const systemPrompt = system ? String(system) : defaultSystemPrompt;
+
+    // Build contents array and guarantee at least one entry.
+    const contentsArray: any[] = [];
+    contentsArray.push(
+      // history goes first
+      ...(history || []).map((m: any) => ({
+        role: m.role === 'ai' ? 'model' : 'user',
+        parts: [{ text: String(m.content) }],
+      }))
+    );
+    if (userParts.length) {
+      contentsArray.push({ role: 'user', parts: userParts });
+    }
+    // If nothing was added (system-only prompt), add an empty user message to satisfy API
+    if (contentsArray.length === 0) {
+      contentsArray.push({ role: 'user', parts: [{ text: '' }] });
+    }
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       config: {
         systemInstruction: systemPrompt,
       },
-      contents: [
-        // システム指示として、historyの前に配置する
-        ...(history || []).map((m: any) => ({
-          role: m.role === 'ai' ? 'model' : 'user',
-          parts: [{ text: String(m.content) }],
-        })),
-        { role: 'user', parts: userParts },
-      ],
+      contents: contentsArray,
     });
 
     // レスポンスのテキストを取得（SDKのバージョンによってメソッドかプロパティか異なるため両対応）

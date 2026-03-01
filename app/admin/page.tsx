@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Layout, Check, RotateCcw, Monitor, Smartphone, Search, Eye, EyeOff, Plus, Sparkles, Loader2, Grid, Image as ImageIcon, Upload, Wand2, X, Camera } from 'lucide-react';
+import { Layout, Check, RotateCcw, Monitor, Smartphone, Search, Eye, EyeOff, Plus, Sparkles, Loader2, Grid, Image as ImageIcon, Upload, Wand2, X, Camera, Copy } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { templates, Template } from './templates';
 
@@ -57,6 +57,7 @@ export default function PaletteLab() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [imageTab, setImageTab] = useState<'upload' | 'search' | 'generate'>('search');
   const [generatedImageUrl, setGeneratedImageUrl] = useState("");
+  const [showHearingChat, setShowHearingChat] = useState(false);
   
   const [activeSections, setActiveSections] = useState<{ [key: string]: boolean }>({
     "top": true,
@@ -69,6 +70,8 @@ export default function PaletteLab() {
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [originalCustomer, setOriginalCustomer] = useState<Customer | null>(null); // server copy for dirty check
+  const [isDirty, setIsDirty] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(templates[0].id);
 
   const refreshCustomers = async () => {
@@ -96,6 +99,11 @@ export default function PaletteLab() {
         // 実際の顧客がいればそれを優先的に選択、いなければ最初のテンプレートを選択
         setSelectedCustomerId(dbCustomers.length > 0 ? dbCustomers[0].id : combinedData[0].id);
       }
+      // reset original when we refresh the list if currently selected exists
+      if (selectedCustomerId) {
+        const found = combinedData.find(c => c.id === selectedCustomerId);
+        setOriginalCustomer(found || null);
+      }
     } catch (error) {
       console.error("Fetch error:", error);
     } finally {
@@ -120,6 +128,65 @@ export default function PaletteLab() {
   }, []);
 
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId) || customers[0];
+
+  // when selection changes, copy snapshot for dirty check
+  useEffect(() => {
+    if (selectedCustomer) {
+      setOriginalCustomer({ ...selectedCustomer });
+    } else {
+      setOriginalCustomer(null);
+    }
+  }, [selectedCustomerId, customers]);
+
+  // warn on unload if there are unsaved changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
+  // dirty判定：selectedCustomer と originalCustomer を比較
+  useEffect(() => {
+    if (!selectedCustomer || !originalCustomer) {
+      setIsDirty(false);
+      return;
+    }
+    const a = JSON.stringify({
+      name: selectedCustomer.name,
+      status: selectedCustomer.status,
+      description: selectedCustomer.description,
+      htmlCode: selectedCustomer.htmlCode,
+      answers: selectedCustomer.answers
+    });
+    const b = JSON.stringify({
+      name: originalCustomer.name,
+      status: originalCustomer.status,
+      description: originalCustomer.description,
+      htmlCode: originalCustomer.htmlCode,
+      answers: originalCustomer.answers
+    });
+    setIsDirty(a !== b);
+  }, [selectedCustomer, originalCustomer]);
+
+  // プレビュー用の簡易HTML判定
+  const normalizeHtmlString = (s?: string) => {
+    if (!s) return "";
+    let t = s.trim();
+    t = t.replace(/^```html\s*/i, '').replace(/\s*```$/i, '');
+    t = t.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    return t;
+  };
+
+  const isSelectedCustomerHtml = (cust: Customer | undefined | null) => {
+    if (!cust || !cust.htmlCode) return false;
+    const sample = normalizeHtmlString(cust.htmlCode);
+    return /<[^>]+>/.test(sample);
+  };
 
   // テンプレート自動選択ロジック
   const autoSelectTemplate = (answers: { q: string, a: string }[]) => {
@@ -178,7 +245,7 @@ export default function PaletteLab() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: aiInstruction,
+          system: aiInstruction,
           history: [
             { role: 'ai', content: `現在のHTMLはこれです: ${selectedCustomer.htmlCode}` }
           ]
@@ -187,13 +254,17 @@ export default function PaletteLab() {
 
       const data = await response.json();
       const { html, comment } = extractHtmlAndComment(data.text || "");
+      const normalized = normalizeHtmlString(html || data.text || "");
 
-      if (html) {
+      if (/<[^>]+>/.test(normalized)) {
         setCustomers(prev => prev.map(c => c.id === selectedCustomerId ? { 
           ...c, 
           htmlCode: html,
           description: comment || c.description // コメントがあれば更新
         } : c));
+      } else {
+        // HTMLと判定できない場合は、htmlCodeを上書きせずにdescriptionに保存しておく
+        setCustomers(prev => prev.map(c => c.id === selectedCustomerId ? ({ ...c, description: (data.text || comment || c.description) }) : c));
       }
     } catch (error: any) {
       console.error("Gemini Error:", error);
@@ -208,21 +279,33 @@ export default function PaletteLab() {
     if (!selectedCustomer) return;
     setIsApplying(true);
     try {
-      // データが存在しない場合のガード処理を追加
+      // ヒアリング内容のサマリー
       const answerSummary = (selectedCustomer.answers || []).map(a => `${a.q}: ${a.a}`).join("\n");
       
-      // 選択されたテンプレートを取得
-      const template = templates.find(t => t.id === selectedTemplateId);
+      // AI がヒアリング内容を元にテンプレートを自動選択
+      const recommendedTemplateId = autoSelectTemplate(selectedCustomer.answers || []);
+      const template = templates.find(t => t.id === recommendedTemplateId);
       const baseHtml = template ? template.html : "";
+      setSelectedTemplateId(recommendedTemplateId);
 
       const prompt = `
       あなたはWebデザイナーです。以下の「ヒアリング内容」を元に、「ベースHTML」の中身（テキスト、画像URL、配色クラス）を書き換えて、顧客専用のHTMLを作成してください。
 
+      【言語ポリシー】
+      **本文・見出し・説明文は日本語をメインにしてください。**
+      英語は以下のようなデザイン要素としてのみ使用してください：
+      - サイト全体の雰囲気を上品にするための英語タグライン（例: "Premium Quality", "Innovation", "Trust"）
+      - セクションヘッダーの小さなラベル（例: "ABOUT US", "OUR SERVICES"）
+      - ボタンラベルはシンプルな英語（例: "Learn More", "Contact Us"）
+      
+      ただし、日本語での適切な表現がある場合は日本語を優先してください。
+
       【制約事項】
       1. **HTML構造（タグの入れ子構造やクラス名）は極力維持**してください。レイアウトを大きく壊さないでください。
-      2. テキストはヒアリング内容に合わせて魅力的なものに変更してください。
+      2. テキストはヒアリング内容に合わせて魅力的なものに変更してください。【重要】日本語をメインにしてください。
       3. 画像は \`https://placehold.co/600x400\` などのプレースホルダー画像、またはUnsplash等の実在するURLに差し替えてください。
       4. 配色はTailwind CSSのクラスを変更して調整してください（例: bg-indigo-600 -> bg-pink-500 など）。
+      5. **最後に、完成したHTMLコードのみを \`\`\`html ... \`\`\` で囲んで出力してください。説明や雑談は含めないでください。**
 
       【ヒアリング内容】
       ${answerSummary}
@@ -241,7 +324,7 @@ export default function PaletteLab() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            message: prompt,
+            system: prompt,
             history: []
           })
         });
@@ -260,10 +343,20 @@ export default function PaletteLab() {
 
       const data = await response.json();
       const { html, comment } = extractHtmlAndComment(data.text || "");
+      const normalized = normalizeHtmlString(html || data.text || "");
 
-      if (html) {
+      // 生成の記録メモを作成（テンプレート名と使用したプロンプト）
+      const memo = `テンプレート: ${template ? template.name : '(unknown)'}\nプロンプト:\n${prompt.trim()}`;
+
+      // HTML のみを抽出（テキストは除去）
+      if (/<[^>]+>/.test(normalized)) {
         setCustomers(prev => prev.map(c => 
-          c.id === selectedCustomerId ? { ...c, htmlCode: html, description: comment, status: 'reviewing' } : c
+          c.id === selectedCustomerId ? { ...c, htmlCode: html, description: memo, status: 'reviewing' } : c
+        ));
+      } else {
+        // HTML を得られなかった場合は memo を更新せず、元の説明を残す
+        setCustomers(prev => prev.map(c => 
+          c.id === selectedCustomerId ? { ...c, status: 'reviewing' } : c
         ));
       }
     } catch (error: any) {
@@ -274,7 +367,26 @@ export default function PaletteLab() {
     }
   };
 
-  const handleSaveAsTemplate = async () => {
+  // 保存（既存レコードを上書き）
+  const handleSaveCustomer = async () => {
+    if (!selectedCustomer) return;
+    setIsLoadingData(true);
+    try {
+      await updateCustomer({}); // empty updates -> send whole object
+      alert("上書き保存しました！");
+      // 保存後にオリジナルスナップショットを更新
+      setOriginalCustomer({ ...selectedCustomer });
+      setIsDirty(false);
+    } catch (error) {
+      console.error("Save error", error);
+      alert("保存に失敗しました。");
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
+  // (任意) コピーして新規レコード化するヘルパー
+  const handleDuplicateCustomer = async () => {
     if (!selectedCustomer) return;
     const newName = prompt("名前を入力して保存:", `${selectedCustomer.name} のコピー`);
     if (!newName) return;
@@ -293,10 +405,11 @@ export default function PaletteLab() {
       });
 
       if (response.ok) {
-        alert("保存しました！");
+        alert("コピーを保存しました！");
         await refreshCustomers();
       }
     } catch (error) {
+      console.error("Duplicate error", error);
       alert("保存に失敗しました。");
     } finally {
       setIsLoadingData(false);
@@ -383,7 +496,7 @@ export default function PaletteLab() {
   // 共通: 顧客情報をサーバーへ保存して一覧を更新するユーティリティ
   const updateCustomer = async (updates: Partial<Customer>) => {
     if (!selectedCustomer) return;
-    const payload = { ...selectedCustomer, ...updates } as any;
+    const payload = { ...selectedCustomer, ...updates, updatedAt: new Date().toISOString() } as any;
     try {
       const res = await fetch('/api/save-customer', {
         method: 'POST',
@@ -645,8 +758,13 @@ export default function PaletteLab() {
           <button onClick={() => setLabMode('templates')} className={`px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-all ${labMode === 'templates' ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-700 hover:bg-slate-600 text-white'}`}>
             <Grid className="w-4 h-4" /> Templates
           </button>
-          <button onClick={handleSaveAsTemplate} className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-all active:scale-95">
+          <button onClick={handleSaveCustomer} disabled={!isDirty} className={`bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-all active:scale-95 ${isDirty ? 'ring-2 ring-yellow-400' : 'opacity-50 cursor-not-allowed'}`}>
             <Plus className="w-4 h-4" /> 保存
+            {isDirty && <span className="ml-2 text-[10px] font-bold text-yellow-400">未保存</span>}
+          </button>
+          {/* 以下はオプション：コピーして別レコードを作成 */}
+          <button onClick={handleDuplicateCustomer} className="bg-slate-600 hover:bg-slate-500 px-3 py-2 rounded-full text-[9px] font-bold flex items-center gap-1 transition-all active:scale-95">
+            <Copy className="w-3 h-3" /> 複製
           </button>
           <button onClick={handlePublish} className="bg-green-600 hover:bg-green-500 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-all active:scale-95"><Check className="w-4 h-4" /> 送信</button>
         </div>
@@ -677,6 +795,9 @@ export default function PaletteLab() {
                   className={`w-full p-4 flex items-center justify-between border-b border-slate-50 transition-all ${selectedCustomerId === customer.id ? 'bg-indigo-50 border-r-4 border-r-indigo-500' : 'hover:bg-slate-50'}`}>
                   <div className="text-left">
                     <p className="font-bold text-sm truncate w-40">{customer.name}</p>
+                    {!customer.id.startsWith('tpl-') && (
+                      <p className="text-[10px] uppercase font-bold text-slate-400">{customer.status}</p>
+                    )}
                     {customer.id.startsWith('tpl-') && (
                       <p className="text-[10px] uppercase font-bold text-purple-500">TEMPLATE</p>
                     )}
@@ -690,6 +811,23 @@ export default function PaletteLab() {
         <aside className="w-72 bg-slate-50 border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto p-4 space-y-6">
           {selectedCustomer && (
             <>
+              {/* 顧客名編集 */}
+              <section className="space-y-2">
+                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">顧客名</h2>
+                <input
+                  type="text"
+                  value={selectedCustomer.name}
+                  onChange={(e) => {
+                    const newName = e.target.value;
+                    setCustomers(prev => prev.map(c => c.id === selectedCustomerId ? { ...c, name: newName } : c));
+                  }}
+                  className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500"
+                />
+                <div className="text-[10px]">
+                  ステータス: <span className="font-bold uppercase">{selectedCustomer.status}</span>
+                </div>
+              </section>
+
               {/* Section Control */}
               <section className="space-y-4">
                 <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Layout Sections</h2>
@@ -745,7 +883,7 @@ export default function PaletteLab() {
 
               {/* Generation Memo (Hearing Answersの上に配置) */}
               <section className="space-y-4">
-                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Generation Memo</h2>
+                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Generation Memo (生成時メモ)</h2>
                 <textarea
                   value={selectedCustomer.description || ""}
                   onChange={(e) => {
@@ -759,7 +897,10 @@ export default function PaletteLab() {
 
               {/* 【復活】ヒアリング内容セクション */}
               <section className="space-y-4 pt-4 border-t border-slate-200">
-                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hearing Answers</h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hearing Answers</h2>
+                  <button onClick={() => setShowHearingChat(true)} className="text-xs text-indigo-600 font-bold">チャット表示</button>
+                </div>
                 <div className="space-y-2 bg-white p-3 rounded-xl border border-slate-200 shadow-sm overflow-hidden max-h-48 overflow-y-auto">
                   {selectedCustomer.answers && selectedCustomer.answers.length > 0 ? (
                     selectedCustomer.answers.map((ans, i) => (
@@ -779,6 +920,54 @@ export default function PaletteLab() {
                   )}
                 </div>
               </section>
+
+              {showHearingChat && selectedCustomer && (
+                <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh] border border-slate-100">
+                    <div className="p-5 border-b flex justify-between items-center bg-gradient-to-r from-indigo-50 to-blue-50">
+                      <h3 className="font-bold text-sm text-slate-800">ヒアリング会話</h3>
+                      <button onClick={() => setShowHearingChat(false)} className="p-1 hover:bg-slate-200 rounded-full transition"><X className="w-5 h-5 text-slate-600" /></button>
+                    </div>
+                    <div className="p-6 overflow-y-auto flex-1 bg-slate-50 space-y-3">
+                      {(() => {
+                        const parsed = selectedCustomer.description
+                          ? selectedCustomer.description.split(/\n\s*\n/).map(b => {
+                              const m = b.trim();
+                              const match = m.match(/^\[(.*?)\]\s*([\s\S]*)/);
+                              return match ? { role: match[1], content: match[2] } : { role: 'note', content: m };
+                            })
+                          : (selectedCustomer.answers || []).map(a => ({ role: a.q, content: a.a }));
+
+                        return parsed.map((m, i) => {
+                          const isUser = m.role === 'user';
+                          const roleDisplay = isUser ? '👤 お客様' : '🤖 AI';
+                          return (
+                            <div key={i} className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+                                <span className={`text-[10px] font-bold mb-1 ${isUser ? 'text-slate-500' : 'text-indigo-600'}`}>
+                                  {roleDisplay}
+                                </span>
+                                <div className={`max-w-sm px-4 py-3 rounded-2xl shadow-sm ${
+                                  isUser 
+                                    ? 'bg-indigo-600 text-white rounded-br-none' 
+                                    : 'bg-white text-slate-800 border border-slate-200 rounded-bl-none'
+                                }`}>
+                                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{m.content}</p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                    <div className="p-5 border-t flex justify-end bg-slate-50">
+                      <button onClick={() => setShowHearingChat(false)} className="px-6 py-2.5 bg-indigo-600 text-white rounded-full font-bold text-sm hover:bg-indigo-700 transition shadow-sm">
+                        閉じる
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <section className="space-y-4 pt-4 border-t border-slate-200">
                 <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Initial Generation</h2>
@@ -869,26 +1058,49 @@ export default function PaletteLab() {
               <div className="flex-1 w-full flex justify-center items-stretch overflow-hidden bg-slate-300/50 rounded-2xl">
                 {activeTab === 'preview' ? (
                   <div className={`bg-white transition-all duration-500 shadow-2xl relative flex flex-col ${viewMode === 'pc' ? 'w-full h-full' : 'w-[375px] h-[667px] my-auto mx-auto rounded-[40px] border-[12px] border-slate-900 overflow-hidden shrink-0'}`}>
-                    <iframe 
-                      ref={iframeRef}
-                      key={selectedCustomer.htmlCode}
-                      srcDoc={`
-                        <html>
-                          <head>
-                            <script src="https://cdn.tailwindcss.com"></script>
-                            <style>body { margin: 0; padding: 0; } body::-webkit-scrollbar { display: none; }</style>
-                          </head>
-                          <body>${getProcessedHtml(selectedCustomer.htmlCode)}</body>
-                        </html>
-                      `}
-                      className="flex-1 w-full h-full border-none" 
-                    />
+                    {isSelectedCustomerHtml(selectedCustomer) ? (
+                      <iframe 
+                        ref={iframeRef}
+                        key={selectedCustomer.htmlCode}
+                        srcDoc={`
+                          <html>
+                            <head>
+                              <script src="https://cdn.tailwindcss.com"></script>
+                              <style>body { margin: 0; padding: 0; } body::-webkit-scrollbar { display: none; }</style>
+                            </head>
+                            <body>${getProcessedHtml(selectedCustomer.htmlCode)}</body>
+                          </html>
+                        `}
+                        className="flex-1 w-full h-full border-none" 
+                      />
+                    ) : (
+                      <div className="flex-1 w-full h-full p-6 overflow-auto text-left">
+                        <div className="text-sm text-slate-500 mb-4">HTMLプレビューが利用できません。Generation Memoを表示します。</div>
+                        <div className="mb-3 text-[11px] text-slate-500">Debug: htmlLength: <span className="font-mono text-slate-700">{selectedCustomer.htmlCode ? selectedCustomer.htmlCode.length : 0}</span> — isHtml: <span className="font-mono">{isSelectedCustomerHtml(selectedCustomer) ? 'yes' : 'no'}</span></div>
+                        <div className="whitespace-pre-wrap text-sm text-slate-700 bg-white p-4 rounded-lg border border-slate-100 mb-3">{selectedCustomer.description || '（メモなし）'}</div>
+                        <details className="bg-white border border-slate-100 rounded-lg p-3 text-xs text-slate-500">
+                          <summary className="cursor-pointer font-bold text-slate-600 mb-2">正規化された HTML（デバッグ）</summary>
+                          <pre className="text-[11px] text-slate-700 max-h-56 overflow-auto bg-slate-50 p-3 rounded">{normalizeHtmlString(selectedCustomer.htmlCode)}</pre>
+                        </details>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="w-full h-full bg-slate-900 p-6 overflow-auto text-left rounded-xl shadow-2xl">
-                    <pre className="text-emerald-400 text-xs font-mono leading-relaxed">
-                      <code>{getProcessedHtml(selectedCustomer.htmlCode)}</code>
-                    </pre>
+                    {isSelectedCustomerHtml(selectedCustomer) ? (
+                      <pre className="text-emerald-400 text-xs font-mono leading-relaxed">
+                        <code>{getProcessedHtml(selectedCustomer.htmlCode)}</code>
+                      </pre>
+                    ) : (
+                      <div>
+                        <div className="text-white text-sm whitespace-pre-wrap mb-3">{selectedCustomer.description || '（メモなし）'}</div>
+                        <div className="text-[11px] text-slate-300">Debug: htmlLength: <span className="font-mono">{selectedCustomer.htmlCode ? selectedCustomer.htmlCode.length : 0}</span> — isHtml: <span className="font-mono">{isSelectedCustomerHtml(selectedCustomer) ? 'yes' : 'no'}</span></div>
+                        <details className="mt-3 text-xs text-slate-300">
+                          <summary className="cursor-pointer">正規化された HTML（デバッグ表示）</summary>
+                          <pre className="mt-2 text-[11px] text-slate-200 bg-slate-800 p-3 rounded max-h-72 overflow-auto">{normalizeHtmlString(selectedCustomer.htmlCode)}</pre>
+                        </details>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

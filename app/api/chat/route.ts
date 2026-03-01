@@ -41,19 +41,52 @@ export async function POST(req: Request) {
          【ルール】
          1. 以下のスタイルガイド（${wireframeStyle}）を必ず含め、classを利用して構成してください。
          2. 色は使わず、グレー・白・黒・点線・実線のみで設計図として美しく表現してください。
-         3. 最後は必ず「こちらの構成でよろしいでしょうか？（OKであればその旨お伝えください）」と質問してください。`;
+         3. ワイヤーフレームの構成は、Topヒーローエリア（キャッチコピー）、Section 1: コンセプト / 想い,Section 2:3つの強み / 特徴（3カラムレイアウト）、Section 3:サービス内容 / 料金（リスト・カード型）、Section 4:制作実績 / ギャラリー（グリッドレイアウト）、Section 5:会社概要 / アクセス（表形式）、Footer:コピーライト等
+         4. ヒアリング情報が足りない場合は、絶対にダミーテキストで埋めず、ユーザーに追加で質問してください。
+         4. 最後は必ず「こちらの構成でよろしいでしょうか？（OKであればその旨お伝えください）」と質問してください。`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [
-        { role: 'user', parts: [{ text: systemInstruction }] },
-        ...(history || []).map((m: any) => ({
-          role: m.role === 'ai' ? 'model' : 'user',
-          parts: [{ text: String(m.content) }],
-        })),
-        { role: 'user', parts: [{ text: String(message) }] },
-      ],
-    });
+    // モデルリストを環境変数から取得（カンマ区切り）。先頭が優先。
+    const models = (process.env.CHAT_MODEL_LIST || process.env.CHAT_MODEL || "gemini-3-flash-preview").split(",").map(m => m.trim()).filter(Boolean);
+    let response;
+    let lastError: any = null;
+
+    // テキスト送信内容を構築。OK承認時は履歴も元のメッセージも含めず、
+    // シンプルな「お礼メッセージだけを返す」指示を確実に優先させる。
+    const contentsBase: any[] = [{ role: 'user', parts: [{ text: systemInstruction }] }];
+    if (!isApproved) {
+      contentsBase.push(...(history || []).map((m: any) => ({
+        role: m.role === 'ai' ? 'model' : 'user',
+        parts: [{ text: String(m.content) }],
+      })),
+      { role: 'user', parts: [{ text: String(message) }] });
+    }
+
+    // 複数モデルで順に試す
+    for (const mdl of models) {
+      let attempt = 0;
+      const maxAttempts = 2; // 各モデルあたり2回リトライ
+      while (true) {
+        try {
+          response = await ai.models.generateContent({
+            model: mdl,
+            contents: contentsBase,
+          });
+          lastError = null;
+          break; // success with this model
+        } catch (err: any) {
+          attempt++;
+          lastError = err;
+          console.warn(`chat generate model ${mdl} attempt ${attempt} failed`, err.message || err);
+          if (attempt >= maxAttempts) {
+            break; // give up on this model, try next
+          }
+          await new Promise(r => setTimeout(r, 500 * attempt));
+        }
+      }
+      if (!lastError) break; // succeeded
+      // else try next model
+    }
+    if (lastError || !response) throw lastError || new Error("Unable to generate response from any model");
 
     return NextResponse.json({ text: response.text });
 
