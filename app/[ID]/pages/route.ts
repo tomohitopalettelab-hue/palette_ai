@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { readCustomers } from '../../api/_lib/customer-store';
 
 export async function GET(
   request: NextRequest,
@@ -10,15 +9,7 @@ export async function GET(
   const { ID: id } = params; // rename to keep existing logic
 
   try {
-    // dataディレクトリのcustomers.jsonを参照するように修正
-    const filePath = path.join(process.cwd(), 'data', 'customers.json');
-    
-    if (!fs.existsSync(filePath)) {
-      return new NextResponse('Data source not found', { status: 404 });
-    }
-
-    const fileContents = fs.readFileSync(filePath, 'utf8');
-    const customers = JSON.parse(fileContents);
+    const customers = readCustomers();
     
     // 顧客データは内部ID（cust-...）または外部発行ID（customer_id / custsrv-...）の
     // どちらかでアクセスされる可能性がある。

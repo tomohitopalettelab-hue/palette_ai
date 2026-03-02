@@ -1,39 +1,11 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-const parseCustomersJson = (raw: string) => {
-  const normalized = raw.replace(/^\uFEFF/, '').trim();
-  if (!normalized) return [];
-  const parsed = JSON.parse(normalized);
-  return Array.isArray(parsed) ? parsed : [];
-};
+import { readCustomers, saveCustomers } from '../_lib/customer-store';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     console.log("=== /api/save-customer received ===", JSON.stringify(body, null, 2));
-    
-    // データ保存用ディレクトリとファイルパス
-    const dataDir = path.join(process.cwd(), 'data');
-    const filePath = path.join(dataDir, 'customers.json');
-
-    // ディレクトリがなければ作成
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-
-    // 既存データを読み込み
-    let customers = [];
-    if (fs.existsSync(filePath)) {
-      const fileContent = fs.readFileSync(filePath, 'utf-8');
-      try {
-        customers = parseCustomersJson(fileContent);
-      } catch (e) {
-        console.error("JSON parse error", e);
-        customers = [];
-      }
-    }
+    let customers = readCustomers();
 
     // 新規データか更新か
     // IDがない場合は新規作成とみなす
@@ -58,7 +30,7 @@ export async function POST(req: Request) {
     }
 
     // 保存
-    fs.writeFileSync(filePath, JSON.stringify(customers, null, 2), 'utf-8');
+    saveCustomers(customers);
 
     return NextResponse.json({ success: true, customer: newCustomer });
   } catch (error) {
