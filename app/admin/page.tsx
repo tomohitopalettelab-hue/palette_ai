@@ -58,6 +58,10 @@ export default function PaletteLab() {
   const [imageTab, setImageTab] = useState<'upload' | 'search' | 'generate'>('search');
   const [generatedImageUrl, setGeneratedImageUrl] = useState("");
   const [showHearingChat, setShowHearingChat] = useState(false);
+  const [editingText, setEditingText] = useState<{ index: number; tag: string; text: string } | null>(null);
+  const [textDraft, setTextDraft] = useState("");
+
+  const TEXT_EDIT_SELECTOR = 'h1,h2,h3,h4,h5,h6,p,span,a,li,button,strong,em,small,label,td,th,blockquote';
   
   const [activeSections, setActiveSections] = useState<{ [key: string]: boolean }>({
     "top": true,
@@ -188,6 +192,13 @@ export default function PaletteLab() {
     return /<[^>]+>/.test(sample);
   };
 
+  const isRenderableHtml = (html?: string) => {
+    if (!html) return false;
+    const normalized = normalizeHtmlString(html);
+    if (normalized.length < 40) return false;
+    return /<(html|body|main|section|div|header|footer)\b/i.test(normalized);
+  };
+
   // テンプレート自動選択ロジック
   const autoSelectTemplate = (answers: { q: string, a: string }[]) => {
     if (!answers || answers.length === 0) return templates[0].id;
@@ -241,30 +252,51 @@ export default function PaletteLab() {
     if (!aiInstruction || !selectedCustomer) return;
     setIsApplying(true);
     try {
+      const tuningPrompt = `
+あなたはWebデザイナーです。以下の編集指示に従って、現在のHTMLを修正してください。
+
+【編集指示】
+${aiInstruction}
+
+【厳守ルール】
+1. 返答はHTMLコードのみ。
+2. 必ず \`\`\`html ... \`\`\` で囲むこと。
+3. 既存レイアウト構造（大枠のタグ構造）は維持すること。
+
+【現在のHTML】
+${selectedCustomer.htmlCode}
+      `;
+
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          system: aiInstruction,
-          history: [
-            { role: 'ai', content: `現在のHTMLはこれです: ${selectedCustomer.htmlCode}` }
-          ]
+          system: 'あなたはHTML編集アシスタントです。指示に従ってHTMLのみを返してください。',
+          message: tuningPrompt,
+          history: []
         })
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ text: response.statusText }));
+        throw new Error(errorData.text || `Server error: ${response.status}`);
+      }
 
       const data = await response.json();
       const { html, comment } = extractHtmlAndComment(data.text || "");
       const normalized = normalizeHtmlString(html || data.text || "");
+      const htmlToApply = normalized || html;
 
-      if (/<[^>]+>/.test(normalized)) {
+      if (isRenderableHtml(htmlToApply)) {
         setCustomers(prev => prev.map(c => c.id === selectedCustomerId ? { 
           ...c, 
-          htmlCode: html,
+          htmlCode: htmlToApply,
           description: comment || c.description // コメントがあれば更新
         } : c));
       } else {
         // HTMLと判定できない場合は、htmlCodeを上書きせずにdescriptionに保存しておく
         setCustomers(prev => prev.map(c => c.id === selectedCustomerId ? ({ ...c, description: (data.text || comment || c.description) }) : c));
+        alert('AI Tuningの結果から有効なHTMLを抽出できませんでした。指示を具体的にして再実行してください。');
       }
     } catch (error: any) {
       console.error("Gemini Error:", error);
@@ -334,16 +366,29 @@ export default function PaletteLab() {
         }
       }
       
-      // AI がヒアリング内容を元にテンプレートを自動選択
-      // ただし、すでにテンプレートとして開かれているレコードの場合はそのテンプレートを尊重
+      // テンプレ選択はプルダウンを優先。無効値なら自動選択にフォールバック。
+      // テンプレートレコード選択時は `tpl-` 接頭辞を除去して実IDに変換する。
+      const templateIdFromTemplateRecord = selectedCustomer.isTemplate
+        ? selectedCustomer.id.replace(/^tpl-/, '')
+        : '';
+
       let recommendedTemplateId: string;
-      if (selectedCustomer.isTemplate) {
-        recommendedTemplateId = selectedCustomer.id;
+      if (templates.some(t => t.id === selectedTemplateId)) {
+        // 常にプルダウン選択を最優先
+        recommendedTemplateId = selectedTemplateId;
+      } else if (templateIdFromTemplateRecord && templates.some(t => t.id === templateIdFromTemplateRecord)) {
+        recommendedTemplateId = templateIdFromTemplateRecord;
       } else {
         recommendedTemplateId = autoSelectTemplate(templateSelectionAnswers);
       }
-      const template = templates.find(t => t.id === recommendedTemplateId);
-      const baseHtml = template ? template.html : "";
+
+      let template = templates.find(t => t.id === recommendedTemplateId);
+      if (!template) {
+        template = templates[0];
+        recommendedTemplateId = template.id;
+      }
+
+      const baseHtml = template.html;
       setSelectedTemplateId(recommendedTemplateId);
       console.log(`Selected template: ${template?.name || "None"} (ID: ${recommendedTemplateId})`);
 
@@ -655,6 +700,44 @@ export default function PaletteLab() {
     setEditingImage(null); // モーダルを閉じる
   };
 
+  const getEditableTextElements = (root: ParentNode) => {
+    return Array.from(root.querySelectorAll(TEXT_EDIT_SELECTOR)).filter((el) => {
+      const htmlEl = el as HTMLElement;
+      if (htmlEl.closest('script,style,noscript')) return false;
+      if (htmlEl.tagName.toLowerCase() === 'a' && htmlEl.closest('nav') === null && htmlEl.getAttribute('href')?.startsWith('#')) {
+        return false;
+      }
+      const text = htmlEl.textContent?.trim() || '';
+      if (!text) return false;
+      return !htmlEl.querySelector(TEXT_EDIT_SELECTOR);
+    }) as HTMLElement[];
+  };
+
+  const applyTextChange = () => {
+    if (!selectedCustomer || !editingText) return;
+
+    const parser = new DOMParser();
+    const sourceHtml = selectedCustomer.htmlCode || '';
+    const parsed = parser.parseFromString(sourceHtml, 'text/html');
+    const editable = getEditableTextElements(parsed);
+    const target = editable[editingText.index];
+
+    if (!target) {
+      alert('対象テキストが見つかりませんでした。もう一度選択してください。');
+      return;
+    }
+
+    target.textContent = textDraft;
+
+    const updatedHtml = /<html[\s>]/i.test(sourceHtml)
+      ? parsed.documentElement.outerHTML
+      : parsed.body.innerHTML;
+
+    setCustomers(prev => prev.map(c => c.id === selectedCustomerId ? { ...c, htmlCode: updatedHtml } : c));
+    setEditingText(null);
+    setTextDraft('');
+  };
+
   // ファイルアップロードハンドラ
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -736,17 +819,40 @@ export default function PaletteLab() {
         .elementsFromPoint(e.clientX, e.clientY)
         .find((el) => el instanceof HTMLImageElement) as HTMLImageElement | undefined;
       const target = direct || layered || null;
-      if (!target) return;
+      if (target) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        setEditingImage({
+          pid: target.getAttribute('data-pid') || 'img-0',
+          src: target.src,
+          alt: target.alt || ''
+        });
+        setImageSearchQuery(target.alt || 'business');
+        return;
+      }
+
+      const textDirect = (e.target as HTMLElement | null)?.closest?.(TEXT_EDIT_SELECTOR) as HTMLElement | null;
+      const textLayered = doc
+        .elementsFromPoint(e.clientX, e.clientY)
+        .find((el) => (el as HTMLElement).matches?.(TEXT_EDIT_SELECTOR)) as HTMLElement | undefined;
+      const textTarget = textDirect || textLayered || null;
+      if (!textTarget) return;
+
+      const textElements = getEditableTextElements(doc);
+      const index = textElements.findIndex((el) => el === textTarget);
+      if (index < 0) return;
 
       e.preventDefault();
       e.stopPropagation();
 
-      setEditingImage({
-        pid: target.getAttribute('data-pid') || 'img-0',
-        src: target.src,
-        alt: target.alt || ''
+      const currentText = textTarget.textContent || '';
+      setEditingText({
+        index,
+        tag: textTarget.tagName.toLowerCase(),
+        text: currentText
       });
-      setImageSearchQuery(target.alt || 'business');
+      setTextDraft(currentText);
     };
 
     win.__paletteImageClickHandler = clickHandler;
@@ -856,6 +962,39 @@ export default function PaletteLab() {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* テキスト編集モーダル */}
+      {editingText && (
+        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
+            <div className="p-4 border-b flex justify-between items-center bg-slate-50">
+              <h3 className="font-bold text-sm uppercase tracking-widest">テキストを編集 ({editingText.tag})</h3>
+              <button onClick={() => { setEditingText(null); setTextDraft(''); }} className="p-1 hover:bg-slate-200 rounded-full"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-5 bg-slate-50">
+              <textarea
+                value={textDraft}
+                onChange={(e) => setTextDraft(e.target.value)}
+                className="w-full h-40 p-3 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none bg-white"
+              />
+            </div>
+            <div className="p-4 border-t bg-white flex justify-end gap-2">
+              <button
+                onClick={() => { setEditingText(null); setTextDraft(''); }}
+                className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-300 transition"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={applyTextChange}
+                className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition"
+              >
+                反映
+              </button>
             </div>
           </div>
         </div>
