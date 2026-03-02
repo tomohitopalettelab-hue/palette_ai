@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+const parseCustomersJson = (raw: string) => {
+  const normalized = raw.replace(/^\uFEFF/, '').trim();
+  if (!normalized) return [];
+  const parsed = JSON.parse(normalized);
+  return Array.isArray(parsed) ? parsed : [];
+};
+
 export async function POST(req: Request) {
   try {
     const { id } = await req.json();
@@ -17,7 +24,7 @@ export async function POST(req: Request) {
     const fileContent = fs.readFileSync(filePath, 'utf-8');
     let customers: any[] = [];
     try {
-      customers = JSON.parse(fileContent);
+      customers = parseCustomersJson(fileContent);
     } catch (e) {
       console.error('JSON parse error in delete API', e);
       customers = [];

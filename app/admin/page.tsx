@@ -129,14 +129,14 @@ export default function PaletteLab() {
 
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId) || customers[0];
 
-  // when selection changes, copy snapshot for dirty check
+  // 顧客選択時のみ、dirty判定用のスナップショットを更新
   useEffect(() => {
     if (selectedCustomer) {
       setOriginalCustomer({ ...selectedCustomer });
     } else {
       setOriginalCustomer(null);
     }
-  }, [selectedCustomerId, customers]);
+  }, [selectedCustomerId]);
 
   // warn on unload if there are unsaved changes
   useEffect(() => {
@@ -275,21 +275,83 @@ export default function PaletteLab() {
     }
   };
 
+  // ヒアリング内容からテーマを検出
+  const detectTheme = (answers: { q: string, a: string }[] = []): string => {
+    if (!answers || answers.length === 0) return "シンプルで信頼感のある";
+    
+    const text = answers.map(a => a.a).join(" ").toLowerCase();
+    
+    const themeKeywords: { [key: string]: string[] } = {
+      "高級感・エレガント": ["高級", "エレガント", "上品", "高価", "ラグジュアリー", "プレミアム"],
+      "シンプル・ミニマル": ["シンプル", "すっきり", "簡潔", "ミニマル", "余白", "洗練"],
+      "ビジネス・コーポレート": ["企業", "会社", "信頼", "誠実", "ビジネス", "コーポレート", "法人"],
+      "親しみやすい・ナチュラル": ["自然", "オーガニック", "優しい", "緑", "カフェ", "ナチュラル"],
+      "クール・モダン": ["クール", "かっこいい", "黒", "ダーク", "テック", "未来"],
+      "ポップ・元気": ["元気", "明るい", "楽しい", "ポップ", "子供", "カラフル"],
+      "クリエイティブ・ポートフォリオ": ["写真", "作品", "ポートフォリオ", "ギャラリー"],
+      "和風・伝統的": ["和風", "日本", "伝統", "和食", "旅館"],
+    };
+    
+    const scores: { [key: string]: number } = {};
+    Object.entries(themeKeywords).forEach(([theme, keywords]) => {
+      scores[theme] = 0;
+      keywords.forEach(kw => {
+        if (text.includes(kw)) scores[theme] += 1;
+      });
+    });
+    
+    const sortedThemes = Object.entries(scores).sort(([, a], [, b]) => b - a);
+    return sortedThemes[0][1] > 0 ? sortedThemes[0][0] : "シンプルで信頼感のある";
+  };
+
   const handleInitialGeneration = async () => {
     if (!selectedCustomer) return;
     setIsApplying(true);
     try {
-      // ヒアリング内容のサマリー
-      const answerSummary = (selectedCustomer.answers || []).map(a => `${a.q}: ${a.a}`).join("\n");
+      // お客様回答と（必要なら）代替データを扱うための変数
+      let templateSelectionAnswers = selectedCustomer.answers || [];
+
+      // ヒアリング内容のサマリー（answers から Q&A をまとめる）
+      let answerSummary = templateSelectionAnswers
+        .filter(a => a.q && a.a) // q と a が両方存在するもののみ
+        .map(a => `Q: ${a.q.substring(0, 100)}...\nA: ${a.a}`) // 質問は最初の100文字のみ
+        .join("\n\n");
+      
+      if (!answerSummary || answerSummary.trim().length === 0) {
+        // テンプレートが選択されており回答がない場合、直近の顧客回答を代替
+        const fallback = customers.find(c => !c.isTemplate && c.answers && c.answers.length > 0);
+        if (fallback) {
+          templateSelectionAnswers = fallback.answers || [];
+          answerSummary = templateSelectionAnswers
+            .filter(a => a.q && a.a)
+            .map(a => `Q: ${a.q.substring(0, 100)}...\nA: ${a.a}`)
+            .join("\n\n");
+          alert("選択中の顧客にヒアリングデータがありません。直近の顧客回答を使用して生成します。\n（mainで生成・保存したレコードを先にご選択ください）");
+        } else {
+          alert("ヒアリング内容がありません。mainで完全なヒアリングを行ってください。");
+          setIsApplying(false);
+          return;
+        }
+      }
       
       // AI がヒアリング内容を元にテンプレートを自動選択
-      const recommendedTemplateId = autoSelectTemplate(selectedCustomer.answers || []);
+      // ただし、すでにテンプレートとして開かれているレコードの場合はそのテンプレートを尊重
+      let recommendedTemplateId: string;
+      if (selectedCustomer.isTemplate) {
+        recommendedTemplateId = selectedCustomer.id;
+      } else {
+        recommendedTemplateId = autoSelectTemplate(templateSelectionAnswers);
+      }
       const template = templates.find(t => t.id === recommendedTemplateId);
       const baseHtml = template ? template.html : "";
       setSelectedTemplateId(recommendedTemplateId);
+      console.log(`Selected template: ${template?.name || "None"} (ID: ${recommendedTemplateId})`);
 
       const prompt = `
-      あなたはWebデザイナーです。以下の「ヒアリング内容」を元に、「ベースHTML」の中身（テキスト、画像URL、配色クラス）を書き換えて、顧客専用のHTMLを作成してください。
+      あなたはWebデザイナーです。以下の「ヒアリング内容」の**テーマ**を理解した上で、「ベースHTML」の中身（テキスト、画像URL、配色クラス）を書き換えて、顧客専用のHTMLを作成してください。
+
+      【デザインテーマ】
+      お客様のサイトのテーマは「${detectTheme(templateSelectionAnswers)}」です。このテーマに沿ったデザイン・表現・色選びを心がけてください。
 
       【言語ポリシー】
       **本文・見出し・説明文は日本語をメインにしてください。**
@@ -497,20 +559,22 @@ export default function PaletteLab() {
   const updateCustomer = async (updates: Partial<Customer>) => {
     if (!selectedCustomer) return;
     const payload = { ...selectedCustomer, ...updates, updatedAt: new Date().toISOString() } as any;
-    try {
-      const res = await fetch('/api/save-customer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        const { customer: saved } = await res.json();
-        await refreshCustomers();
-        setSelectedCustomerId(saved.id);
-      }
-    } catch (err) {
-      console.error('Update customer error', err);
+    const res = await fetch('/api/save-customer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorBody = await res.json().catch(() => ({}));
+      const message = (errorBody as { error?: string }).error || 'Save request failed';
+      throw new Error(message);
     }
+
+    const { customer: saved } = await res.json();
+    await refreshCustomers();
+    setSelectedCustomerId(saved.id);
+    return saved;
   };
 
   // 画像検索ハンドラ
@@ -568,12 +632,23 @@ export default function PaletteLab() {
     let currentIndex = 0;
     // imgタグを検索して、targetIndex番目のものを置換
     const updatedHtml = selectedCustomer.htmlCode.replace(/<img\s+([^>]*?)>/gi, (match) => {
-      if (currentIndex === targetIndex) {
-        // src属性を置換
-        return match.replace(/src="[^"]*"/, `src="${newSrc}"`);
+      const imageIndex = currentIndex;
+      currentIndex += 1;
+
+      if (imageIndex !== targetIndex) {
+        return match;
       }
-      currentIndex++;
-      return match;
+
+      // src属性を置換（ダブルクォート/シングルクォート両対応）
+      if (/\ssrc\s*=\s*"[^"]*"/i.test(match)) {
+        return match.replace(/\ssrc\s*=\s*"[^"]*"/i, ` src="${newSrc}"`);
+      }
+      if (/\ssrc\s*=\s*'[^']*'/i.test(match)) {
+        return match.replace(/\ssrc\s*=\s*'[^']*'/i, ` src="${newSrc}"`);
+      }
+
+      // src属性がない場合は付与
+      return match.replace('<img', `<img src="${newSrc}"`);
     });
 
     setCustomers(prev => prev.map(c => c.id === selectedCustomerId ? { ...c, htmlCode: updatedHtml } : c));
@@ -617,18 +692,65 @@ export default function PaletteLab() {
       // クリックイベントを親ウィンドウに送信するスクリプトを注入
       processed += `
         <script>
-          document.body.addEventListener('click', function(e) {
-            if (e.target.tagName === 'IMG') {
-              e.preventDefault();
-              e.stopPropagation();
-              window.parent.postMessage({ type: 'IMAGE_CLICK', pid: e.target.getAttribute('data-pid'), src: e.target.src, alt: e.target.alt }, '*');
+          function findImageFromPoint(target, event) {
+            if (target && target.tagName === 'IMG') return target;
+            if (target && target.closest) {
+              const closestImg = target.closest('img');
+              if (closestImg) return closestImg;
             }
+            const x = event && typeof event.clientX === 'number' ? event.clientX : 0;
+            const y = event && typeof event.clientY === 'number' ? event.clientY : 0;
+            const stack = document.elementsFromPoint(x, y) || [];
+            return stack.find(el => el.tagName === 'IMG') || null;
+          }
+
+          document.body.addEventListener('click', function(e) {
+            const img = findImageFromPoint(e.target, e);
+            if (!img) return;
+            e.preventDefault();
+            e.stopPropagation();
+            window.parent.postMessage({ type: 'IMAGE_CLICK', pid: img.getAttribute('data-pid'), src: img.src, alt: img.alt }, '*');
           }, true);
         </script>
       `;
     }
 
     return processed;
+  };
+
+  const handlePreviewFrameLoad = () => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentDocument) return;
+
+    const doc = iframe.contentDocument;
+    const win = iframe.contentWindow as (Window & { __paletteImageClickHandler?: (e: MouseEvent) => void }) | null;
+    if (!win) return;
+
+    if (win.__paletteImageClickHandler) {
+      doc.removeEventListener('click', win.__paletteImageClickHandler, true);
+    }
+
+    const clickHandler = (e: MouseEvent) => {
+      const direct = (e.target as HTMLElement | null)?.closest?.('img') as HTMLImageElement | null;
+      const layered = doc
+        .elementsFromPoint(e.clientX, e.clientY)
+        .find((el) => el instanceof HTMLImageElement) as HTMLImageElement | undefined;
+      const target = direct || layered || null;
+      if (!target) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      setEditingImage({
+        pid: target.getAttribute('data-pid') || 'img-0',
+        src: target.src,
+        alt: target.alt || ''
+      });
+      setImageSearchQuery(target.alt || 'business');
+    };
+
+    win.__paletteImageClickHandler = clickHandler;
+    doc.addEventListener('click', clickHandler, true);
   };
 
   return (
@@ -930,13 +1052,23 @@ export default function PaletteLab() {
                     </div>
                     <div className="p-6 overflow-y-auto flex-1 bg-slate-50 space-y-3">
                       {(() => {
-                        const parsed = selectedCustomer.description
-                          ? selectedCustomer.description.split(/\n\s*\n/).map(b => {
-                              const m = b.trim();
-                              const match = m.match(/^\[(.*?)\]\s*([\s\S]*)/);
-                              return match ? { role: match[1], content: match[2] } : { role: 'note', content: m };
-                            })
-                          : (selectedCustomer.answers || []).map(a => ({ role: a.q, content: a.a }));
+                        const parsed = (selectedCustomer.answers || []).flatMap((item) => {
+                          const messages: { role: 'user' | 'assistant'; content: string; isImage?: boolean }[] = [];
+
+                          if (item.q?.trim()) {
+                            messages.push({ role: 'assistant', content: item.q });
+                          }
+
+                          if (item.a?.trim()) {
+                            messages.push({
+                              role: 'user',
+                              content: item.a,
+                              isImage: item.a.startsWith('data:image')
+                            });
+                          }
+
+                          return messages;
+                        });
 
                         return parsed.map((m, i) => {
                           const isUser = m.role === 'user';
@@ -952,7 +1084,11 @@ export default function PaletteLab() {
                                     ? 'bg-indigo-600 text-white rounded-br-none' 
                                     : 'bg-white text-slate-800 border border-slate-200 rounded-bl-none'
                                 }`}>
-                                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{m.content}</p>
+                                  {m.isImage ? (
+                                    <img src={m.content} alt="Answer Image" className="max-w-full h-auto rounded-lg max-h-56 object-contain" />
+                                  ) : (
+                                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{m.content}</p>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -1062,6 +1198,7 @@ export default function PaletteLab() {
                       <iframe 
                         ref={iframeRef}
                         key={selectedCustomer.htmlCode}
+                        onLoad={handlePreviewFrameLoad}
                         srcDoc={`
                           <html>
                             <head>

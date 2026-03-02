@@ -51,9 +51,14 @@ export default function PaletteDesign() {
     }
     setAiExplanation(explanation);
     
-    // 「ワイヤーフレーム」や「構成案」という言葉が含まれている場合は、DB保存をスキップ
+    // 「ワイヤーフレーム」や「構成案」という言葉が含まれている場合は、
+    // DB保存のための情報を保持しておく（OK が来たら saveToLab を呼ぶ）
     if (text.includes("ワイヤーフレーム") || text.includes("構成案") || text.includes("図面")) {
-      console.log("ワイヤーフレームを検知しました。プレビュー表示のみ行い、DB保存はスキップします。");
+      console.log("ワイヤーフレームを検知しました。OK が送信されたら保存します。");
+      // wireframe でも currentMessages を保持しておく
+      setConfirmMessages(currentMessages);
+      setShowConfirmSave(true); // OKボタンを表示
+      // conversationEndedはfalseのまま
       return;
     }
 
@@ -80,13 +85,30 @@ export default function PaletteDesign() {
         customerName += ` (${new Date().toLocaleTimeString()})`;
       }
       
+      // ユーザーの回答のみを抽出（AI メッセージは除外）
+      const userAnswers: { q: string, a: string }[] = [];
+      console.log("=== saveToLab: currentMessages ===", currentMessages);
+      for (const msg of currentMessages) {
+        console.log(`Message: role=${msg.role}, content=${msg.content?.substring(0, 50)}...`);
+        if (msg.role === 'user') {
+          // ユーザーメッセージの前のAIメッセージを質問として使用
+          const prevAiMsg = currentMessages.slice(0, currentMessages.indexOf(msg)).reverse().find(m => m.role === 'ai');
+          userAnswers.push({
+            q: prevAiMsg?.content || "質問",
+            a: msg.content
+          });
+        }
+      }
+      console.log("=== userAnswers ===", userAnswers);
+
       const payload = {
         name: customerName,
-        answers: currentMessages.map(m => ({ q: m.role, a: m.content })),
+        answers: userAnswers,
         // 管理画面のGeneration Memoに AI の意思決定・方針を表示
         description: aiExplanation || "デザイン方針の詳細記録なし",
         htmlCode: html
       };
+      console.log("=== payload ===", payload);
 
       await fetch('/api/save-customer', {
         method: 'POST',
@@ -101,12 +123,21 @@ export default function PaletteDesign() {
   };
 
   const handleSend = async (overrideText?: string, e?: React.FormEvent | React.KeyboardEvent) => {
-    if (conversationEnded) return; // 完了後は送信無効
     if (e) e.preventDefault();
     // 新規送信があれば確認UIを閉じる
     setShowConfirmSave(false);
     const messageToSend = overrideText || inputText;
     if (!messageToSend.trim() || isLoading) return;
+
+    // ★ wireframe 後（conversationEnded = true）の OK 送信時に保存処理を実行
+    if (conversationEnded && /OK|ok|了解|承認/.test(messageToSend)) {
+      console.log("wireframe 系統での OK 送信を検知。saveToLab を実行します。");
+      await saveToLab(confirmMessages, generatedCode);
+      // その後、通常通り AI に OK メッセージを送信
+    } else if (conversationEnded) {
+      // OK 以外のメッセージは無視
+      return;
+    }
 
     const userMessage = { role: 'user', content: messageToSend };
     const updatedMessages = [...messages, userMessage];

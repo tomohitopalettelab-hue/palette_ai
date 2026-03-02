@@ -2,9 +2,17 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+const parseCustomersJson = (raw: string) => {
+  const normalized = raw.replace(/^\uFEFF/, '').trim();
+  if (!normalized) return [];
+  const parsed = JSON.parse(normalized);
+  return Array.isArray(parsed) ? parsed : [];
+};
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    console.log("=== /api/save-customer received ===", JSON.stringify(body, null, 2));
     
     // データ保存用ディレクトリとファイルパス
     const dataDir = path.join(process.cwd(), 'data');
@@ -20,7 +28,7 @@ export async function POST(req: Request) {
     if (fs.existsSync(filePath)) {
       const fileContent = fs.readFileSync(filePath, 'utf-8');
       try {
-        customers = JSON.parse(fileContent);
+        customers = parseCustomersJson(fileContent);
       } catch (e) {
         console.error("JSON parse error", e);
         customers = [];
