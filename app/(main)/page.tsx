@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Send, Layout, MessageSquare, Sparkles, User, Box, PenLine, RefreshCw, BellRing } from 'lucide-react';
 
-export default function PaletteDesign() {
+function PaletteDesignInner() {
   const searchParams = useSearchParams();
   const queryCid = searchParams.get('cid')?.trim();
   const [activeTab, setActiveTab] = useState<'chat' | 'preview'>('chat');
@@ -194,13 +194,6 @@ export default function PaletteDesign() {
     // テンプレート情報をAIへの隠し指示として付与
     const systemContext = `
 あなたはプロのWebディレクターです。次の方針で会話してください。
-- 1問1答で進行し、同時に複数質問しない。
-- 屋号名（会社名・法人名）を最優先で確定する。
-- 必要な情報のみ質問し、最大10問以内で完了する。
-- 会社概要/問い合わせ/採用/実績を含める場合は不足項目を追加ヒアリングする。
-- 情報不足をダミーで埋めない。
-- 情報が揃ったら、要点説明の後にHTMLコードブロック形式でワイヤーフレームを提示する。
-- 最後に「この構成でよろしいでしょうか？」と確認する。
 `;
 
     const sanitizeHistoryText = (text: string) => {
@@ -492,5 +485,13 @@ export default function PaletteDesign() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PaletteDesign() {
+  return (
+    <Suspense fallback={<div className="fixed inset-0 bg-slate-50" />}>
+      <PaletteDesignInner />
+    </Suspense>
   );
 }

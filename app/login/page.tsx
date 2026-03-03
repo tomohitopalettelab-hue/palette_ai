@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [role, setRole] = useState<'admin' | 'customer'>('customer');
@@ -95,5 +95,13 @@ export default function LoginPage() {
         </form>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-slate-100" />}>
+      <LoginPageInner />
+    </Suspense>
   );
 }
