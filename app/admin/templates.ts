@@ -193,125 +193,156 @@ export const templates: Template[] = [
     tags: ['luxury', 'beauty', 'hotel', 'serif'],
     description: '余白を活かした高級感のある構成。全セクション対応。',
     html: `
-<div class="template-root" style="--main-color: #1a1a1a; --sub-color: #8c764b; --accent-color: #fdfbf7; --text-color: #2d2d2d; --text-light: #7a7a7a; --bg-color: #fdfbf7;">
-  <div class="min-h-screen font-serif text-[var(--text-color)] bg-[var(--bg-color)] selection:bg-[#c4b393] selection:text-white">
+<div class="template-root" style="--main-color: #1a1a1a; --sub-color: #8c764b; --accent-color: #fdfbf7; --text-color: #2d2d2d; --text-light: #7a7a7a; --bg-color: #fdfbf7; --section-padding: 12rem;">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Noto+Serif+JP:wght@200;400&display=swap" rel="stylesheet">
+  
+  <div class="min-h-screen font-serif text-[var(--text-color)] bg-[var(--bg-color)] selection:bg-[#c4b393] selection:text-white antialiased leading-relaxed" style="font-family: 'Cormorant Garamond', 'Noto Serif JP', serif;">
     
-    <header class="sticky top-0 w-full bg-[var(--bg-color)]/90 backdrop-blur-md z-50">
-      <div class="max-w-[1400px] mx-auto px-10 h-24 flex justify-between items-center border-b border-black/[0.03]">
-        <nav class="hidden md:flex gap-8 text-[10px] uppercase tracking-[0.3em] font-light">
-          <a href="#concept" class="hover:text-[var(--sub-color)] transition-colors">Philosophy</a>
-          <a href="#works" class="hover:text-[var(--sub-color)] transition-colors">Collection</a>
+    <header class="fixed top-0 w-full z-50 transition-all duration-700">
+      <div class="max-w-[1600px] mx-auto px-10 h-28 flex justify-between items-center border-b border-black/[0.03] bg-[var(--bg-color)]/80 backdrop-blur-sm">
+        <nav class="hidden md:flex gap-12 text-[10px] uppercase tracking-[0.4em] font-light">
+          <a href="#concept" class="hover:text-[var(--sub-color)] transition-all">Philosophy</a>
+          <a href="#works" class="hover:text-[var(--sub-color)] transition-all">Collection</a>
         </nav>
-        <div class="text-2xl tracking-[0.5em] uppercase font-light text-[var(--main-color)] absolute left-1/2 -translate-x-1/2">
-          The <span class="font-normal">Luxury</span>
+        <div class="text-3xl tracking-[0.6em] uppercase font-light text-[var(--main-color)] absolute left-1/2 -translate-x-1/2">
+          The <span class="font-normal italic">Luxury</span>
         </div>
         <div class="hidden md:block">
-          <a href="#contact" class="text-[10px] uppercase tracking-[0.3em] border-b border-[var(--sub-color)] pb-1 hover:opacity-50 transition-opacity">Reservation</a>
+          <a href="#contact" class="group relative text-[10px] uppercase tracking-[0.4em] pb-2">
+            Reservation
+            <span class="absolute bottom-0 left-0 w-full h-[1px] bg-[var(--sub-color)] origin-right scale-x-0 group-hover:scale-x-100 group-hover:origin-left transition-transform duration-500"></span>
+          </a>
         </div>
       </div>
     </header>
 
     <main>
-      <section id="top" class="relative py-48 px-6 text-center overflow-hidden">
-        <div class="relative z-10">
-          <p class="text-[11px] tracking-[0.6em] mb-12 uppercase text-[var(--sub-color)] font-medium">Est. 2026 — Ginza, Tokyo</p>
-          <h2 class="text-7xl md:text-9xl font-extralight tracking-tighter mb-12 leading-tight text-[var(--main-color)]">
-            <span class="italic">Elegant</span> <br/>
-            <span class="ml-12 md:ml-24">Experience</span>
+      <section id="top" class="section-hero relative min-h-screen flex items-center justify-center px-6 overflow-hidden pt-28">
+        <div class="relative z-10 text-center">
+          <p class="text-[11px] tracking-[0.8em] mb-16 uppercase text-[var(--sub-color)] font-medium opacity-0 animate-fade-in" style="animation: fadeIn 2s forwards 0.5s">Est. 2026 — Ginza, Tokyo</p>
+          <h2 class="text-7xl md:text-[10rem] font-extralight tracking-tighter mb-16 leading-[0.85] text-[var(--main-color)]">
+            <span class="italic block mb-4" style="font-family: 'Cormorant Garamond'">Elegant</span>
+            <span class="ml-12 md:ml-32 block">Experience</span>
           </h2>
-          <div class="w-px h-24 bg-gradient-to-b from-[var(--sub-color)] to-transparent mx-auto mt-16"></div>
+          <div class="flex flex-col items-center gap-8">
+            <div class="w-px h-32 bg-gradient-to-b from-[var(--sub-color)] to-transparent opacity-30"></div>
+            <p class="text-[10px] uppercase tracking-[0.5em] text-[var(--text-light)]">Scroll to Explore</p>
+          </div>
         </div>
       </section>
 
-      <section id="concept" class="py-40 px-6 bg-white/40">
-        <div class="max-w-4xl mx-auto text-center">
-          <h3 class="text-[12px] tracking-[0.4em] mb-16 text-[var(--sub-color)] uppercase">Our Philosophy</h3>
-          <p class="text-2xl md:text-3xl font-light leading-[2.2] text-[var(--text-color)]">
+      <section id="concept" class="section-concept py-[var(--section-padding)] px-6 bg-white/30">
+        <div class="max-w-5xl mx-auto text-center">
+          <h3 class="text-[11px] tracking-[0.6em] mb-20 text-[var(--sub-color)] uppercase italic">Our Philosophy</h3>
+          <p class="text-3xl md:text-5xl font-extralight leading-[1.8] text-[var(--text-color)] tracking-tight">
             「静寂」と「美しさ」の調和を追求し、<br/>
             日常を彩る至高のひとときを創造します。<br/>
-            刻まれる時間は、あなただけの芸術へ。
+            <span class="italic text-[var(--sub-color)] mt-4 block">Time becomes art.</span>
           </p>
         </div>
       </section>
 
-      <section id="features" class="py-40 px-10 max-w-7xl mx-auto">
-        <div class="grid md:grid-cols-3 gap-20">
+      <section id="features" class="section-features py-[var(--section-padding)] px-10 max-w-7xl mx-auto">
+        <div class="grid md:grid-cols-3 gap-24">
           <div class="group">
-            <span class="text-[var(--sub-color)] text-xs mb-6 block font-light">01</span>
-            <h4 class="text-2xl mb-6 italic font-light tracking-wide">Material</h4>
-            <div class="w-12 h-px bg-black/10 mb-6 group-hover:w-full transition-all duration-700"></div>
-            <p class="text-sm leading-loose text-[var(--text-light)]">世界各地から厳選された、触れるたびに溜息が漏れるような最高級の素材。その本質を活かす最適解を選び抜きます。</p>
+            <span class="text-[var(--sub-color)] text-xs mb-10 block font-light italic">/ 01</span>
+            <h4 class="text-3xl mb-8 italic font-light tracking-wide">Material</h4>
+            <div class="w-16 h-px bg-black/10 mb-8 group-hover:w-full transition-all duration-1000"></div>
+            <p class="text-sm leading-loose text-[var(--text-light)] font-light">世界各地から厳選された、触れるたびに溜息が漏れるような最高級の素材。その本質を活かす最適解を選び抜きます。</p>
+          </div>
+          <div class="group md:mt-16">
+            <span class="text-[var(--sub-color)] text-xs mb-10 block font-light italic">/ 02</span>
+            <h4 class="text-3xl mb-8 italic font-light tracking-wide">Craftsmanship</h4>
+            <div class="w-16 h-px bg-black/10 mb-8 group-hover:w-full transition-all duration-1000"></div>
+            <p class="text-sm leading-loose text-[var(--text-light)] font-light">数十年もの歳月をかけて培われた熟練の職人技。機械では決して到達できない、細部への祈りにも似たこだわりを宿します。</p>
           </div>
           <div class="group">
-            <span class="text-[var(--sub-color)] text-xs mb-6 block font-light">02</span>
-            <h4 class="text-2xl mb-6 italic font-light tracking-wide">Craftsmanship</h4>
-            <div class="w-12 h-px bg-black/10 mb-6 group-hover:w-full transition-all duration-700"></div>
-            <p class="text-sm leading-loose text-[var(--text-light)]">数十年もの歳月をかけて培われた熟練の職人技。機械では決して到達できない、細部への祈りにも似たこだわりを宿します。</p>
-          </div>
-          <div class="group">
-            <span class="text-[var(--sub-color)] text-xs mb-6 block font-light">03</span>
-            <h4 class="text-2xl mb-6 italic font-light tracking-wide">Concierge</h4>
-            <div class="w-12 h-px bg-black/10 mb-6 group-hover:w-full transition-all duration-700"></div>
-            <p class="text-sm leading-loose text-[var(--text-light)]">言葉にされない願いを形に。お客様一人ひとりのライフスタイルに深く寄り添い、パーソナライズされた体験をご提案します。</p>
+            <span class="text-[var(--sub-color)] text-xs mb-10 block font-light italic">/ 03</span>
+            <h4 class="text-3xl mb-8 italic font-light tracking-wide">Concierge</h4>
+            <div class="w-16 h-px bg-black/10 mb-8 group-hover:w-full transition-all duration-1000"></div>
+            <p class="text-sm leading-loose text-[var(--text-light)] font-light">言葉にされない願いを形に。お客様一人ひとりのライフスタイルに深く寄り添い、パーソナライズされた体験をご提案します。</p>
           </div>
         </div>
       </section>
 
-      <section id="service" class="py-40 px-6 bg-[var(--main-color)] text-white overflow-hidden relative">
-        <div class="absolute inset-0 opacity-20 pointer-events-none">
-          <div class="absolute top-0 right-0 w-96 h-96 bg-[var(--sub-color)] blur-[150px] -translate-y-1/2"></div>
+      <section id="service" class="section-service py-[var(--section-padding)] px-6 bg-[#1a1a1a] text-white overflow-hidden relative">
+        <div class="absolute inset-0 opacity-10 pointer-events-none">
+          <div class="absolute top-0 right-0 w-[600px] h-[600px] bg-[var(--sub-color)] blur-[200px] -translate-y-1/2 translate-x-1/2"></div>
         </div>
-        <div class="relative max-w-3xl mx-auto text-center border border-white/10 p-20 backdrop-blur-sm">
-          <h3 class="text-[11px] tracking-[0.5em] mb-12 text-white/50 uppercase italic">Premium Membership</h3>
-          <p class="text-5xl font-extralight italic tracking-tighter mb-8 leading-tight">Art of <br/>Living Suite</p>
-          <div class="h-px w-16 bg-[var(--sub-color)] mx-auto mb-12"></div>
-          <p class="text-3xl font-thin tracking-widest text-[var(--sub-color)]">¥1,000,000 <span class="text-xs text-white/40 tracking-normal ml-2">/ year</span></p>
-          <button class="mt-16 px-12 py-5 border border-white/20 text-[10px] tracking-[0.4em] uppercase hover:bg-white hover:text-[var(--main-color)] transition-all duration-500">Apply for Invitations</button>
+        <div class="relative max-w-4xl mx-auto text-center border border-white/5 py-24 px-12 backdrop-blur-md">
+          <h3 class="text-[10px] tracking-[0.8em] mb-16 text-white/30 uppercase italic">Premium Membership</h3>
+          <p class="text-5xl md:text-7xl font-extralight italic tracking-tighter mb-10 leading-none">Art of <br/>Living Suite</p>
+          <div class="h-px w-20 bg-[var(--sub-color)] mx-auto mb-12 opacity-50"></div>
+          <div class="flex flex-col items-center gap-4">
+            <p class="text-4xl font-thin tracking-widest text-[var(--sub-color)]">¥1,000,000</p>
+            <p class="text-[9px] text-white/40 tracking-[0.3em] uppercase">Initial annual dues</p>
+          </div>
+          <button class="mt-20 group relative px-16 py-6 border border-white/10 text-[9px] tracking-[0.5em] uppercase overflow-hidden transition-all duration-700 hover:border-white/40">
+            <span class="relative z-10 group-hover:text-white transition-colors duration-500">Apply for Invitation</span>
+            <div class="absolute inset-0 bg-white/5 -translate-x-full group-hover:translate-x-0 transition-transform duration-700"></div>
+          </button>
         </div>
       </section>
 
-      <section id="works" class="py-40 px-6">
-        <div class="max-w-[1400px] mx-auto">
-          <div class="flex flex-col md:flex-row gap-8 mb-8">
-            <div class="w-full md:w-3/5 aspect-[16/10] bg-stone-100 relative group overflow-hidden">
-               <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-700"></div>
+      <section id="works" class="section-works py-[var(--section-padding)] px-6 bg-white/10">
+        <div class="max-w-[1500px] mx-auto">
+          <div class="flex justify-between items-baseline mb-24 px-4">
+            <h3 class="text-5xl font-extralight italic tracking-tighter">Collection</h3>
+            <p class="text-[10px] tracking-[0.4em] uppercase text-[var(--text-light)]">Autumn / Winter 2026</p>
+          </div>
+          <div class="grid md:grid-cols-12 gap-12 items-end">
+            <div class="md:col-span-7 aspect-[16/11] bg-stone-100 group overflow-hidden relative shadow-2xl">
+               <div class="absolute inset-0 bg-[var(--sub-color)]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
+               <div class="absolute bottom-8 left-8 opacity-0 group-hover:opacity-100 transition-all duration-700 translate-y-4 group-hover:translate-y-0">
+                  <p class="text-[10px] tracking-[0.3em] uppercase text-[var(--main-color)]">Private Villa Project</p>
+               </div>
             </div>
-            <div class="w-full md:w-2/5 aspect-[1/1] bg-stone-200 mt-0 md:mt-24 relative group overflow-hidden">
-               <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-700"></div>
+            <div class="md:col-span-5 aspect-[4/5] bg-stone-200 group overflow-hidden relative shadow-xl md:-mb-32">
+               <div class="absolute inset-0 bg-[var(--sub-color)]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
             </div>
           </div>
-          <div class="flex flex-col md:flex-row-reverse gap-8">
-             <div class="w-full md:w-3/5 aspect-[16/10] bg-stone-100 relative group overflow-hidden"></div>
-             <div class="w-full md:w-1/4 aspect-[3/4] bg-stone-200 -mt-0 md:-mt-32 relative group overflow-hidden"></div>
+          <div class="grid md:grid-cols-12 gap-12 mt-40 items-start">
+             <div class="md:col-span-4 aspect-[3/4] bg-stone-100 group overflow-hidden relative shadow-lg"></div>
+             <div class="md:col-span-8 aspect-[16/9] bg-stone-200 group overflow-hidden relative shadow-2xl md:mt-24"></div>
           </div>
         </div>
       </section>
 
-      <section id="company" class="py-40 px-10 max-w-5xl mx-auto border-t border-black/[0.03]">
-        <div class="grid md:grid-cols-2 gap-24">
+      <section id="company" class="section-company py-[var(--section-padding)] px-10 max-w-6xl mx-auto">
+        <div class="grid md:grid-cols-2 gap-32">
           <div>
-            <h3 class="text-3xl font-light italic mb-8">Information</h3>
-            <p class="text-sm text-[var(--text-light)] leading-loose">私たちは常に、あなたのための扉を開けてお待ちしております。特別なリクエストや、より深い体験へのご相談は、下記までお気軽にお寄せください。</p>
+            <h3 class="text-4xl font-extralight italic mb-12 tracking-tight">Inquiry</h3>
+            <p class="text-md text-[var(--text-light)] leading-loose font-light">私たちは常に、あなたのための扉を開けてお待ちしております。特別なリクエストや、より深い体験へのご相談は、コンシェルジュまでお気軽にお寄せください。</p>
           </div>
-          <div class="space-y-12">
-            <div>
-              <p class="text-[10px] tracking-[0.3em] uppercase text-[var(--sub-color)] mb-4 font-bold">Main Office</p>
-              <p class="text-lg font-light tracking-wide leading-relaxed">7-chome, Ginza, Chuo-ku,<br/>Tokyo 104-0061, Japan</p>
+          <div class="divide-y divide-black/[0.05]">
+            <div class="py-10">
+              <p class="text-[9px] tracking-[0.4em] uppercase text-[var(--sub-color)] mb-6 font-bold">Main Boutique</p>
+              <p class="text-2xl font-extralight tracking-tight leading-relaxed">7-chome, Ginza, Chuo-ku,<br/>Tokyo 104-0061, Japan</p>
             </div>
-            <div>
-              <p class="text-[10px] tracking-[0.3em] uppercase text-[var(--sub-color)] mb-4 font-bold">Contact</p>
-              <p class="text-lg font-light tracking-wide">concierge@theluxury-brand.com</p>
+            <div class="py-10">
+              <p class="text-[9px] tracking-[0.4em] uppercase text-[var(--sub-color)] mb-6 font-bold">Inquiry</p>
+              <p class="text-2xl font-extralight tracking-tight hover:text-[var(--sub-color)] transition-colors cursor-pointer">concierge@theluxury.jp</p>
             </div>
           </div>
         </div>
       </section>
     </main>
 
-    <footer class="py-24 border-t border-black/[0.03] text-center">
-      <div class="text-[11px] tracking-[0.5em] uppercase text-[var(--main-color)] mb-8 font-light">The Luxury</div>
-      <p class="text-[9px] tracking-[0.3em] text-slate-400 font-light">&copy; 2026 THE LUXURY BRAND. PRESERVING TRADITION & ELEGANCE.</p>
+    <footer class="py-32 bg-[var(--main-color)] text-white/50 text-center">
+      <div class="text-[14px] tracking-[1em] uppercase text-white mb-10 font-light">The Luxury</div>
+      <div class="w-12 h-px bg-white/10 mx-auto mb-10"></div>
+      <p class="text-[8px] tracking-[0.4em] uppercase font-light">&copy; 2026 THE LUXURY BRAND. PRESERVING TRADITION & ELEGANCE.</p>
     </footer>
   </div>
+  
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in { animation: fadeIn 1.5s ease-out forwards; }
+    .text-outline { -webkit-text-stroke: 1px currentColor; }
+  </style>
 </div>`
   }
   ,
