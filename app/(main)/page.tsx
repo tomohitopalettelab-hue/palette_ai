@@ -72,6 +72,7 @@ type StudioStep =
   | 'industry'
   | 'industryOther'
   | 'services'
+  | 'servicesOther'
   | 'sections'
   | 'taste'
   | 'color'
@@ -1755,6 +1756,13 @@ ${currentHtml}
     appendAiMessage({ content: `下書きを表示しました。内容を確認して「OK」または「修正」を選んでください。（HTML生成 ${Math.min(studioHtmlGenerationCount + 1, 3)}/3）` });
   };
 
+  const mergeServiceSelections = (baseServices: string[], freeText: string): string[] => {
+    const cleanedFree = String(freeText || '').trim();
+    const normalized = baseServices.filter((item) => !/その他/.test(String(item || '')));
+    if (!cleanedFree) return normalized;
+    return Array.from(new Set([...normalized, cleanedFree]));
+  };
+
   const handleStudioFlowInput = async (rawInput: string) => {
     const answers = extractStudioAnswers(rawInput);
     const first = String(answers[0] || '').trim();
@@ -1799,7 +1807,26 @@ ${currentHtml}
 
     if (studioStep === 'services') {
       const services = splitChoiceValues(first);
+      const hasOther = services.some((item) => /その他/.test(item));
+      if (hasOther) {
+        setStudioProfile((prev) => ({ ...prev, services: services.filter((item) => !/その他/.test(item)) }));
+        setStudioStep('servicesOther');
+        applyStudioPrompt(['その他のサービス内容を自由入力してください。'], [[]], ['single'], ['text']);
+        appendAiMessage({ content: 'その他のサービス内容を自由入力してください。' });
+        return;
+      }
       setStudioProfile((prev) => ({ ...prev, services }));
+      setStudioStep('sections');
+      applyStudioPrompt(['表示したいセクションを選択してください（複数選択可）。'], [[
+        'トップ', 'コンセプト', '特徴', 'サービス', '実績・ギャラリー', 'お問い合わせ', '会社・店舗情報', 'フッター', 'その他（自由入力）',
+      ]], ['multi']);
+      appendAiMessage({ content: '次に、表示したいセクションを教えてください。' });
+      return;
+    }
+
+    if (studioStep === 'servicesOther') {
+      const merged = mergeServiceSelections(studioProfile.services, first);
+      setStudioProfile((prev) => ({ ...prev, services: merged }));
       setStudioStep('sections');
       applyStudioPrompt(['表示したいセクションを選択してください（複数選択可）。'], [[
         'トップ', 'コンセプト', '特徴', 'サービス', '実績・ギャラリー', 'お問い合わせ', '会社・店舗情報', 'フッター', 'その他（自由入力）',
@@ -1996,10 +2023,17 @@ ${currentHtml}
         return;
       }
 
-      const revised = await generateStudioRevision(String(generatedCode || ''), studioRevisionDraft.instruction, studioProfile);
+      const isTasteRevision = studioRevisionDraft.field === 'テイスト';
+      const revised = isTasteRevision
+        ? (await generateStudioDraft(studioProfile)).html
+        : await generateStudioRevision(String(generatedCode || ''), studioRevisionDraft.instruction, studioProfile);
       const nextCount = studioHtmlGenerationCount + 1;
       setStudioHtmlGenerationCount(nextCount);
       setGeneratedCode(revised);
+      if (isTasteRevision) {
+        const selected = chooseTemplateByTaste(studioProfile.taste);
+        setSelectedTemplateId(selected.id);
+      }
       setConfirmMode('preview');
       setShowConfirmSave(true);
       setStudioStep('completed');
@@ -2066,6 +2100,19 @@ ${currentHtml}
   };
 
   const handleActionButtonClick = (button: ActionButton) => {
+    if (button.key === 'contract-services') {
+      const fallbackCards = messages
+        .slice()
+        .reverse()
+        .find((msg) => msg.role === 'ai' && Array.isArray(msg.serviceCards) && msg.serviceCards.length > 0)
+        ?.serviceCards || [];
+      const cards = authServiceCards.length ? authServiceCards : fallbackCards;
+      appendAiMessage({
+        content: cards.length ? 'ご契約中のサービスです。' : '現在表示できる契約サービスがありません。',
+        serviceCards: cards,
+      });
+      return;
+    }
     if (button.key === 'news-post') {
       appendAiMessage({ content: 'ニュース投稿機能はこの先実装予定です。' });
       return;
@@ -2481,13 +2528,6 @@ ${currentHtml}
   };
 
   const finishStudioFlow = (withAcknowledgement: boolean) => {
-    const fallbackCards = messages
-      .slice()
-      .reverse()
-      .find((msg) => msg.role === 'ai' && Array.isArray(msg.serviceCards) && msg.serviceCards.length > 0)
-      ?.serviceCards || [];
-    const cards = authServiceCards.length ? authServiceCards : fallbackCards;
-
     const nextMessages: ChatMessage[] = [];
     if (withAcknowledgement) {
       nextMessages.push({ role: 'ai', content: '承りました！' });
@@ -2495,8 +2535,8 @@ ${currentHtml}
     nextMessages.push({ role: 'ai', content: '制作担当に送ります！5営業日以内にご連絡しますので、少々お待ちください！' });
     nextMessages.push({
       role: 'ai',
-      content: '改めて、サービスを選択してください。',
-      serviceCards: cards,
+      content: 'なにかお手伝いできることはありますか？',
+      actionButtons: [{ key: 'contract-services', label: '契約サービス' }],
     });
 
     setShowConfirmSave(false);
@@ -2504,7 +2544,7 @@ ${currentHtml}
     setActiveServiceMode('none');
     setStudioStep('idle');
     clearMultiPromptState();
-    setConversationEnded(true);
+    setConversationEnded(false);
     setMessages((prev) => [...prev, ...nextMessages]);
   };
 
@@ -2610,19 +2650,24 @@ ${currentHtml}
                   msg.role === 'ai' &&
                   typeof msg.content === 'string' &&
                   msg.content.startsWith('ありがとうございました！');
+                const isDeliveryNoticeMessage =
+                  msg.role === 'ai' &&
+                  typeof msg.content === 'string' &&
+                  msg.content.includes('制作担当に送ります！5営業日以内にご連絡しますので、少々お待ちください！');
+                const isHighlightedAiMessage = isCompletionMessage || isDeliveryNoticeMessage;
 
                 return (
                   <div key={index} className={`flex gap-3 items-start ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                    <div className={`w-8 h-8 rounded-xl shadow-neu-flat flex items-center justify-center shrink-0 border ${isCompletionMessage ? 'bg-violet-50 border-violet-200' : 'bg-white/80 border-white'}`}>
+                    <div className={`w-8 h-8 rounded-xl shadow-neu-flat flex items-center justify-center shrink-0 border ${isHighlightedAiMessage ? 'bg-violet-50 border-violet-200' : 'bg-white/80 border-white'}`}>
                       {msg.role === 'ai' ? (
-                        isCompletionMessage ? <BellRing className="w-4 h-4 text-violet-500" /> : <Sparkles className="w-4 h-4 text-indigo-500" />
+                        isHighlightedAiMessage ? <BellRing className="w-4 h-4 text-violet-500" /> : <Sparkles className="w-4 h-4 text-indigo-500" />
                       ) : (
                         <User className="w-4 h-4 text-slate-400" />
                       )}
                     </div>
                     <div className={`p-4 rounded-[22px] max-w-[85%] text-sm font-medium whitespace-pre-wrap leading-relaxed ${
                       msg.role === 'ai'
-                        ? isCompletionMessage
+                        ? isHighlightedAiMessage
                           ? 'rounded-tl-none bg-gradient-to-r from-violet-50 to-fuchsia-50 border border-violet-200 text-violet-800 shadow-[0_8px_24px_rgba(139,92,246,0.12)]'
                           : 'rounded-tl-none shadow-neu-inset bg-white/20 text-slate-600'
                         : 'rounded-tr-none shadow-neu-flat bg-white/80 text-slate-600'
