@@ -80,6 +80,7 @@ type StudioStep =
   | 'companyInfoDetails'
   | 'revisionSelect'
   | 'revisionDetail'
+  | 'revisionConfirm'
   | 'postOkMessageToggle'
   | 'postOkMessageInput'
   | 'completed';
@@ -809,7 +810,7 @@ function PaletteDesignInner() {
 
   const STUDIO_TASTE_OPTIONS = [
     'モダン', 'クリーン', 'シンプル', 'ラグジュアリー', '大人っぽい',
-    '信頼感', '堅実', '元気', '親しみ', 'ミニマル',
+    '信頼感', '堅実', '元気', 'POP', 'ミニマル',
     '余白', 'テック感', 'クール', 'オーガニック', '柔らかい雰囲気',
     '和風', '伝統', 'ポートフォリオ', 'ギャラリー', 'LP', 'コンバージョン特化',
   ];
@@ -897,6 +898,7 @@ function PaletteDesignInner() {
       '信頼感': ['corporate', 'business', 'trust', '信頼'],
       '堅実': ['corporate', 'business', 'firm'],
       '元気': ['pop', 'colorful', '元気'],
+      'POP': ['pop', 'colorful', '元気', '親しみ'],
       '親しみ': ['pop', 'natural', '親しみ'],
       'ミニマル': ['minimal', '洗練'],
       '余白': ['minimal', '余白'],
@@ -1964,13 +1966,47 @@ ${currentHtml}
       setStudioProfile(nextProfile);
       const instruction = buildRevisionInstruction(field, before, afterValue);
       setStudioRevisionDraft({ field, before, after: afterValue, instruction });
-      setShowConfirmSave(true);
-      setConfirmMode('revision');
-      setStudioStep('completed');
+      setShowConfirmSave(false);
+      setConfirmMode(null);
+      setStudioStep('revisionConfirm');
       clearMultiPromptState();
+      applyStudioPrompt(['この内容で制作しますか？'], [['はい', 'いいえ']], ['single']);
       appendAiMessage({
-        content: `この内容で制作しますか？\n- 修正項目: ${field}\n- Before: ${before}\n- After: ${afterValue}`,
+        content: `この内容で制作しますか？\n-修正項目：${field}\n${before}⇒${afterValue}`,
       });
+      return;
+    }
+
+    if (studioStep === 'revisionConfirm') {
+      const accept = /はい|yes/i.test(first);
+      if (!accept) {
+        startStudioRevisionSelection();
+        return;
+      }
+
+      if (!studioRevisionDraft) {
+        appendAiMessage({ content: '修正内容を確認できなかったため、もう一度「修正」からやり直してください。' });
+        startStudioRevisionSelection();
+        return;
+      }
+      if (studioHtmlGenerationCount >= 3) {
+        setShowConfirmSave(false);
+        setConversationEnded(true);
+        appendAiMessage({ content: 'HTML生成が3回に達したため、制作担当に共有して、3営業日以内にご連絡させますので少々お待ちください。' });
+        return;
+      }
+
+      const revised = await generateStudioRevision(String(generatedCode || ''), studioRevisionDraft.instruction, studioProfile);
+      const nextCount = studioHtmlGenerationCount + 1;
+      setStudioHtmlGenerationCount(nextCount);
+      setGeneratedCode(revised);
+      setConfirmMode('preview');
+      setShowConfirmSave(true);
+      setStudioStep('completed');
+      setStudioRevisionTarget('');
+      setStudioRevisionDraft(null);
+      clearMultiPromptState();
+      appendAiMessage({ content: `修正を反映しました。内容を確認して「OK」または「修正」を選んでください。（HTML生成 ${Math.min(nextCount, 3)}/3）` });
       return;
     }
   };
@@ -2540,7 +2576,7 @@ ${currentHtml}
     }
   };
 
-  const isSelectionOnlyStage = activeServiceMode === 'pal_studio' && (studioStep === 'revisionSelect' || studioStep === 'postOkMessageToggle');
+  const isSelectionOnlyStage = activeServiceMode === 'pal_studio' && (studioStep === 'revisionSelect' || studioStep === 'revisionConfirm' || studioStep === 'postOkMessageToggle');
   const isMainInputDisabled = conversationEnded || isSelectionOnlyStage;
 
   return (
