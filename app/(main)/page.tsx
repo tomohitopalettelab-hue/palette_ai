@@ -2928,7 +2928,7 @@ ${currentHtml}
             </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto pr-1 space-y-6 custom-scrollbar flex flex-col pb-4 pt-9 md:pt-0 touch-auto">
+          <main className="flex-1 overflow-y-auto pr-1 space-y-6 custom-scrollbar flex flex-col pb-32 md:pb-4 pt-9 md:pt-0 touch-auto" style={{ paddingBottom: isMobileViewport ? 'calc(8rem + env(safe-area-inset-bottom, 0px))' : undefined }}>
             {messages.map((msg, index) => (
               (() => {
                 const isCompletionMessage =
@@ -3046,7 +3046,7 @@ ${currentHtml}
             <div ref={scrollEndRef} />
           </main>
 
-          <div className="mt-auto pt-3 pb-2 md:pb-0 shrink-0 sticky bottom-0 z-20 bg-white/35 backdrop-blur-md rounded-t-2xl md:bg-transparent md:backdrop-blur-0 md:rounded-none">
+          <div className="mt-auto pt-3 pb-2 md:pb-0 shrink-0 sticky bottom-0 z-20 bg-white/35 backdrop-blur-md rounded-t-2xl md:bg-transparent md:backdrop-blur-0 md:rounded-none" style={{ paddingBottom: isMobileViewport ? 'calc(0.5rem + env(safe-area-inset-bottom, 0px))' : undefined }}>
             {quickQuestionButtons.length > 0 && authStep === 'authenticated' && !isLoading && !conversationEnded && multiPromptItems.length === 0 && !showConfirmSave && messages[messages.length - 1]?.role === 'ai' && /質問ありますか/.test(String(messages[messages.length - 1]?.content || '')) && (
               <div className="mb-3 rounded-[24px] border border-white bg-white/45 backdrop-blur-xl p-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
                 <p className="text-[11px] font-black text-slate-500 mb-2 tracking-wide">質問ありますか？</p>
