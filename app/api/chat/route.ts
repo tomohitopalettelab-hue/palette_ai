@@ -198,7 +198,7 @@ export async function POST(req: Request) {
       .replace(/\b[A-Z][0-9]{4}\s*様/g, 'お客様');
 
     const hasHtmlOutput = /```html[\s\S]*?```|<(?:!DOCTYPE|html|head|body|main|section|div|header|footer|article|nav|style)\b/i.test(text);
-    const looksLikeWireframeFlow = /(ワイヤーフレーム|構成案|最終確認|作成いたします|作成します|進めさせていただきます)/.test(text);
+    const looksLikeWireframeFlow = /(ワイヤーフレーム|構成案|最終確認|作成いたします|作成します|進めさせていただきます|この構成を参考に制作させていただきます|3\s*[〜~\-]\s*5営業日|３\s*[〜~\-]\s*５営業日|楽しみにお待ちください)/.test(text);
 
     if (!isApproved && looksLikeWireframeFlow && !hasHtmlOutput) {
       try {
