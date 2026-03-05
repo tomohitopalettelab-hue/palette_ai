@@ -876,27 +876,27 @@ function PaletteDesignInner() {
   const getServiceCandidatesByIndustry = (industry: string): string[] => {
     const text = String(industry || '').toLowerCase();
     if (/(飲食|カフェ|レストラン|居酒屋|ベーカリー|喫茶|bar|バー)/.test(text)) {
-      return ['メニュー紹介', '予約受付', 'テイクアウト・デリバリー案内', '店舗情報（営業時間・アクセス）', 'その他（自由入力）'];
+      return ['ランチ営業', 'ディナー営業', '宴会・コース料理', 'テイクアウト・デリバリー', 'その他（自由入力）'];
     }
     if (/(美容|サロン|エステ|ネイル|整体|美容室|理容|まつげ|アイラッシュ)/.test(text)) {
-      return ['施術メニュー紹介', '料金案内', '予約受付', 'ビフォーアフター・事例紹介', 'その他（自由入力）'];
+      return ['カット・カラー', 'パーマ・縮毛矯正', 'ヘッドスパ・トリートメント', '着付け・ヘアセット', 'その他（自由入力）'];
     }
     if (/(士業|法律|会計|税理士|社労士|行政書士|弁護士|司法書士)/.test(text)) {
-      return ['取扱業務の案内', '料金・報酬の目安', '相談予約・問い合わせ受付', '解決事例・実績紹介', 'その他（自由入力）'];
+      return ['顧問契約', 'スポット相談', '書類作成・申請代行', '相続・労務・税務サポート', 'その他（自由入力）'];
     }
     if (/(工務店|建築|リフォーム|住宅|外構|内装)/.test(text)) {
-      return ['施工サービス案内', '施工事例紹介', '見積もり・相談受付', '対応エリア案内', 'その他（自由入力）'];
+      return ['新築住宅の設計施工', 'リフォーム・リノベーション', '外構・エクステリア工事', '耐震・断熱改修', 'その他（自由入力）'];
     }
     if (/(不動産|賃貸|売買|仲介|管理)/.test(text)) {
-      return ['物件種別・サービス案内', '売買・賃貸の流れ', '実績・成約事例', '問い合わせ・来店予約', 'その他（自由入力）'];
+      return ['賃貸仲介', '売買仲介', '不動産管理', '査定・売却相談', 'その他（自由入力）'];
     }
     if (/(医療|クリニック|歯科|病院|整形|内科|皮膚科)/.test(text)) {
-      return ['診療内容の案内', '診療時間・休診日', '予約・受診案内', 'アクセス・院内情報', 'その他（自由入力）'];
+      return ['一般外来', '予防接種・健康診断', '自由診療', '訪問診療', 'その他（自由入力）'];
     }
     if (/(教育|スクール|塾|教室|習い事|講座)/.test(text)) {
-      return ['コース・講座案内', '料金・受講プラン', '体験申込・問い合わせ', '講師・実績紹介', 'その他（自由入力）'];
+      return ['受験対策コース', '補習・基礎学習コース', 'オンライン指導', '体験授業・学習相談', 'その他（自由入力）'];
     }
-    return ['主力サービス紹介', '料金・プラン案内', '問い合わせ導線', 'よくある質問', 'その他（自由入力）'];
+    return ['主力サービス提供', '導入支援・コンサルティング', '保守・アフターサポート', '法人向け・個人向けプラン', 'その他（自由入力）'];
   };
 
   const sanitizeSectionSelections = (sections: string[]): string[] => {
@@ -1785,10 +1785,10 @@ ${template.html}
         throw new Error(String(data?.text || `draft generate failed (${response.status})`));
       }
       const extracted = extractHtmlCandidate(String(data?.text || ''));
-      return { html: extracted?.html?.trim() || buildStudioWireframeHtml(profile), template: selected };
+      return { html: extracted?.html?.trim() || selected.html, template: selected };
     } catch (error) {
       console.error('studio draft generation error:', error);
-      return { html: buildStudioWireframeHtml(profile), template: selected };
+      return { html: selected.html, template: selected };
     }
   };
 
@@ -1828,10 +1828,10 @@ ${currentHtml}
         throw new Error(String(data?.text || `revision generate failed (${response.status})`));
       }
       const extracted = extractHtmlCandidate(String(data?.text || ''));
-      return extracted?.html?.trim() || buildStudioWireframeHtml(profile);
+      return extracted?.html?.trim() || currentHtml;
     } catch (error) {
       console.error('studio revision generation error:', error);
-      return buildStudioWireframeHtml(profile);
+      return currentHtml;
     }
   };
 
@@ -2697,7 +2697,30 @@ ${currentHtml}
   };
 
   const buildPreviewSrcDoc = (html: string): string => {
-    return `<html><head><script src="https://cdn.tailwindcss.com"></script><style>body { margin: 0; font-family: sans-serif; } a, button, [role=\"button\"], input, select, textarea, form { pointer-events: none !important; cursor: default !important; }</style></head><body>${html}<script>document.addEventListener('click', function(e){ var target = e.target; if (target && target.closest) { var interactive = target.closest('a, button, [role="button"], input, select, textarea, form'); if (interactive) { e.preventDefault(); e.stopPropagation(); } } }, true);</script></body></html>`;
+    return `<html><head><script src="https://cdn.tailwindcss.com"></script><style>
+      body { margin: 0; font-family: sans-serif; background: #ffffff !important; color: #111827 !important; }
+      /* テンプレート構造は維持しつつ、プレビューだけモノクロ化する */
+      [class*="bg-"], [style*="background"], [style*="--bg-color"], [style*="--main-color"], [style*="--accent-color"] {
+        background-color: #ffffff !important;
+        background-image: none !important;
+      }
+      .template-root, main, section, header, footer, nav, article, aside, div {
+        border-color: #d1d5db !important;
+      }
+      h1, h2, h3, h4, h5, h6, p, span, li, dt, dd, a, button, strong, em, small, label {
+        color: #111827 !important;
+      }
+      img, picture, video, canvas, svg {
+        filter: grayscale(1) saturate(0) contrast(1.02) !important;
+      }
+      img, picture, video {
+        background: #d1d5db !important;
+      }
+      a, button, [role="button"], input, select, textarea, form {
+        pointer-events: none !important;
+        cursor: default !important;
+      }
+    </style></head><body>${html}<script>document.addEventListener('click', function(e){ var target = e.target; if (target && target.closest) { var interactive = target.closest('a, button, [role="button"], input, select, textarea, form'); if (interactive) { e.preventDefault(); e.stopPropagation(); } } }, true);</script></body></html>`;
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
