@@ -772,6 +772,29 @@ function PaletteDesignInner() {
     return null;
   };
 
+  const escapeHtml = (value: string): string => {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  };
+
+  const buildFallbackPreviewHtml = (text: string): string => {
+    const body = escapeHtml(String(text || '').replace(/```html[\s\S]*?```/gi, '').trim());
+    return `
+      <main style="max-width:960px;margin:0 auto;padding:32px 24px;font-family:'Noto Sans JP',sans-serif;color:#0f172a;line-height:1.8;background:#ffffff;">
+        <h2 style="font-size:20px;margin:0 0 16px;font-weight:700;">構成案プレビュー</h2>
+        <pre style="white-space:pre-wrap;margin:0;padding:18px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;font-size:14px;">${body || '構成案テキストを表示します。'}</pre>
+      </main>
+    `.trim();
+  };
+
+  const isWireframeLikeResponse = (text: string): boolean => {
+    return /(ワイヤーフレーム|構成案|こちらの構成でよろしいでしょうか|OKであればその旨お伝えください|確認してください)/.test(String(text || ''));
+  };
+
   useEffect(() => {
     const latestMessage = messages[messages.length - 1];
     if (!latestMessage || latestMessage.role !== 'ai') {
@@ -802,9 +825,9 @@ function PaletteDesignInner() {
   }, [messages]);
 
   // ★DB保存の判定ロジックを含む関数
-  const extractCode = async (text: string, currentMessages: any[]) => {
+  const extractCode = async (text: string, currentMessages: any[]): Promise<boolean> => {
     const extracted = extractHtmlCandidate(text);
-    if (!extracted?.html) return;
+    if (!extracted?.html) return false;
 
     const code = extracted.html.trim();
     setGeneratedCode(code);
@@ -821,7 +844,7 @@ function PaletteDesignInner() {
       setConfirmMessages(currentMessages);
       setShowConfirmSave(true); // OKボタンを表示
       // conversationEndedはfalseのまま
-      return;
+      return true;
     }
 
     // 本番デザインと判断されたので、保存候補として情報を保持しておく
@@ -831,6 +854,8 @@ function PaletteDesignInner() {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
       setTimeout(() => setActiveTab('preview'), 1000);
     }
+
+    return true;
   };
 
   const buildUserAnswers = (currentMessages: any[]) => {
@@ -1381,13 +1406,17 @@ function PaletteDesignInner() {
       if (response.ok) {
         const aiRawText = trimSecurityRefusalMessage(String(data.text || ''));
         const aiText = normalizeAssistantOutput(aiRawText);
-        const hasHtmlBlock = /```html[\s\S]*?```/i.test(aiText);
+        const isWireframeResponse = isWireframeLikeResponse(aiText);
         const aiMessage: ChatMessage = { role: 'ai', content: aiText };
         const newMessages: ChatMessage[] = [...updatedMessages, aiMessage];
         setMessages(newMessages);
-        extractCode(aiText, newMessages);
+        const hasRenderableHtml = await extractCode(aiText, newMessages);
+        if (isWireframeResponse && !hasRenderableHtml) {
+          setGeneratedCode(buildFallbackPreviewHtml(aiText));
+          setConfirmMessages(newMessages);
+        }
         await saveDraftToLab(newMessages, /よろしいでしょうか|OKであれば|確認してください/.test(aiText) ? 'reviewing' : 'hearing');
-        if (hasHtmlBlock) {
+        if (hasRenderableHtml || isWireframeResponse) {
           setShowConfirmSave(true);
         }
 
