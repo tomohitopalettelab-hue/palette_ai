@@ -787,12 +787,13 @@ function PaletteDesignInner() {
 
   const isContractInfoRequest = (text: string): boolean => {
     const value = String(text || '').toLowerCase();
-    const explicitContractTerms = /(契約内容|契約情報|契約プラン|契約一覧|プラン内容|料金|金額|費用|価格|月額|年額|契約期間|いつから|いつまで)/;
-    if (explicitContractTerms.test(value)) return true;
+    const contractTopic = /(契約内容|契約情報|契約一覧|契約プラン|現在の契約|契約カード|契約|契約書)/;
+    const asking = /(教えて|知りたい|確認したい|確認したいです|見せて|表示して|見たい|確認したいん|確認できますか|教えてください)/;
+    const hasQuestionTone = /[?？]$/.test(value.trim());
 
-    const hasContractCore = /(契約|プラン|料金|金額|費用|価格|月額|年額)/.test(value);
-    const asking = /(教えて|知りたい|確認したい|見せて|表示して)/.test(value);
-    return hasContractCore && asking;
+    // 「料金プラン」「サービス一覧」などのヒアリング回答を契約照会として誤判定しない。
+    if (!contractTopic.test(value)) return false;
+    return asking.test(value) || hasQuestionTone;
   };
 
   const resetPlanQuestionButtons = () => {
