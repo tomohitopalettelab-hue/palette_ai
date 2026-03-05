@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
 
     const canUsePaletteAi = await hasPaletteAiService(paletteId);
     if (!canUsePaletteAi) {
-      return NextResponse.json({ success: false, error: 'Palette Ai契約中の顧客のみ利用できます。' }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'Palette Aiの契約がありません。担当にご連絡ください。' }, { status: 403 });
     }
 
     const params = new URLSearchParams();

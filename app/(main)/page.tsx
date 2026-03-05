@@ -955,9 +955,11 @@ function PaletteDesignInner() {
         const verifyData = await verifyRes.json().catch(() => ({}));
 
         if (!verifyRes.ok || !verifyData?.success) {
+          const backendError = String(verifyData?.error || '').trim();
+          const message = backendError || 'パスワードが正しくありません。もう一度入力してください。';
           setMessages([
             ...updatedMessages,
-            { role: 'ai', content: 'パスワードが正しくありません。もう一度入力してください。' },
+            { role: 'ai', content: message },
           ]);
           return;
         }
