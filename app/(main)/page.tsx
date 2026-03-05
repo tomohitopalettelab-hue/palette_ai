@@ -10,6 +10,7 @@ type ServiceCard = {
   title: string;
   description: string;
   planName: string;
+  planCode?: string;
   phase: string;
   status: string;
 };
@@ -43,6 +44,7 @@ type ChatMessage = {
 
 type PromptSelectionKind = 'single' | 'multi';
 type ServiceMode = 'none' | 'pal_studio' | 'palette_ai' | 'pal_trust' | 'other';
+type StudioPlanTier = 'lite' | 'standard' | 'pro';
 
 type HearingSummary = {
   companyName: string | null;
@@ -144,6 +146,7 @@ function PaletteDesignInner() {
   const [quickQuestionButtons, setQuickQuestionButtons] = useState<QuickQuestionButton[]>([]);
   const [neutralActionButtons, setNeutralActionButtons] = useState<ActionButton[]>([]);
   const [activeServiceMode, setActiveServiceMode] = useState<ServiceMode>('none');
+  const [studioPlanTier, setStudioPlanTier] = useState<StudioPlanTier>('standard');
   const [studioStep, setStudioStep] = useState<StudioStep>('idle');
   const [studioHtmlGenerationCount, setStudioHtmlGenerationCount] = useState(0);
   const [confirmMode, setConfirmMode] = useState<ConfirmMode>(null);
@@ -939,6 +942,30 @@ function PaletteDesignInner() {
     '店舗（会社）情報',
     '最初からやり直し',
   ];
+
+  const STUDIO_SECTION_OPTIONS_STANDARD = [
+    'トップ', 'コンセプト', '特徴', 'サービス', '実績・ギャラリー', 'お問い合わせ', '会社・店舗情報', 'その他（自由入力）',
+  ];
+
+  const STUDIO_SECTION_OPTIONS_LITE = [
+    'トップ', 'コンセプト', 'サービス', 'お問い合わせ', '会社・店舗情報',
+  ];
+
+  const resolveStudioPlanTier = (card: ServiceCard): StudioPlanTier => {
+    const code = String(card.planCode || '').toLowerCase();
+    const name = String(card.planName || '').toLowerCase();
+    if (code.includes('pro') || name.includes('pro') || name.includes('プロ')) {
+      return 'pro';
+    }
+    if (code.includes('lite') || code.includes('light') || name.includes('lite') || name.includes('ライト')) {
+      return 'lite';
+    }
+    return 'standard';
+  };
+
+  const getStudioSectionOptions = (tier: StudioPlanTier): string[] => {
+    return tier === 'lite' ? STUDIO_SECTION_OPTIONS_LITE : STUDIO_SECTION_OPTIONS_STANDARD;
+  };
 
   const applyStudioPrompt = (
     items: string[],
@@ -1825,7 +1852,9 @@ ${template.html}
       companyDetails: {},
     });
     applyStudioPrompt(['屋号名（会社名）を入力してください。'], [[]], ['single'], ['text']);
-    appendAiMessage({ content: 'Pal Studio のヒアリングを開始します。まず、屋号名（会社名）を教えてください。' });
+    appendAiMessage({
+      content: `Pal Studio（${studioPlanTier === 'lite' ? 'ライトプラン' : 'スタンダードプラン'}）のヒアリングを開始します。まず、屋号名（会社名）を教えてください。`,
+    });
   };
 
   const buildStudioSummary = (profile: StudioProfile): HearingSummary => {
@@ -2057,9 +2086,11 @@ ${currentHtml}
       }
       setStudioProfile((prev) => ({ ...prev, services }));
       setStudioStep('sections');
-      applyStudioPrompt(['表示したいセクションを選択してください（複数選択可）。'], [[
-        'トップ', 'コンセプト', '特徴', 'サービス', '実績・ギャラリー', 'お問い合わせ', '会社・店舗情報', 'その他（自由入力）',
-      ]], ['multi']);
+      applyStudioPrompt(
+        ['表示したいセクションを選択してください（複数選択可）。'],
+        [getStudioSectionOptions(studioPlanTier)],
+        ['multi'],
+      );
       appendAiMessage({ content: '次に、表示したいセクションを教えてください。' });
       return;
     }
@@ -2068,9 +2099,11 @@ ${currentHtml}
       const merged = mergeServiceSelections(studioProfile.services, first);
       setStudioProfile((prev) => ({ ...prev, services: merged }));
       setStudioStep('sections');
-      applyStudioPrompt(['表示したいセクションを選択してください（複数選択可）。'], [[
-        'トップ', 'コンセプト', '特徴', 'サービス', '実績・ギャラリー', 'お問い合わせ', '会社・店舗情報', 'その他（自由入力）',
-      ]], ['multi']);
+      applyStudioPrompt(
+        ['表示したいセクションを選択してください（複数選択可）。'],
+        [getStudioSectionOptions(studioPlanTier)],
+        ['multi'],
+      );
       appendAiMessage({ content: '次に、表示したいセクションを教えてください。' });
       return;
     }
@@ -2308,6 +2341,14 @@ ${currentHtml}
           : 'other');
 
     if (card.key === 'pal_studio') {
+      const tier = resolveStudioPlanTier(card);
+      setStudioPlanTier(tier);
+      if (tier === 'pro') {
+        appendAiMessage({
+          content: 'Pal Studio Pro は現在準備中です。いったん Lite / Standard での運用をお願いします。',
+        });
+        return;
+      }
       const phase = String(card.phase || '');
       const status = String(card.status || '');
       const isHearingWaiting = includesAny(phase, ['ヒアリング待ち', 'awaiting', 'hearing'])
@@ -2316,6 +2357,11 @@ ${currentHtml}
         || includesAny(status, ['納品完了', '運用中', 'delivered', 'in progress']);
 
       if (isHearingWaiting) {
+        appendAiMessage({
+          content: tier === 'lite'
+            ? 'ライトプランとしてヒアリングを開始します。必要項目を絞って進めます。'
+            : 'スタンダードプランとしてヒアリングを開始します。',
+        });
         startStudioFlow();
         return;
       }
@@ -2336,6 +2382,8 @@ ${currentHtml}
       });
       return;
     }
+
+    setStudioPlanTier('standard');
 
     if (card.key === 'palette_ai') {
       appendAiMessage({
@@ -2546,6 +2594,7 @@ ${currentHtml}
       ? `
 動的補足:
 - 現在は Pal Studio 専用モードです。以降は「1ページHPのHTMLヒアリング」のみを行ってください。
+- 契約プランは「${studioPlanTier === 'lite' ? 'lite' : 'standard'}」です。ライトの場合は質問を最小限に絞り、過剰なページ構成を提案しないでください。
 - 他サービス（Palette Ai / Pal Trust）の案内・分岐・提案は行わないでください。
 - 回答は必ずヒアリング継続（質問）のみを返してください。HTMLコードは出力しないでください。
 - チャット文中で「テンプレート」という単語を使わないでください。代わりに「下書き」「プレビュー」と表現してください。
@@ -2800,6 +2849,7 @@ ${currentHtml}
     setShowConfirmSave(false);
     setConfirmMode(null);
     setActiveServiceMode('none');
+    setStudioPlanTier('standard');
     setStudioStep('idle');
     setNeutralActionButtons([{ key: 'contract-services', label: '契約サービス' }]);
     clearMultiPromptState();

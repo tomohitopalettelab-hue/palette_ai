@@ -7,6 +7,7 @@ type ServiceCard = {
   title: string;
   description: string;
   planName: string;
+  planCode: string;
   phase: string;
   status: string;
 };
@@ -47,10 +48,17 @@ const buildServiceSummaryText = (summary: any, paletteId: string): string => {
   ].join('\n');
 };
 
+const isPalStudioPlanCode = (code: string): boolean => {
+  const normalized = String(code || '').trim().toLowerCase().replace(/-/g, '_');
+  return normalized === 'pal_studio_lite'
+    || normalized === 'pal_studio_standard'
+    || normalized === 'pal_studio_pro';
+};
+
 const resolveServiceKey = (plan: any): string => {
   const code = String(plan?.code || '').toLowerCase();
   const normalized = code.replace(/-/g, '_');
-  if (normalized.includes('pal_studio') || normalized === 'studio' || normalized.startsWith('studio_')) return 'pal_studio';
+  if (isPalStudioPlanCode(normalized)) return 'pal_studio';
   if (normalized.includes('palette_ai') || normalized === 'ai' || normalized.startsWith('ai_')) return 'palette_ai';
   if (normalized.includes('pal_trust') || normalized === 'trust' || normalized.startsWith('trust_')) return 'pal_trust';
   return 'other';
@@ -87,6 +95,7 @@ const extractServiceCards = (summary: any): ServiceCard[] => {
         title: meta.title,
         description: meta.description,
         planName: String(plan?.name || '未設定プラン'),
+        planCode: String(plan?.code || ''),
         phase: String(contract?.phase || '未設定'),
         status: String(contract?.status || '未設定'),
       });
