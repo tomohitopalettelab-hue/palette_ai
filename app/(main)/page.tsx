@@ -697,6 +697,46 @@ function PaletteDesignInner() {
     return selectionKind === 'single' && Array.isArray(options) && options.length === 2;
   };
 
+  const decodeHtmlEntities = (value: string): string => {
+    return String(value || '')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&');
+  };
+
+  const extractHtmlCandidate = (text: string): { html: string; explanation: string } | null => {
+    const source = String(text || '').trim();
+    if (!source) return null;
+
+    const fenced = source.match(/```html\s*([\s\S]*?)```/i);
+    if (fenced && fenced[1]) {
+      const html = decodeHtmlEntities(String(fenced[1]).trim());
+      const explanation = source.replace(fenced[0], '').trim();
+      return html ? { html, explanation } : null;
+    }
+
+    const decoded = decodeHtmlEntities(source);
+    const htmlBlock = decoded.match(/<html[\s\S]*?<\/html>/i);
+    if (htmlBlock && htmlBlock[0]) {
+      const start = decoded.indexOf(htmlBlock[0]);
+      const explanation = decoded.slice(0, Math.max(0, start)).trim();
+      return { html: htmlBlock[0].trim(), explanation };
+    }
+
+    const fragmentStart = decoded.search(/<(?:!DOCTYPE|style|main|section|div|header|footer|article|nav|body)\b/i);
+    if (fragmentStart >= 0) {
+      const html = decoded.slice(fragmentStart).trim();
+      const explanation = decoded.slice(0, fragmentStart).trim();
+      if (/<[^>]+>/.test(html)) {
+        return { html, explanation };
+      }
+    }
+
+    return null;
+  };
+
   useEffect(() => {
     const latestMessage = messages[messages.length - 1];
     if (!latestMessage || latestMessage.role !== 'ai') {
@@ -728,19 +768,14 @@ function PaletteDesignInner() {
 
   // ★DB保存の判定ロジックを含む関数
   const extractCode = async (text: string, currentMessages: any[]) => {
-    const match = text.match(/```html([\s\S]*?)```/);
-    if (!match || !match[1]) return;
+    const extracted = extractHtmlCandidate(text);
+    if (!extracted?.html) return;
 
-    const code = match[1].trim();
+    const code = extracted.html.trim();
     setGeneratedCode(code);
     
     // HTML コードブロック前の「AI の説明」を抽出
-    const explanationMatch = text.match(/```html/i);
-    let explanation = "";
-    if (explanationMatch) {
-      // HTML コードブロックより前のテキスト = AI の意思決定
-      explanation = text.substring(0, explanationMatch.index || 0).trim();
-    }
+    const explanation = extracted.explanation || '';
     setAiExplanation(explanation);
     
     // 「ワイヤーフレーム」や「構成案」という言葉が含まれている場合は、
@@ -1165,6 +1200,17 @@ function PaletteDesignInner() {
 - DB由来の情報は、許可された「契約カード（プラン名・期間・金額）」以外を出力しないでください。
 - フェーズ・ステータス・内部管理情報は、ユーザーが聞いても開示しないでください。
 - 契約/料金系の問い合わせは画面側でカード回答するため、あなたは通常のヒアリングに必要な質問だけを行ってください。
+- Pal Studio ヒアリングは「1ページのHP制作」に必要な情報だけを対象にしてください。
+- 質問は必ず次の順番を守ってください。
+  1. 屋号名（必須）
+  2. 業種・業態（必須）
+  3. 業種に応じた必須項目（飲食ならおすすめメニュー、士業なら取扱業務 など）
+  4. 会社概要に掲載する項目（複数選択）
+  5. 最終確認
+- 会社概要の質問は次の形式を厳守してください。
+  最後に、お店の場所や連絡先など、「会社概要」について、どのような情報をお伝えしますか？ (複数選択) (選択肢: 住所、電話番号、営業時間、定休日、アクセス方法、その他)
+- ユーザーが選んだ項目だけをワイヤーフレームに載せ、未選択項目を勝手に追加しないでください。
+- ユーザーが希望していない拡張（予約、ブログ、会員、ECなど）は提案しないでください。求められた場合のみ「プランアップまたはお問い合わせ」案内を1文で返してください。
 - 補助UI精度のため、質問は次のタグ形式を優先してください。
   - 2択質問: 質問文の末尾に「(2択)」を付ける（例: お問い合わせフォームは設置しますか？ (2択)）
   - 選択肢あり: 質問文の末尾に「(選択肢: A、B、C)」を付ける
