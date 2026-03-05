@@ -647,9 +647,29 @@ function PaletteDesignInner() {
     }));
   };
 
+  const clearMultiPromptState = () => {
+    setMultiPromptItems([]);
+    setMultiPromptSelectOptions([]);
+    setMultiPromptSelectionKinds([]);
+    setMultiPromptModes([]);
+    setMultiPromptSelected([]);
+    setMultiPromptSelectedMulti([]);
+    setMultiPromptAnswers([]);
+  };
+
   useEffect(() => {
-    const latestAiMessage = [...messages].reverse().find((message) => message.role === 'ai');
-    const prompts = parseMultiPrompts(String(latestAiMessage?.content || ''));
+    const latestMessage = messages[messages.length - 1];
+    if (!latestMessage || latestMessage.role !== 'ai') {
+      clearMultiPromptState();
+      return;
+    }
+
+    const prompts = parseMultiPrompts(String(latestMessage.content || ''));
+    if (!prompts.length) {
+      clearMultiPromptState();
+      return;
+    }
+
     setMultiPromptItems(prompts.map((item) => item.question));
     setMultiPromptSelectOptions(prompts.map((item) => item.options));
     setMultiPromptSelectionKinds(prompts.map((item) => item.selectionKind));
@@ -964,6 +984,9 @@ function PaletteDesignInner() {
     setQuickQuestionButtons([]);
     const messageToSend = overrideText || inputText;
     if (!messageToSend.trim() || isLoading) return;
+
+    // 送信時は補助UIをいったん閉じ、直後のAI回答で再構築する。
+    clearMultiPromptState();
 
     if (authStep !== 'authenticated') {
       const rawText = String(messageToSend || '').trim();
@@ -1305,13 +1328,7 @@ function PaletteDesignInner() {
     try {
       await handleSend(merged);
       setQuickQuestionButtons([]);
-      setMultiPromptItems([]);
-      setMultiPromptSelectOptions([]);
-      setMultiPromptSelectionKinds([]);
-      setMultiPromptModes([]);
-      setMultiPromptSelected([]);
-      setMultiPromptSelectedMulti([]);
-      setMultiPromptAnswers([]);
+      clearMultiPromptState();
     } finally {
       setIsSubmittingMultiPrompt(false);
     }
@@ -1325,13 +1342,7 @@ function PaletteDesignInner() {
     try {
       await handleSend(answer);
       setQuickQuestionButtons([]);
-      setMultiPromptItems([]);
-      setMultiPromptSelectOptions([]);
-      setMultiPromptSelectionKinds([]);
-      setMultiPromptModes([]);
-      setMultiPromptSelected([]);
-      setMultiPromptSelectedMulti([]);
-      setMultiPromptAnswers([]);
+      clearMultiPromptState();
     } finally {
       setIsSubmittingMultiPrompt(false);
     }
