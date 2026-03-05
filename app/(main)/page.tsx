@@ -875,19 +875,142 @@ function PaletteDesignInner() {
 
   const getServiceCandidatesByIndustry = (industry: string): string[] => {
     const text = String(industry || '').toLowerCase();
-    if (/(飲食|カフェ|レストラン|居酒屋|ベーカリー)/.test(text)) {
-      return ['ランチ・ディナー提供', 'テイクアウト・デリバリー', 'コース・予約対応', 'その他（自由入力）'];
+    if (/(飲食|カフェ|レストラン|居酒屋|ベーカリー|喫茶|bar|バー)/.test(text)) {
+      return ['メニュー紹介', '予約受付', 'テイクアウト・デリバリー案内', '店舗情報（営業時間・アクセス）', 'その他（自由入力）'];
     }
-    if (/(美容|サロン|エステ|ネイル|整体)/.test(text)) {
-      return ['施術メニュー案内', '予約受付', 'ビフォーアフター紹介', 'その他（自由入力）'];
+    if (/(美容|サロン|エステ|ネイル|整体|美容室|理容|まつげ|アイラッシュ)/.test(text)) {
+      return ['施術メニュー紹介', '料金案内', '予約受付', 'ビフォーアフター・事例紹介', 'その他（自由入力）'];
     }
-    if (/(士業|法律|会計|税理士|社労士)/.test(text)) {
-      return ['相談内容の案内', '料金プラン説明', '問い合わせ受付', 'その他（自由入力）'];
+    if (/(士業|法律|会計|税理士|社労士|行政書士|弁護士|司法書士)/.test(text)) {
+      return ['取扱業務の案内', '料金・報酬の目安', '相談予約・問い合わせ受付', '解決事例・実績紹介', 'その他（自由入力）'];
     }
-    if (/(工務店|建築|リフォーム|不動産)/.test(text)) {
-      return ['施工サービス案内', '施工実績紹介', '見積もり相談受付', 'その他（自由入力）'];
+    if (/(工務店|建築|リフォーム|住宅|外構|内装)/.test(text)) {
+      return ['施工サービス案内', '施工事例紹介', '見積もり・相談受付', '対応エリア案内', 'その他（自由入力）'];
     }
-    return ['主力サービス紹介', '料金・プラン案内', '問い合わせ導線', 'その他（自由入力）'];
+    if (/(不動産|賃貸|売買|仲介|管理)/.test(text)) {
+      return ['物件種別・サービス案内', '売買・賃貸の流れ', '実績・成約事例', '問い合わせ・来店予約', 'その他（自由入力）'];
+    }
+    if (/(医療|クリニック|歯科|病院|整形|内科|皮膚科)/.test(text)) {
+      return ['診療内容の案内', '診療時間・休診日', '予約・受診案内', 'アクセス・院内情報', 'その他（自由入力）'];
+    }
+    if (/(教育|スクール|塾|教室|習い事|講座)/.test(text)) {
+      return ['コース・講座案内', '料金・受講プラン', '体験申込・問い合わせ', '講師・実績紹介', 'その他（自由入力）'];
+    }
+    return ['主力サービス紹介', '料金・プラン案内', '問い合わせ導線', 'よくある質問', 'その他（自由入力）'];
+  };
+
+  const sanitizeSectionSelections = (sections: string[]): string[] => {
+    const filtered = sections.filter((item) => !/フッター/.test(String(item || '')));
+    return Array.from(new Set(filtered));
+  };
+
+  const escapeHtml = (value: string): string => {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  };
+
+  const buildStudioWireframeHtml = (profile: StudioProfile): string => {
+    const selectedSections = sanitizeSectionSelections(profile.sections || []);
+    const sectionSet = new Set(selectedSections);
+    const shouldShow = (label: string) => sectionSet.has(label);
+    const fallbackSections = selectedSections.length === 0;
+
+    const showTop = fallbackSections || shouldShow('トップ');
+    const showConcept = fallbackSections || shouldShow('コンセプト');
+    const showFeatures = fallbackSections || shouldShow('特徴');
+    const showService = fallbackSections || shouldShow('サービス');
+    const showWorks = fallbackSections || shouldShow('実績・ギャラリー');
+    const showContact = fallbackSections || shouldShow('お問い合わせ');
+    const showCompany = fallbackSections || shouldShow('会社・店舗情報');
+
+    const shopName = escapeHtml(profile.shopName || '屋号名が入ります');
+    const industry = escapeHtml(profile.industry || '業種が入ります');
+    const color = escapeHtml(profile.color || '#FFFFFF');
+    const appeal = escapeHtml(profile.appealPoint || 'ここに強み・アピールポイントが入ります。');
+    const services = (profile.services || []).map((item) => escapeHtml(item)).filter(Boolean);
+
+    const companyRows = Object.entries(profile.companyDetails || {})
+      .map(([key, value]) => `<tr><th class="w-40 text-left p-3 text-slate-500">${escapeHtml(key)}</th><td class="p-3">${escapeHtml(value)}</td></tr>`)
+      .join('');
+
+    return `
+<div class="template-root" style="--bg-color: #ffffff; --border-color: #e2e8f0;">
+  <div class="min-h-screen bg-[var(--bg-color)] text-slate-900 font-sans">
+    <header class="sticky top-0 bg-white border-b border-[var(--border-color)] z-30">
+      <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <h1 class="text-xl font-bold">${shopName}</h1>
+        <p class="text-sm text-slate-500">業種: ${industry}</p>
+      </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-6 py-8 space-y-8">
+      ${showTop ? `
+      <section class="bg-white border border-[var(--border-color)] rounded-xl p-6">
+        <h2 class="text-2xl font-bold mb-3">トップセクション（下書き）</h2>
+        <p class="text-slate-600 mb-4">キャッチコピーと導入文がここに入ります。</p>
+        <div class="h-48 rounded-lg bg-slate-200 border border-slate-300 flex items-center justify-center text-slate-600 text-sm">画像エリア: メインビジュアル（店舗外観 / サービス利用シーン）</div>
+      </section>` : ''}
+
+      ${showConcept ? `
+      <section class="bg-white border border-[var(--border-color)] rounded-xl p-6">
+        <h2 class="text-xl font-bold mb-3">コンセプト</h2>
+        <p class="text-slate-700">${appeal}</p>
+      </section>` : ''}
+
+      ${showFeatures ? `
+      <section class="bg-white border border-[var(--border-color)] rounded-xl p-6">
+        <h2 class="text-xl font-bold mb-3">特徴</h2>
+        <ul class="list-disc pl-5 text-slate-700 space-y-1">
+          <li>特徴テキスト1（ここに具体的な強み）</li>
+          <li>特徴テキスト2（ここに差別化ポイント）</li>
+          <li>特徴テキスト3（ここに信頼要素）</li>
+        </ul>
+      </section>` : ''}
+
+      ${showService ? `
+      <section class="bg-white border border-[var(--border-color)] rounded-xl p-6">
+        <h2 class="text-xl font-bold mb-3">サービス内容</h2>
+        <div class="grid sm:grid-cols-2 gap-3">
+          ${(services.length ? services : ['サービス内容がここに入ります']).map((item) => `<div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">${item}</div>`).join('')}
+        </div>
+      </section>` : ''}
+
+      ${showWorks ? `
+      <section class="bg-white border border-[var(--border-color)] rounded-xl p-6">
+        <h2 class="text-xl font-bold mb-3">実績・ギャラリー</h2>
+        <div class="grid md:grid-cols-3 gap-3">
+          <div class="h-36 rounded-lg bg-slate-200 border border-slate-300 flex items-center justify-center text-xs text-slate-600">画像エリア: 施工実績 / 制作物1</div>
+          <div class="h-36 rounded-lg bg-slate-200 border border-slate-300 flex items-center justify-center text-xs text-slate-600">画像エリア: サービス提供シーン2</div>
+          <div class="h-36 rounded-lg bg-slate-200 border border-slate-300 flex items-center justify-center text-xs text-slate-600">画像エリア: スタッフ・店舗写真3</div>
+        </div>
+      </section>` : ''}
+
+      ${showContact ? `
+      <section class="bg-white border border-[var(--border-color)] rounded-xl p-6">
+        <h2 class="text-xl font-bold mb-3">お問い合わせ</h2>
+        <p class="text-slate-700 mb-3">お問い合わせ導線をここに配置します。</p>
+        <div class="rounded-lg bg-slate-50 border border-slate-200 p-4 text-sm text-slate-600">フォーム項目（名前 / メール / 内容）をここに表示</div>
+      </section>` : ''}
+
+      ${showCompany ? `
+      <section class="bg-white border border-[var(--border-color)] rounded-xl p-6">
+        <h2 class="text-xl font-bold mb-3">会社・店舗情報</h2>
+        ${profile.includeCompanyInfo && companyRows ? `<table class="w-full text-sm border border-slate-200">${companyRows}</table>` : '<p class="text-slate-600">会社情報の掲載内容がここに入ります。</p>'}
+      </section>` : ''}
+    </main>
+
+    <footer class="border-t border-[var(--border-color)] bg-white">
+      <div class="max-w-6xl mx-auto px-6 py-6 text-xs text-slate-500 flex items-center justify-between">
+        <span>${shopName}</span>
+        <span>配色メモ: ${color}（最終デザインで適用予定）</span>
+      </div>
+    </footer>
+  </div>
+</div>`;
   };
 
   const chooseTemplateByTaste = (taste: string): Template => {
@@ -1647,64 +1770,11 @@ ${template.html}
 
   const generateStudioDraft = async (profile: StudioProfile): Promise<{ html: string; template: Template }> => {
     const selected = chooseTemplateByTaste(profile.taste);
-    const prompt = buildStudioDraftPrompt(selected, profile);
-    try {
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system: prompt, history: [] }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(String(data?.text || `draft generate failed (${response.status})`));
-      }
-      const extracted = extractHtmlCandidate(String(data?.text || ''));
-      return { html: extracted?.html?.trim() || selected.html, template: selected };
-    } catch (error) {
-      console.error('studio draft generation error:', error);
-      return { html: selected.html, template: selected };
-    }
+    return { html: buildStudioWireframeHtml(profile), template: selected };
   };
 
   const generateStudioRevision = async (currentHtml: string, instruction: string, profile: StudioProfile): Promise<string> => {
-    const prompt = `
-以下のHTML下書きを、修正要望に沿って調整してください。
-
-修正要望:
-${instruction}
-
-前提:
-- 屋号名: ${profile.shopName}
-- 業種: ${profile.industry}
-- テイスト: ${profile.taste}
-- メインカラー: ${profile.color}
-- 強み・アピールポイント: ${profile.appealPoint || '未設定'}
-
-制約:
-- HTML構造は大きく崩さない
-- 日本語中心
-- 最後は \`\`\`html ... \`\`\` のみ返す
-
-現在HTML:
-${currentHtml}
-`;
-
-    try {
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system: prompt, history: [] }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(String(data?.text || `revision generate failed (${response.status})`));
-      }
-      const extracted = extractHtmlCandidate(String(data?.text || ''));
-      return extracted?.html?.trim() || currentHtml;
-    } catch (error) {
-      console.error('studio revision generation error:', error);
-      return currentHtml;
-    }
+    return buildStudioWireframeHtml(profile);
   };
 
   const profileCompanyInfoSummary = (profile: StudioProfile): string => {
@@ -1759,7 +1829,6 @@ ${currentHtml}
     setConfirmMode('preview');
     setStudioStep('completed');
     setPreviewRenderMode('desktop');
-    void fetchPreviewImage(createPreviewImageQuery(buildStudioSummary(profile), draft.template));
     appendAiMessage({ content: `下書きを表示しました。内容を確認して「OK」または「修正」を選んでください。（HTML生成 ${Math.min(studioHtmlGenerationCount + 1, 3)}/3）` });
   };
 
@@ -1825,7 +1894,7 @@ ${currentHtml}
       setStudioProfile((prev) => ({ ...prev, services }));
       setStudioStep('sections');
       applyStudioPrompt(['表示したいセクションを選択してください（複数選択可）。'], [[
-        'トップ', 'コンセプト', '特徴', 'サービス', '実績・ギャラリー', 'お問い合わせ', '会社・店舗情報', 'フッター', 'その他（自由入力）',
+        'トップ', 'コンセプト', '特徴', 'サービス', '実績・ギャラリー', 'お問い合わせ', '会社・店舗情報', 'その他（自由入力）',
       ]], ['multi']);
       appendAiMessage({ content: '次に、表示したいセクションを教えてください。' });
       return;
@@ -1836,14 +1905,14 @@ ${currentHtml}
       setStudioProfile((prev) => ({ ...prev, services: merged }));
       setStudioStep('sections');
       applyStudioPrompt(['表示したいセクションを選択してください（複数選択可）。'], [[
-        'トップ', 'コンセプト', '特徴', 'サービス', '実績・ギャラリー', 'お問い合わせ', '会社・店舗情報', 'フッター', 'その他（自由入力）',
+        'トップ', 'コンセプト', '特徴', 'サービス', '実績・ギャラリー', 'お問い合わせ', '会社・店舗情報', 'その他（自由入力）',
       ]], ['multi']);
       appendAiMessage({ content: '次に、表示したいセクションを教えてください。' });
       return;
     }
 
     if (studioStep === 'sections') {
-      setStudioProfile((prev) => ({ ...prev, sections: splitChoiceValues(first) }));
+      setStudioProfile((prev) => ({ ...prev, sections: sanitizeSectionSelections(splitChoiceValues(first)) }));
       setStudioStep('taste');
       applyStudioPrompt(['テイストを1つ選択してください。'], [STUDIO_TASTE_OPTIONS], ['single']);
       appendAiMessage({ content: 'テイストを1つ選択してください。' });
