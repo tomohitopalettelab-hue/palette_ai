@@ -66,6 +66,33 @@ type HearingChecklist = {
   missingLabels: string[];
 };
 
+type StudioStep =
+  | 'idle'
+  | 'shopName'
+  | 'industry'
+  | 'industryOther'
+  | 'services'
+  | 'sections'
+  | 'taste'
+  | 'color'
+  | 'companyInfoToggle'
+  | 'companyInfoFields'
+  | 'companyInfoDetails'
+  | 'revisionInput'
+  | 'completed';
+
+type StudioProfile = {
+  shopName: string;
+  industry: string;
+  services: string[];
+  sections: string[];
+  taste: string;
+  color: string;
+  includeCompanyInfo: boolean | null;
+  companyFields: string[];
+  companyDetails: Record<string, string>;
+};
+
 function PaletteDesignInner() {
   const searchParams = useSearchParams();
   const queryCid = searchParams.get('cid')?.trim();
@@ -83,7 +110,6 @@ function PaletteDesignInner() {
   const [generatedCode, setGeneratedCode] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(templates[0]?.id || '');
   const [showConfirmSave, setShowConfirmSave] = useState(false);
-  const [awaitingFinalRequest, setAwaitingFinalRequest] = useState(false);
   const [previewRenderMode, setPreviewRenderMode] = useState<'html' | 'image'>('html');
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [isPreviewImageLoading, setIsPreviewImageLoading] = useState(false);
@@ -100,6 +126,19 @@ function PaletteDesignInner() {
   const [isSubmittingMultiPrompt, setIsSubmittingMultiPrompt] = useState(false);
   const [quickQuestionButtons, setQuickQuestionButtons] = useState<QuickQuestionButton[]>([]);
   const [activeServiceMode, setActiveServiceMode] = useState<ServiceMode>('none');
+  const [studioStep, setStudioStep] = useState<StudioStep>('idle');
+  const [studioRevisionCount, setStudioRevisionCount] = useState(0);
+  const [studioProfile, setStudioProfile] = useState<StudioProfile>({
+    shopName: '',
+    industry: '',
+    services: [],
+    sections: [],
+    taste: '',
+    color: '',
+    includeCompanyInfo: null,
+    companyFields: [],
+    companyDetails: {},
+  });
   const [sessionCustomerId] = useState(
     () => queryCid || `cust-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   );
@@ -752,6 +791,120 @@ function PaletteDesignInner() {
     setMultiPromptAnswers([]);
   };
 
+  const STUDIO_TASTE_OPTIONS = [
+    'モダン', 'クリーン', 'シンプル', 'ラグジュアリー', '大人っぽい',
+    '信頼感', '堅実', '元気', '親しみ', 'ミニマル',
+    '余白', 'テック感', 'クール', 'オーガニック', '柔らかい雰囲気',
+    '和風', '伝統', 'ポートフォリオ', 'ギャラリー', 'LP', 'コンバージョン特化',
+  ];
+
+  const STUDIO_COLOR_OPTIONS = [
+    '#0f172a ネイビー', '#1d4ed8 ブルー', '#0f766e ティール', '#15803d グリーン',
+    '#ca8a04 マスタード', '#ea580c オレンジ', '#dc2626 レッド', '#be185d ピンク',
+    '#7c3aed パープル', '#374151 グレー', '#111827 ブラック', '#f8fafc ホワイト',
+  ];
+
+  const applyStudioPrompt = (
+    items: string[],
+    options: string[][],
+    kinds: PromptSelectionKind[],
+    modes?: Array<'select' | 'text'>,
+  ) => {
+    setShowConfirmSave(false);
+    setMultiPromptItems(items);
+    setMultiPromptSelectOptions(options);
+    setMultiPromptSelectionKinds(kinds);
+    setMultiPromptModes(modes || items.map((_, index) => (options[index] && options[index].length > 0 ? 'select' : 'text')));
+    setMultiPromptSelected(items.map(() => ''));
+    setMultiPromptSelectedMulti(items.map(() => []));
+    setMultiPromptAnswers(items.map(() => ''));
+  };
+
+  const extractStudioAnswers = (raw: string): string[] => {
+    const source = String(raw || '').trim();
+    if (!source) return [];
+    if (!/^\d+\.\s/.test(source)) return [source];
+
+    const matches = Array.from(source.matchAll(/\d+\.\s[^\n]*\n→\s*([\s\S]*?)(?=\n\d+\.\s|$)/g));
+    const values = matches
+      .map((match) => String(match[1] || '').trim())
+      .filter(Boolean);
+    return values.length ? values : [source];
+  };
+
+  const splitChoiceValues = (raw: string): string[] => {
+    return Array.from(new Set(
+      String(raw || '')
+        .split(/\s*[、,\/\n]+\s*/)
+        .map((token) => token.trim())
+        .filter(Boolean),
+    ));
+  };
+
+  const getServiceCandidatesByIndustry = (industry: string): string[] => {
+    const text = String(industry || '').toLowerCase();
+    if (/(飲食|カフェ|レストラン|居酒屋|ベーカリー)/.test(text)) {
+      return ['ランチ・ディナー提供', 'テイクアウト・デリバリー', 'コース・予約対応', 'その他（自由入力）'];
+    }
+    if (/(美容|サロン|エステ|ネイル|整体)/.test(text)) {
+      return ['施術メニュー案内', '予約受付', 'ビフォーアフター紹介', 'その他（自由入力）'];
+    }
+    if (/(士業|法律|会計|税理士|社労士)/.test(text)) {
+      return ['相談内容の案内', '料金プラン説明', '問い合わせ受付', 'その他（自由入力）'];
+    }
+    if (/(工務店|建築|リフォーム|不動産)/.test(text)) {
+      return ['施工サービス案内', '施工実績紹介', '見積もり相談受付', 'その他（自由入力）'];
+    }
+    return ['主力サービス紹介', '料金・プラン案内', '問い合わせ導線', 'その他（自由入力）'];
+  };
+
+  const chooseTemplateByTaste = (taste: string): Template => {
+    const t = String(taste || '').trim().toLowerCase();
+    if (!t) return templates[0];
+
+    const tasteKeywordMap: Record<string, string[]> = {
+      'モダン': ['modern', 'モダン', 'clean', 'startup'],
+      'クリーン': ['clean', 'クリーン', 'simple'],
+      'シンプル': ['simple', 'minimal', 'シンプル'],
+      'ラグジュアリー': ['luxury', 'elegant', 'ラグジュアリー'],
+      '大人っぽい': ['luxury', 'elegant', 'minimal'],
+      '信頼感': ['corporate', 'business', 'trust', '信頼'],
+      '堅実': ['corporate', 'business', 'firm'],
+      '元気': ['pop', 'colorful', '元気'],
+      '親しみ': ['pop', 'natural', '親しみ'],
+      'ミニマル': ['minimal', '洗練'],
+      '余白': ['minimal', '余白'],
+      'テック感': ['dark', 'tech', 'テック'],
+      'クール': ['dark', 'cool', 'クール'],
+      'オーガニック': ['natural', 'organic', 'オーガニック'],
+      '柔らかい雰囲気': ['natural', 'soft', '柔らかい'],
+      '和風': ['japanese', '和風'],
+      '伝統': ['japanese', 'traditional', '伝統'],
+      'ポートフォリオ': ['portfolio', 'creator'],
+      'ギャラリー': ['gallery', 'portfolio', 'works'],
+      'LP': ['lp', 'marketing', 'sales'],
+      'コンバージョン特化': ['lp', 'conversion', 'marketing'],
+    };
+
+    const key = STUDIO_TASTE_OPTIONS.find((label) => label.toLowerCase() === t) || taste;
+    const keywords = tasteKeywordMap[key] || [t];
+
+    let best = templates[0];
+    let bestScore = -1;
+    templates.forEach((template) => {
+      const hay = `${template.name} ${template.description} ${template.tags.join(' ')}`.toLowerCase();
+      let score = 0;
+      keywords.forEach((keyword) => {
+        if (hay.includes(keyword.toLowerCase())) score += 3;
+      });
+      if (score > bestScore) {
+        best = template;
+        bestScore = score;
+      }
+    });
+    return best;
+  };
+
   const isTwoChoicePrompt = (options: string[], selectionKind: PromptSelectionKind): boolean => {
     return selectionKind === 'single' && Array.isArray(options) && options.length === 2;
   };
@@ -808,6 +961,10 @@ function PaletteDesignInner() {
   };
 
   useEffect(() => {
+    if (activeServiceMode === 'pal_studio' && studioStep !== 'idle' && studioStep !== 'completed') {
+      return;
+    }
+
     const latestMessage = messages[messages.length - 1];
     if (!latestMessage || latestMessage.role !== 'ai') {
       clearMultiPromptState();
@@ -916,7 +1073,7 @@ function PaletteDesignInner() {
     setMultiPromptSelected(prompts.map(() => ''));
     setMultiPromptSelectedMulti(prompts.map(() => []));
     setMultiPromptAnswers(prompts.map(() => ''));
-  }, [messages]);
+  }, [messages, activeServiceMode, studioStep]);
 
   // ★DB保存の判定ロジックを含む関数
   const extractCode = async (text: string, currentMessages: any[]): Promise<boolean> => {
@@ -1393,6 +1550,285 @@ ${template.html}
     };
   };
 
+  const startStudioFlow = () => {
+    setStudioRevisionCount(0);
+    setStudioStep('shopName');
+    setStudioProfile({
+      shopName: '',
+      industry: '',
+      services: [],
+      sections: [],
+      taste: '',
+      color: '',
+      includeCompanyInfo: null,
+      companyFields: [],
+      companyDetails: {},
+    });
+    applyStudioPrompt(['屋号名（会社名）を入力してください。'], [[]], ['single'], ['text']);
+    appendAiMessage({ content: 'Pal Studio のヒアリングを開始します。まず、屋号名（会社名）を教えてください。' });
+  };
+
+  const buildStudioSummary = (profile: StudioProfile): HearingSummary => {
+    const companyInfo = Object.entries(profile.companyDetails)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join(' / ');
+    return {
+      companyName: profile.shopName || null,
+      businessService: [profile.industry, ...profile.services].filter(Boolean).join(' / ') || null,
+      target: null,
+      designPreference: [profile.taste, profile.color].filter(Boolean).join(' / ') || null,
+      contents: profile.sections.join(' / ') || null,
+      works: null,
+      companyProfile: companyInfo || null,
+      contactForm: profile.companyDetails['メールアドレス'] || null,
+      recruiting: null,
+    };
+  };
+
+  const buildStudioDraftPrompt = (template: Template, profile: StudioProfile): string => {
+    return `
+あなたはWebデザイナーです。以下の要件で、ベースHTMLを顧客向けの下書きHTMLに調整してください。
+
+要件:
+- 本文は日本語中心
+- 指定したセクションのみを中心に構成
+- メインカラーは「${profile.color}」を基調
+- 屋号名は「${profile.shopName}」
+- 業種は「${profile.industry}」
+- サービス内容: ${profile.services.join(' / ')}
+- テイスト: ${profile.taste}
+- 会社情報掲載: ${profile.includeCompanyInfo ? 'あり' : 'なし'}
+- 会社情報詳細: ${Object.entries(profile.companyDetails).map(([k, v]) => `${k}:${v}`).join(' / ') || 'なし'}
+
+制約:
+- HTML構造は極力維持
+- 説明文は自然な日本語
+- 最後は \`\`\`html ... \`\`\` のみ返す
+
+ベースHTML:
+${template.html}
+`;
+  };
+
+  const generateStudioDraft = async (profile: StudioProfile): Promise<{ html: string; template: Template }> => {
+    const selected = chooseTemplateByTaste(profile.taste);
+    const prompt = buildStudioDraftPrompt(selected, profile);
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system: prompt, history: [] }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String(data?.text || `draft generate failed (${response.status})`));
+      }
+      const extracted = extractHtmlCandidate(String(data?.text || ''));
+      return { html: extracted?.html?.trim() || selected.html, template: selected };
+    } catch (error) {
+      console.error('studio draft generation error:', error);
+      return { html: selected.html, template: selected };
+    }
+  };
+
+  const generateStudioRevision = async (currentHtml: string, instruction: string, profile: StudioProfile): Promise<string> => {
+    const prompt = `
+以下のHTML下書きを、修正要望に沿って調整してください。
+
+修正要望:
+${instruction}
+
+前提:
+- 屋号名: ${profile.shopName}
+- 業種: ${profile.industry}
+- テイスト: ${profile.taste}
+- メインカラー: ${profile.color}
+
+制約:
+- HTML構造は大きく崩さない
+- 日本語中心
+- 最後は \`\`\`html ... \`\`\` のみ返す
+
+現在HTML:
+${currentHtml}
+`;
+
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system: prompt, history: [] }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String(data?.text || `revision generate failed (${response.status})`));
+      }
+      const extracted = extractHtmlCandidate(String(data?.text || ''));
+      return extracted?.html?.trim() || currentHtml;
+    } catch (error) {
+      console.error('studio revision generation error:', error);
+      return currentHtml;
+    }
+  };
+
+  const prepareStudioPreview = async (profile: StudioProfile, conversation: ChatMessage[]) => {
+    const draft = await generateStudioDraft(profile);
+    setSelectedTemplateId(draft.template.id);
+    setGeneratedCode(draft.html);
+    setConfirmMessages(conversation);
+    setAiExplanation(`下書き生成: ${draft.template.id}`);
+    setShowConfirmSave(true);
+    setPreviewRenderMode('html');
+    void fetchPreviewImage(createPreviewImageQuery(buildStudioSummary(profile), draft.template));
+    appendAiMessage({ content: '下書きを表示しました。内容を確認して「OK」または「修正」を選んでください。' });
+  };
+
+  const handleStudioFlowInput = async (rawInput: string) => {
+    const answers = extractStudioAnswers(rawInput);
+    const first = String(answers[0] || '').trim();
+    const userMessage: ChatMessage = { role: 'user', content: rawInput };
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    setInputText('');
+
+    if (studioStep === 'shopName') {
+      setStudioProfile((prev) => ({ ...prev, shopName: first }));
+      setStudioStep('industry');
+      applyStudioPrompt(['業種を選択してください（該当がなければ自由入力へ切り替え可）。'], [[
+        '飲食', '美容・サロン', '士業', '工務店・建築', '不動産', '医療・クリニック', '教育', 'その他（自由入力）',
+      ]], ['single']);
+      appendAiMessage({ content: '続いて、業種を教えてください。' });
+      return;
+    }
+
+    if (studioStep === 'industry') {
+      if (first.includes('その他')) {
+        setStudioStep('industryOther');
+        applyStudioPrompt(['業種を自由入力してください。'], [[]], ['single'], ['text']);
+        appendAiMessage({ content: '業種を自由入力で教えてください。' });
+        return;
+      }
+      const industry = first;
+      setStudioProfile((prev) => ({ ...prev, industry }));
+      setStudioStep('services');
+      applyStudioPrompt(['具体的なサービス内容を選択してください（複数選択可）。'], [getServiceCandidatesByIndustry(industry)], ['multi']);
+      appendAiMessage({ content: '具体的なサービス内容を教えてください。' });
+      return;
+    }
+
+    if (studioStep === 'industryOther') {
+      const industry = first;
+      setStudioProfile((prev) => ({ ...prev, industry }));
+      setStudioStep('services');
+      applyStudioPrompt(['具体的なサービス内容を選択してください（複数選択可）。'], [getServiceCandidatesByIndustry(industry)], ['multi']);
+      appendAiMessage({ content: '具体的なサービス内容を教えてください。' });
+      return;
+    }
+
+    if (studioStep === 'services') {
+      const services = splitChoiceValues(first);
+      setStudioProfile((prev) => ({ ...prev, services }));
+      setStudioStep('sections');
+      applyStudioPrompt(['表示したいセクションを選択してください（複数選択可）。'], [[
+        'トップ', 'コンセプト', '特徴', 'サービス', '実績・ギャラリー', 'お問い合わせ', '会社・店舗情報', 'フッター', 'その他（自由入力）',
+      ]], ['multi']);
+      appendAiMessage({ content: '次に、表示したいセクションを教えてください。' });
+      return;
+    }
+
+    if (studioStep === 'sections') {
+      setStudioProfile((prev) => ({ ...prev, sections: splitChoiceValues(first) }));
+      setStudioStep('taste');
+      applyStudioPrompt(['テイストを1つ選択してください。'], [STUDIO_TASTE_OPTIONS], ['single']);
+      appendAiMessage({ content: 'テイストを1つ選択してください。' });
+      return;
+    }
+
+    if (studioStep === 'taste') {
+      setStudioProfile((prev) => ({ ...prev, taste: first }));
+      setStudioStep('color');
+      applyStudioPrompt(['使いたい色を1つ選択してください。'], [STUDIO_COLOR_OPTIONS], ['single']);
+      appendAiMessage({ content: '使いたい色を選択してください。' });
+      return;
+    }
+
+    if (studioStep === 'color') {
+      const color = (first.match(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})/) || [first])[0];
+      setStudioProfile((prev) => ({ ...prev, color }));
+      setStudioStep('companyInfoToggle');
+      applyStudioPrompt(['会社（店舗）情報を掲載しますか？'], [['はい', 'いいえ']], ['single']);
+      appendAiMessage({ content: '会社（店舗）情報を掲載するか選択してください。' });
+      return;
+    }
+
+    if (studioStep === 'companyInfoToggle') {
+      const include = /はい|yes|載せる|のせる/i.test(first);
+      setStudioProfile((prev) => ({ ...prev, includeCompanyInfo: include }));
+      if (!include) {
+        setStudioStep('completed');
+        clearMultiPromptState();
+        await prepareStudioPreview({ ...studioProfile, includeCompanyInfo: false }, updatedMessages);
+        return;
+      }
+      setStudioStep('companyInfoFields');
+      applyStudioPrompt(['掲載する会社（店舗）情報を選択してください（複数選択可）。'], [[
+        '会社名', '住所', '電話番号', 'メールアドレス', '名前', '事業内容', 'その他（自由入力）',
+      ]], ['multi']);
+      appendAiMessage({ content: '掲載する情報を選択してください。' });
+      return;
+    }
+
+    if (studioStep === 'companyInfoFields') {
+      const fields = splitChoiceValues(first);
+      const detailFields = fields.length ? fields : ['会社名', '住所', '電話番号', 'メールアドレス'];
+      setStudioProfile((prev) => ({ ...prev, companyFields: detailFields }));
+      setStudioStep('companyInfoDetails');
+      applyStudioPrompt(
+        detailFields.map((field) => `${field}を入力してください。`),
+        detailFields.map(() => []),
+        detailFields.map(() => 'single'),
+        detailFields.map(() => 'text'),
+      );
+      appendAiMessage({ content: '選択された情報を入力してください。' });
+      return;
+    }
+
+    if (studioStep === 'companyInfoDetails') {
+      const nextDetails: Record<string, string> = {};
+      studioProfile.companyFields.forEach((field, index) => {
+        nextDetails[field] = String(answers[index] || '').trim();
+      });
+      const nextProfile = {
+        ...studioProfile,
+        companyDetails: nextDetails,
+      };
+      setStudioProfile(nextProfile);
+      setStudioStep('completed');
+      clearMultiPromptState();
+      await prepareStudioPreview(nextProfile, updatedMessages);
+      return;
+    }
+
+    if (studioStep === 'revisionInput') {
+      const nextCount = studioRevisionCount + 1;
+      const revised = await generateStudioRevision(String(generatedCode || ''), first, studioProfile);
+      setGeneratedCode(revised);
+      setStudioRevisionCount(nextCount);
+
+      if (nextCount >= 3) {
+        setShowConfirmSave(false);
+        setStudioStep('completed');
+        appendAiMessage({ content: '修正回数が3回に達したため、制作担当に共有して、3営業日以内にご連絡させますので少々お待ちください。' });
+        setConversationEnded(true);
+        return;
+      }
+
+      setStudioStep('completed');
+      setShowConfirmSave(true);
+      appendAiMessage({ content: `修正を反映しました。内容を確認して「OK」または「修正」を選んでください。（残り${3 - nextCount}回）` });
+    }
+  };
+
   const handleServiceCardClick = (card: ServiceCard) => {
     setQuickQuestionButtons([]);
     setActiveServiceMode(card.key === 'pal_studio'
@@ -1412,9 +1848,7 @@ ${template.html}
         || includesAny(status, ['納品完了', '運用中', 'delivered', 'in progress']);
 
       if (isHearingWaiting) {
-        appendAiMessage({
-          content: 'Pal Studio のヒアリングを開始します。\nまず、HPに記載する屋号名（サービス名）を教えてください。',
-        });
+        startStudioFlow();
         return;
       }
 
@@ -1566,31 +2000,27 @@ ${template.html}
       return;
     }
 
-    if (awaitingFinalRequest && activeServiceMode === 'pal_studio') {
-      const userMessage: ChatMessage = { role: 'user', content: messageToSend };
-      const updatedMessages = [...messages, userMessage];
-      setMessages(updatedMessages);
-      setInputText('');
-      setIsLoading(true);
-      setAwaitingFinalRequest(false);
-
-      const finalDescription = `${aiExplanation}\n制作担当への要望: ${messageToSend}`.trim();
-      setAiExplanation(finalDescription);
-
-      const saved = await saveToLab(updatedMessages, String(generatedCode || '').trim(), finalDescription);
-      setIsLoading(false);
-      if (!saved) {
+    if (activeServiceMode === 'pal_studio' && studioStep === 'completed' && showConfirmSave) {
+      const normalized = String(messageToSend || '').trim();
+      if (/^(ok|OK|了解|承認|これでOK)$/i.test(normalized)) {
+        await handleConfirmSave();
         return;
       }
+      if (/修正/.test(normalized)) {
+        handleRequestRevision();
+        return;
+      }
+      appendAiMessage({ content: '下の「OK」または「修正」ボタンから選択してください。' });
+      return;
+    }
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'ai',
-          content: 'ありがとうございます。制作担当に要望を共有しました。これでヒアリングを終了します。',
-        },
-      ]);
-      setConversationEnded(true);
+    if (activeServiceMode === 'pal_studio' && studioStep !== 'idle' && studioStep !== 'completed') {
+      setIsLoading(true);
+      try {
+        await handleStudioFlowInput(messageToSend);
+      } finally {
+        setIsLoading(false);
+      }
       return;
     }
 
@@ -1811,17 +2241,33 @@ ${template.html}
     }
 
     setShowConfirmSave(false);
+    const saved = await saveToLab(confirmMessages.length ? confirmMessages : messages, html, aiExplanation || '下書き確認完了');
+    if (!saved) return;
+    setStudioStep('completed');
+    setConversationEnded(true);
     setMessages(prev => [
       ...prev,
       {
         role: 'ai',
-        content: 'プレビューを確認ありがとうございます。\n最後に、制作担当に伝えたい要望があれば教えてください。なければ「なし」と入力してください。'
+        content: '制作担当に送ります！5営業日以内にご連絡しますので、少々お待ちください！'
       }
     ]);
-    setAwaitingFinalRequest(true);
   };
 
   const handleRequestRevision = () => {
+    if (activeServiceMode === 'pal_studio') {
+      if (studioRevisionCount >= 3) {
+        setShowConfirmSave(false);
+        setConversationEnded(true);
+        appendAiMessage({ content: '修正回数が3回に達したため、制作担当に共有して、3営業日以内にご連絡させますので少々お待ちください。' });
+        return;
+      }
+      setShowConfirmSave(false);
+      setStudioStep('revisionInput');
+      appendAiMessage({ content: '修正したい点を1つ教えてください。' });
+      return;
+    }
+
     setShowConfirmSave(false);
     handleSend("修正お願いします");
   };
@@ -1856,11 +2302,14 @@ ${template.html}
     }
 
     const merged = filled.join('\n\n');
+    const isStudioFlow = activeServiceMode === 'pal_studio' && studioStep !== 'idle' && studioStep !== 'completed';
     setIsSubmittingMultiPrompt(true);
     try {
       await handleSend(merged);
       setQuickQuestionButtons([]);
-      clearMultiPromptState();
+      if (!isStudioFlow) {
+        clearMultiPromptState();
+      }
     } finally {
       setIsSubmittingMultiPrompt(false);
     }
@@ -1870,11 +2319,14 @@ ${template.html}
     if (multiPromptItems.length !== 1 || isSubmittingMultiPrompt) return;
     const answer = String(option || '').trim();
     if (!answer) return;
+    const isStudioFlow = activeServiceMode === 'pal_studio' && studioStep !== 'idle' && studioStep !== 'completed';
     setIsSubmittingMultiPrompt(true);
     try {
       await handleSend(answer);
       setQuickQuestionButtons([]);
-      clearMultiPromptState();
+      if (!isStudioFlow) {
+        clearMultiPromptState();
+      }
     } finally {
       setIsSubmittingMultiPrompt(false);
     }
@@ -2096,10 +2548,11 @@ ${template.html}
 
                       {(multiPromptModes[index] || 'text') === 'select' && options.length > 0 && !isTwoChoice ? (
                         selectionKind === 'multi' ? (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className={`${options.length >= 8 ? 'flex flex-wrap gap-2' : 'grid grid-cols-1 sm:grid-cols-2 gap-2'}`}>
                             {options.map((option) => {
                               const selected = multiPromptSelectedMulti[index] || [];
                               const isSelected = selected.includes(option);
+                              const colorMatch = option.match(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})/);
                               return (
                                 <button
                                   key={`${index}-${option}`}
@@ -2115,7 +2568,7 @@ ${template.html}
                                     next[index] = Array.from(current);
                                     setMultiPromptSelectedMulti(next);
                                   }}
-                                  className={`group relative text-left px-3 py-2.5 rounded-2xl border backdrop-blur-xl transition-all duration-300 overflow-hidden ${isSelected
+                                  className={`group relative text-left px-3 py-2.5 rounded-2xl border backdrop-blur-xl transition-all duration-300 overflow-hidden ${options.length >= 8 ? 'text-[11px]' : ''} ${isSelected
                                     ? 'border-indigo-200 bg-indigo-50/80 text-indigo-700 shadow-[0_8px_20px_rgba(79,70,229,0.16)]'
                                     : 'border-white bg-white/80 text-slate-700 shadow-[0_6px_18px_rgba(0,0,0,0.04)] hover:bg-white hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(79,70,229,0.1)]'
                                   }`}
@@ -2123,6 +2576,9 @@ ${template.html}
                                   <div className="absolute -right-2 -top-2 w-10 h-10 bg-gradient-to-br from-indigo-500/10 to-fuchsia-500/10 rounded-full blur-xl" />
                                   <span className="relative z-10 text-[12px] font-bold flex items-center gap-2">
                                     <span className={`inline-flex w-4 h-4 rounded border items-center justify-center text-[10px] ${isSelected ? 'bg-indigo-500 border-indigo-500 text-white' : 'bg-white border-slate-300 text-transparent'}`}>✓</span>
+                                    {colorMatch && (
+                                      <span className="inline-flex w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: colorMatch[0] }} />
+                                    )}
                                     {option}
                                   </span>
                                 </button>
@@ -2130,9 +2586,10 @@ ${template.html}
                             })}
                           </div>
                         ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className={`${options.length >= 10 ? 'flex flex-wrap gap-2' : 'grid grid-cols-1 sm:grid-cols-2 gap-2'}`}>
                             {options.map((option) => {
                               const isSelected = (multiPromptSelected[index] || '') === option;
+                              const colorMatch = option.match(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})/);
                               return (
                                 <button
                                   key={`${index}-${option}`}
@@ -2147,13 +2604,18 @@ ${template.html}
                                       await handleSingleSelectImmediateSend(index, option);
                                     }
                                   }}
-                                  className={`group relative text-left px-3 py-2.5 rounded-2xl border backdrop-blur-xl transition-all duration-300 overflow-hidden ${isSelected
+                                  className={`group relative text-left px-3 py-2.5 rounded-2xl border backdrop-blur-xl transition-all duration-300 overflow-hidden ${options.length >= 10 ? 'text-[11px] px-2.5 py-2 rounded-xl' : ''} ${isSelected
                                     ? 'border-indigo-200 bg-indigo-50/80 text-indigo-700 shadow-[0_8px_20px_rgba(79,70,229,0.16)]'
                                     : 'border-white bg-white/80 text-slate-700 shadow-[0_6px_18px_rgba(0,0,0,0.04)] hover:bg-white hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(79,70,229,0.1)]'
                                   }`}
                                 >
                                   <div className="absolute -right-2 -top-2 w-10 h-10 bg-gradient-to-br from-indigo-500/10 to-fuchsia-500/10 rounded-full blur-xl" />
-                                  <span className="relative z-10 text-[12px] font-bold">{option}</span>
+                                  <span className="relative z-10 text-[12px] font-bold flex items-center gap-2">
+                                    {colorMatch && (
+                                      <span className="inline-flex w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: colorMatch[0] }} />
+                                    )}
+                                    {option}
+                                  </span>
                                 </button>
                               );
                             })}
