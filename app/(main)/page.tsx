@@ -752,7 +752,18 @@ function PaletteDesignInner() {
       return html ? { html, explanation } : null;
     }
 
-    const decoded = decodeHtmlEntities(source);
+    // LLMが ```html ではなく ``` で返すケースを吸収する。
+    const genericFence = source.match(/```\s*([\s\S]*?)```/i);
+    if (genericFence && genericFence[1]) {
+      const candidate = decodeHtmlEntities(String(genericFence[1]).trim());
+      if (/<(?:!DOCTYPE|html|head|body|main|section|div|header|footer|article|nav|style)\b/i.test(candidate)) {
+        const explanation = source.replace(genericFence[0], '').trim();
+        return { html: candidate, explanation };
+      }
+    }
+
+    // 検出漏れ防止: フェンス自体を外してからHTMLを探索する。
+    const decoded = decodeHtmlEntities(source).replace(/```(?:html)?/gi, '').replace(/```/g, '').trim();
     const htmlBlock = decoded.match(/<html[\s\S]*?<\/html>/i);
     if (htmlBlock && htmlBlock[0]) {
       const start = decoded.indexOf(htmlBlock[0]);
@@ -782,7 +793,12 @@ function PaletteDesignInner() {
   };
 
   const buildFallbackPreviewHtml = (text: string): string => {
-    const body = escapeHtml(String(text || '').replace(/```html[\s\S]*?```/gi, '').trim());
+    const body = escapeHtml(
+      String(text || '')
+        .replace(/```html[\s\S]*?```/gi, '')
+        .replace(/```[\s\S]*?```/g, '')
+        .trim(),
+    );
     return `
       <main style="max-width:960px;margin:0 auto;padding:32px 24px;font-family:'Noto Sans JP',sans-serif;color:#0f172a;line-height:1.8;background:#ffffff;">
         <h2 style="font-size:20px;margin:0 0 16px;font-weight:700;">構成案プレビュー</h2>
