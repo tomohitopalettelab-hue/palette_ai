@@ -1748,8 +1748,11 @@ ${template.html}
 
 要件:
 - 本文は日本語中心
-- 指定したセクションのみを中心に構成
-- メインカラーは「${profile.color}」を基調
+- 指定したセクションのみを中心に構成（フッターは固定で残す）
+- 選択テンプレートの構造・レイアウトの雰囲気は維持する
+- 配色は白背景 + 黒系テキスト + 薄いグレー枠線のワイヤーフレーム調に統一
+- 画像エリアは実画像を使わず、グレーのプレースホルダー領域に「どんな画像を入れるか」をテキストで記載
+- リンクやボタンは動作不要のダミー表示でよい
 - 屋号名は「${profile.shopName}」
 - 業種は「${profile.industry}」
 - サービス内容: ${profile.services.join(' / ')}
@@ -1759,7 +1762,7 @@ ${template.html}
 - 会社情報詳細: ${Object.entries(profile.companyDetails).map(([k, v]) => `${k}:${v}`).join(' / ') || 'なし'}
 
 制約:
-- HTML構造は極力維持
+- HTML構造は極力維持（セクションの順序や骨組みを壊さない）
 - 説明文は自然な日本語
 - 最後は \`\`\`html ... \`\`\` のみ返す
 
@@ -1770,11 +1773,66 @@ ${template.html}
 
   const generateStudioDraft = async (profile: StudioProfile): Promise<{ html: string; template: Template }> => {
     const selected = chooseTemplateByTaste(profile.taste);
-    return { html: buildStudioWireframeHtml(profile), template: selected };
+    const prompt = buildStudioDraftPrompt(selected, profile);
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system: prompt, history: [] }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String(data?.text || `draft generate failed (${response.status})`));
+      }
+      const extracted = extractHtmlCandidate(String(data?.text || ''));
+      return { html: extracted?.html?.trim() || buildStudioWireframeHtml(profile), template: selected };
+    } catch (error) {
+      console.error('studio draft generation error:', error);
+      return { html: buildStudioWireframeHtml(profile), template: selected };
+    }
   };
 
   const generateStudioRevision = async (currentHtml: string, instruction: string, profile: StudioProfile): Promise<string> => {
-    return buildStudioWireframeHtml(profile);
+    const prompt = `
+以下のHTML下書きを、修正要望に沿って調整してください。
+
+修正要望:
+${instruction}
+
+前提:
+- 屋号名: ${profile.shopName}
+- 業種: ${profile.industry}
+- テイスト: ${profile.taste}
+- メインカラー: ${profile.color}
+- 強み・アピールポイント: ${profile.appealPoint || '未設定'}
+
+制約:
+- テンプレート由来の構造・レイアウトの雰囲気は維持する
+- 配色は白背景 + 黒系文字 + グレー枠線のワイヤーフレーム調に統一
+- 画像エリアはグレーのプレースホルダー + 「どんな画像を入れるか」の説明テキストにする
+- 日本語中心
+- 最後は \`\`\`html ... \`\`\` のみ返す
+
+現在HTML:
+${currentHtml}
+`;
+
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system: prompt, history: [] }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String(data?.text || `revision generate failed (${response.status})`));
+      }
+      const extracted = extractHtmlCandidate(String(data?.text || ''));
+      return extracted?.html?.trim() || buildStudioWireframeHtml(profile);
+    } catch (error) {
+      console.error('studio revision generation error:', error);
+      return buildStudioWireframeHtml(profile);
+    }
   };
 
   const profileCompanyInfoSummary = (profile: StudioProfile): string => {
@@ -1829,6 +1887,9 @@ ${template.html}
     setConfirmMode('preview');
     setStudioStep('completed');
     setPreviewRenderMode('desktop');
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setTimeout(() => setActiveTab('preview'), 250);
+    }
     appendAiMessage({ content: `下書きを表示しました。内容を確認して「OK」または「修正」を選んでください。（HTML生成 ${Math.min(studioHtmlGenerationCount + 1, 3)}/3）` });
   };
 
@@ -2718,23 +2779,23 @@ ${template.html}
       </div>
 
       <div className="w-full max-w-[1300px] h-full md:h-[90vh] bg-white/40 md:backdrop-blur-[30px] md:rounded-[60px] shadow-neu-flat flex flex-col md:flex-row border-none md:border md:border-white/60 overflow-hidden relative">
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 flex md:hidden bg-white/90 backdrop-blur-md p-1 rounded-full shadow-lg border border-white/50 z-50">
-          <button onClick={() => setActiveTab('chat')} className={`px-6 py-1.5 rounded-full text-[10px] font-black transition-all ${activeTab === 'chat' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-400'}`}>CHAT</button>
-          <button onClick={() => setActiveTab('preview')} className={`px-6 py-1.5 rounded-full text-[10px] font-black transition-all ${activeTab === 'preview' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-400'}`}>VIEW</button>
+        <div className="absolute top-2 left-2 right-2 md:hidden flex items-center justify-between bg-white/45 backdrop-blur-sm px-2 py-1 rounded-full border border-white/60 z-50">
+          <span className="text-[11px] font-black text-slate-500 px-2">P</span>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setActiveTab('chat')} className={`px-4 py-1 rounded-full text-[10px] font-black transition-all ${activeTab === 'chat' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500'}`}>CHAT</button>
+            <button onClick={() => setActiveTab('preview')} className={`px-4 py-1 rounded-full text-[10px] font-black transition-all ${activeTab === 'preview' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500'}`}>VIEW</button>
+          </div>
         </div>
 
         <div className={`flex flex-col p-5 md:p-10 h-full border-r border-white/20 w-full md:w-[400px] lg:w-[460px] shrink-0 ${activeTab === 'chat' ? 'flex' : 'hidden md:flex'}`}>
-          <header className="flex justify-between items-center mb-6 shrink-0 pt-12 md:pt-0">
+          <header className="hidden md:flex justify-between items-center mb-6 shrink-0">
             <div className="flex flex-col text-slate-800">
               <h1 className="text-2xl font-black tracking-tighter italic">Palette AI</h1>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">prototype</span>
             </div>
-            <div className="w-10 h-10 rounded-full shadow-neu-flat bg-white/50 flex items-center justify-center border border-white">
-              <User className="w-4 h-4 text-slate-400" />
-            </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto pr-1 space-y-6 custom-scrollbar flex flex-col pb-4 touch-auto">
+          <main className="flex-1 overflow-y-auto pr-1 space-y-6 custom-scrollbar flex flex-col pb-4 pt-9 md:pt-0 touch-auto">
             {messages.map((msg, index) => (
               (() => {
                 const isCompletionMessage =
