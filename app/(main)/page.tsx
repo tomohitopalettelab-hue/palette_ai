@@ -72,6 +72,7 @@ function PaletteDesignInner() {
   const [sessionCustomerId] = useState(
     () => queryCid || `cust-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   );
+  const resolvedCustomerId = String(authPaletteId || queryCid || sessionCustomerId || '').trim().toUpperCase();
 
   const scrollEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -740,7 +741,7 @@ function PaletteDesignInner() {
 
       const payload = {
         id: sessionCustomerId,
-        customer_id: sessionCustomerId,
+        customer_id: resolvedCustomerId || sessionCustomerId,
         name: String(firstUserMessage).slice(0, 80) || '新規顧客',
         answers: userAnswers,
         description: aiExplanation || 'ヒアリング中',
@@ -784,7 +785,7 @@ function PaletteDesignInner() {
 
       const payload = {
         id: sessionCustomerId,
-        customer_id: sessionCustomerId,
+        customer_id: resolvedCustomerId || sessionCustomerId,
         name: customerName,
         answers: userAnswers,
         description: aiExplanation || "デザイン方針の詳細記録なし",
