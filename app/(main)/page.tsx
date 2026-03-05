@@ -150,7 +150,6 @@ function PaletteDesignInner() {
   const [studioRevisionTarget, setStudioRevisionTarget] = useState<string>('');
   const [studioRevisionDraft, setStudioRevisionDraft] = useState<StudioRevisionDraft | null>(null);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const [mobileViewportHeight, setMobileViewportHeight] = useState<number | null>(null);
   const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
   const [studioProfile, setStudioProfile] = useState<StudioProfile>({
     shopName: '',
@@ -207,6 +206,7 @@ function PaletteDesignInner() {
 
   const keepInputVisible = () => {
     if (typeof window === 'undefined') return;
+    if (isMobileViewport) return;
     if (keepInputTimerRef.current) {
       window.clearTimeout(keepInputTimerRef.current);
     }
@@ -218,7 +218,6 @@ function PaletteDesignInner() {
         return;
       }
       scrollToBottom('auto');
-      textareaRef.current?.scrollIntoView({ behavior: 'auto', block: 'nearest' });
       keepInputTimerRef.current = null;
     }, mobileKeyboardInset > 0 ? 80 : 220);
   };
@@ -274,9 +273,6 @@ function PaletteDesignInner() {
     if (!viewport) return;
 
     const updateViewportMetrics = () => {
-      const nextHeight = Math.round(viewport.height);
-      setMobileViewportHeight(nextHeight > 0 ? nextHeight : null);
-
       const keyboardHeight = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
       // Ignore tiny viewport jitters and react only when keyboard is likely visible.
       setMobileKeyboardInset(keyboardHeight > 60 ? Math.round(keyboardHeight) : 0);
@@ -292,12 +288,6 @@ function PaletteDesignInner() {
       window.removeEventListener('orientationchange', updateViewportMetrics);
     };
   }, []);
-
-  useEffect(() => {
-    if (isMobileViewport && mobileKeyboardInset > 0 && isComposerFocusedRef.current) {
-      keepInputVisible();
-    }
-  }, [isMobileViewport, mobileKeyboardInset]);
 
   useEffect(() => {
     return () => {
@@ -2915,14 +2905,7 @@ ${currentHtml}
   const isSelectionOnlyStage = activeServiceMode === 'pal_studio' && (studioStep === 'revisionSelect' || studioStep === 'revisionConfirm' || studioStep === 'postOkMessageToggle');
   const isMainInputDisabled = conversationEnded || isSelectionOnlyStage;
   return (
-    <div
-      className="fixed inset-0 w-full h-[100dvh] flex items-start md:items-center justify-start md:justify-center p-0 md:p-8 overflow-hidden bg-slate-50 touch-auto md:touch-none"
-      style={isMobileViewport && mobileViewportHeight
-        ? {
-            height: `${mobileViewportHeight}px`,
-          }
-        : undefined}
-    >
+    <div className="fixed inset-0 w-full h-[100dvh] flex items-start md:items-center justify-start md:justify-center p-0 md:p-8 overflow-hidden bg-slate-50 touch-auto md:touch-none">
       <div className="fixed top-0 left-0 w-full h-full pointer-events-none -z-10 overflow-hidden">
         <div className="absolute w-[500px] h-[500px] bg-pink-400/10 blur-[120px] rounded-full -top-20 -left-20 animate-pulse" />
         <div className="absolute w-[600px] h-[600px] bg-cyan-400/10 blur-[150px] rounded-full -bottom-20 -right-20 animate-pulse" style={{ animationDelay: '-5s' }} />
@@ -3063,7 +3046,7 @@ ${currentHtml}
             <div ref={scrollEndRef} />
           </main>
 
-          <div className="mt-auto pt-4 pb-2 md:pb-0">
+          <div className="mt-auto pt-3 pb-2 md:pb-0 shrink-0 sticky bottom-0 z-20 bg-white/35 backdrop-blur-md rounded-t-2xl md:bg-transparent md:backdrop-blur-0 md:rounded-none">
             {quickQuestionButtons.length > 0 && authStep === 'authenticated' && !isLoading && !conversationEnded && multiPromptItems.length === 0 && !showConfirmSave && messages[messages.length - 1]?.role === 'ai' && /質問ありますか/.test(String(messages[messages.length - 1]?.content || '')) && (
               <div className="mb-3 rounded-[24px] border border-white bg-white/45 backdrop-blur-xl p-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
                 <p className="text-[11px] font-black text-slate-500 mb-2 tracking-wide">質問ありますか？</p>
@@ -3264,7 +3247,6 @@ ${currentHtml}
                   onChange={(e) => setInputText(e.target.value)} 
                   onFocus={() => {
                     isComposerFocusedRef.current = true;
-                    keepInputVisible();
                   }}
                   onBlur={() => {
                     isComposerFocusedRef.current = false;
