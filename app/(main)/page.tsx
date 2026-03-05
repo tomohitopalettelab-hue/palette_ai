@@ -201,6 +201,14 @@ function PaletteDesignInner() {
   const scrollToBottom = () => {
     scrollEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  const keepInputVisible = () => {
+    // Wait for virtual keyboard animation, then bring the composer area back into view.
+    window.setTimeout(() => {
+      scrollToBottom();
+      textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 180);
+  };
   
   useEffect(() => {
     scrollToBottom();
@@ -248,7 +256,7 @@ function PaletteDesignInner() {
 
   useEffect(() => {
     if (isMobileViewport && mobileKeyboardInset > 0) {
-      scrollToBottom();
+      keepInputVisible();
     }
   }, [isMobileViewport, mobileKeyboardInset]);
 
@@ -2862,7 +2870,7 @@ ${currentHtml}
 
   return (
     <div
-      className="fixed inset-0 w-full h-[100dvh] flex items-center justify-center p-0 md:p-8 overflow-hidden bg-slate-50 touch-auto md:touch-none"
+      className="fixed inset-0 w-full h-[100dvh] flex items-start md:items-center justify-start md:justify-center p-0 md:p-8 overflow-hidden bg-slate-50 touch-auto md:touch-none"
       style={isMobileViewport && mobileViewportHeight ? { height: `${mobileViewportHeight}px` } : undefined}
     >
       <div className="fixed top-0 left-0 w-full h-full pointer-events-none -z-10 overflow-hidden">
@@ -3204,7 +3212,7 @@ ${currentHtml}
                   ref={textareaRef} 
                   value={inputText} 
                   onChange={(e) => setInputText(e.target.value)} 
-                  onFocus={scrollToBottom}
+                  onFocus={keepInputVisible}
                   onKeyDown={handleKeyDown} 
                   placeholder={isSelectionOnlyStage ? '上の選択ボタンから回答してください。' : authStep === 'askId' ? '顧客ID（例: A0001）を入力...' : authStep === 'askPassword' ? 'パスワードを入力...' : '回答を入力...'} 
                   rows={1} 
