@@ -153,6 +153,7 @@ export async function POST(req: Request) {
       .map(m => m.trim())
       .filter(Boolean);
     let response;
+    let usedModel = models[0] || 'gemini-2.5-flash-lite';
     let lastError: any = null;
 
     // テキスト送信内容を構築。OK承認時は履歴も元のメッセージも含めず、
@@ -180,6 +181,7 @@ export async function POST(req: Request) {
           },
           contents: contentsBase,
         });
+        usedModel = mdl;
         lastError = null;
         break; // success with this model
       } catch (err: any) {
@@ -191,9 +193,37 @@ export async function POST(req: Request) {
     }
     if (lastError || !response) throw lastError || new Error("Unable to generate response from any model");
 
-    const text = String((response as any).text || '')
+    let text = String((response as any).text || '')
       .replace(/[（(]\s*(?:2択|二択|単一選択)\s*[）)]/gi, '')
       .replace(/\b[A-Z][0-9]{4}\s*様/g, 'お客様');
+
+    const hasHtmlOutput = /```html[\s\S]*?```|<(?:!DOCTYPE|html|head|body|main|section|div|header|footer|article|nav|style)\b/i.test(text);
+    const looksLikeWireframeFlow = /(ワイヤーフレーム|構成案|最終確認|作成いたします|作成します|進めさせていただきます)/.test(text);
+
+    if (!isApproved && looksLikeWireframeFlow && !hasHtmlOutput) {
+      try {
+        const fallback = await ai.models.generateContent({
+          model: usedModel,
+          config: {
+            systemInstruction: `${systemInstruction}\n\n追加ルール: この回答では必ずワイヤーフレームHTMLを返してください。\n- 返答は \`\`\`html ... \`\`\` 形式\n- footer を必ず含める\n- 説明文だけで終わらない`,
+          },
+          contents: [
+            ...contentsBase,
+            { role: 'user', parts: [{ text: '上記ヒアリング内容で、今すぐワイヤーフレームHTMLを出力してください。' }] },
+          ],
+        });
+
+        const fallbackText = String((fallback as any).text || '').trim();
+        if (fallbackText) {
+          text = fallbackText
+            .replace(/[（(]\s*(?:2択|二択|単一選択)\s*[）)]/gi, '')
+            .replace(/\b[A-Z][0-9]{4}\s*様/g, 'お客様');
+        }
+      } catch (fallbackError) {
+        console.warn('wireframe html fallback failed', fallbackError);
+      }
+    }
+
     return NextResponse.json({ text });
 
   } catch (error: any) {
