@@ -858,6 +858,47 @@ function PaletteDesignInner() {
       }
     }
 
+    // 補助UIの最終保険: 「(選択肢: ...)」があれば必ず選択UIを表示する。
+    const hardOptionMatch = normalized.match(/\(\s*(?:選択肢|候補)\s*[:：]\s*([^\)]+)\)/i);
+    if (hardOptionMatch) {
+      const options = Array.from(new Set(
+        String(hardOptionMatch[1] || '')
+          .replace(/など.*$/i, '')
+          .split(/\s*[\/，、,・]\s*|\s+または\s+|\s+or\s+|\s+もしくは\s+|\s+及び\s+|\s+および\s+/i)
+          .map((token) => token.trim())
+          .filter((token) => token.length >= 1 && token.length <= 24)
+          .filter((token) => !/^(選択肢|候補|例|入力|回答|ください|お願いします)$/i.test(token)),
+      ));
+
+      if (options.length >= 2) {
+        const questionLine = normalized
+          .split('\n')
+          .map((line) => sanitizePromptText(line))
+          .find((line) => /[?？]/.test(line));
+        const question = sanitizePromptText(
+          String(questionLine || '当てはまるものを選択してください。')
+            .replace(/[（(]\s*(?:複数選択|チェック|2択|二択|単一選択)\s*[）)]/gi, '')
+            .replace(/[（(]\s*(?:選択肢|候補)\s*[:：][^）)]*[）)]/gi, '')
+            .replace(/\s+/g, ' ')
+            .trim(),
+        ) || '当てはまるものを選択してください。';
+
+        const selectionKind: PromptSelectionKind = /\(\s*(?:複数選択|チェック)\s*\)|\b複数選択\b|\bチェック\b/i.test(normalized)
+          ? 'multi'
+          : 'single';
+
+        setShowConfirmSave(false);
+        setMultiPromptItems([question]);
+        setMultiPromptSelectOptions([options]);
+        setMultiPromptSelectionKinds([selectionKind]);
+        setMultiPromptModes(['select']);
+        setMultiPromptSelected(['']);
+        setMultiPromptSelectedMulti([[]]);
+        setMultiPromptAnswers(['']);
+        return;
+      }
+    }
+
     let prompts = parseMultiPrompts(content);
     if (!prompts.length) {
       const forced = parseTaggedPromptFallback(content);
@@ -1338,6 +1379,7 @@ function PaletteDesignInner() {
   最後に、お店の場所や連絡先など、「会社概要」について、どのような情報をお伝えしますか？ (複数選択) (選択肢: 住所、電話番号、営業時間、定休日、アクセス方法、その他)
 - ユーザーが選んだ項目だけをワイヤーフレームに載せ、未選択項目を勝手に追加しないでください。
 - ワイヤーフレームHTMLには、必ず最下部にfooter要素（コピーライト等）を含めてください。
+- 「ワイヤーフレームを作成します/進めます」と回答する場合は、同じ回答内で必ずHTML本体も出力してください。案内文だけで終了しないでください。
 - ユーザーが希望していない拡張（予約、ブログ、会員、ECなど）は提案しないでください。求められた場合のみ「プランアップまたはお問い合わせ」案内を1文で返してください。
 - 補助UI精度のため、質問は次のタグ形式を優先してください。
   - 選択肢あり: 質問文の末尾に「(選択肢: A、B、C)」を付ける
