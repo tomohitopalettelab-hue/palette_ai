@@ -78,8 +78,18 @@ type StudioStep =
   | 'companyInfoToggle'
   | 'companyInfoFields'
   | 'companyInfoDetails'
-  | 'revisionInput'
+  | 'revisionSelect'
+  | 'revisionDetail'
   | 'completed';
+
+type ConfirmMode = 'preview' | 'revision' | null;
+
+type StudioRevisionDraft = {
+  field: string;
+  before: string;
+  after: string;
+  instruction: string;
+};
 
 type StudioProfile = {
   shopName: string;
@@ -127,7 +137,10 @@ function PaletteDesignInner() {
   const [quickQuestionButtons, setQuickQuestionButtons] = useState<QuickQuestionButton[]>([]);
   const [activeServiceMode, setActiveServiceMode] = useState<ServiceMode>('none');
   const [studioStep, setStudioStep] = useState<StudioStep>('idle');
-  const [studioRevisionCount, setStudioRevisionCount] = useState(0);
+  const [studioHtmlGenerationCount, setStudioHtmlGenerationCount] = useState(0);
+  const [confirmMode, setConfirmMode] = useState<ConfirmMode>(null);
+  const [studioRevisionTarget, setStudioRevisionTarget] = useState<string>('');
+  const [studioRevisionDraft, setStudioRevisionDraft] = useState<StudioRevisionDraft | null>(null);
   const [studioProfile, setStudioProfile] = useState<StudioProfile>({
     shopName: '',
     industry: '',
@@ -804,6 +817,16 @@ function PaletteDesignInner() {
     '#7c3aed パープル', '#374151 グレー', '#111827 ブラック', '#f8fafc ホワイト',
   ];
 
+  const STUDIO_REVISION_OPTIONS = [
+    '屋号名（会社名）',
+    '業種',
+    'サービス内容',
+    'テイスト',
+    '使いたい色',
+    '店舗（会社）情報',
+    '最初からやり直し',
+  ];
+
   const applyStudioPrompt = (
     items: string[],
     options: string[][],
@@ -903,10 +926,6 @@ function PaletteDesignInner() {
       }
     });
     return best;
-  };
-
-  const isTwoChoicePrompt = (options: string[], selectionKind: PromptSelectionKind): boolean => {
-    return selectionKind === 'single' && Array.isArray(options) && options.length === 2;
   };
 
   const decodeHtmlEntities = (value: string): string => {
@@ -1068,7 +1087,7 @@ function PaletteDesignInner() {
     setMultiPromptSelectOptions(prompts.map((item) => item.options));
     setMultiPromptSelectionKinds(prompts.map((item) => item.selectionKind));
     setMultiPromptModes(
-      prompts.map((item) => (item.options.length > 0 && !isTwoChoicePrompt(item.options, item.selectionKind) ? 'select' : 'text')),
+      prompts.map((item) => (item.options.length > 0 ? 'select' : 'text')),
     );
     setMultiPromptSelected(prompts.map(() => ''));
     setMultiPromptSelectedMulti(prompts.map(() => []));
@@ -1551,7 +1570,10 @@ ${template.html}
   };
 
   const startStudioFlow = () => {
-    setStudioRevisionCount(0);
+    setStudioHtmlGenerationCount(0);
+    setConfirmMode(null);
+    setStudioRevisionTarget('');
+    setStudioRevisionDraft(null);
     setStudioStep('shopName');
     setStudioProfile({
       shopName: '',
@@ -1671,16 +1693,60 @@ ${currentHtml}
     }
   };
 
+  const profileCompanyInfoSummary = (profile: StudioProfile): string => {
+    if (profile.includeCompanyInfo === false) return '掲載しない';
+    if (profile.includeCompanyInfo === null) return '未設定';
+    const detail = Object.entries(profile.companyDetails)
+      .map(([key, value]) => `${key}:${value}`)
+      .join(' / ');
+    return detail ? `掲載する (${detail})` : '掲載する';
+  };
+
+  const getStudioFieldBeforeValue = (profile: StudioProfile, field: string): string => {
+    if (field === '屋号名（会社名）') return profile.shopName || '未設定';
+    if (field === '業種') return profile.industry || '未設定';
+    if (field === 'サービス内容') return profile.services.join(' / ') || '未設定';
+    if (field === 'テイスト') return profile.taste || '未設定';
+    if (field === '使いたい色') return profile.color || '未設定';
+    if (field === '店舗（会社）情報') return profileCompanyInfoSummary(profile);
+    return '未設定';
+  };
+
+  const buildRevisionInstruction = (field: string, before: string, after: string): string => {
+    return `${field}を「${before}」から「${after}」へ変更してください。`; 
+  };
+
+  const startStudioRevisionSelection = () => {
+    setShowConfirmSave(false);
+    setConfirmMode(null);
+    setStudioRevisionTarget('');
+    setStudioRevisionDraft(null);
+    setStudioStep('revisionSelect');
+    applyStudioPrompt(['修正したい項目を1つ選択してください。'], [STUDIO_REVISION_OPTIONS], ['single']);
+    appendAiMessage({ content: '修正したい項目を選択してください。' });
+  };
+
   const prepareStudioPreview = async (profile: StudioProfile, conversation: ChatMessage[]) => {
+    if (studioHtmlGenerationCount >= 3) {
+      setShowConfirmSave(false);
+      setConversationEnded(true);
+      appendAiMessage({ content: 'HTML生成が3回に達したため、制作担当に共有して、3営業日以内にご連絡させますので少々お待ちください。' });
+      return;
+    }
+
+    appendAiMessage({ content: 'いまからモデルページを制作します。少々お待ちください！' });
     const draft = await generateStudioDraft(profile);
+    setStudioHtmlGenerationCount((count) => count + 1);
     setSelectedTemplateId(draft.template.id);
     setGeneratedCode(draft.html);
     setConfirmMessages(conversation);
     setAiExplanation(`下書き生成: ${draft.template.id}`);
     setShowConfirmSave(true);
+    setConfirmMode('preview');
+    setStudioStep('completed');
     setPreviewRenderMode('html');
     void fetchPreviewImage(createPreviewImageQuery(buildStudioSummary(profile), draft.template));
-    appendAiMessage({ content: '下書きを表示しました。内容を確認して「OK」または「修正」を選んでください。' });
+    appendAiMessage({ content: `下書きを表示しました。内容を確認して「OK」または「修正」を選んでください。（HTML生成 ${Math.min(studioHtmlGenerationCount + 1, 3)}/3）` });
   };
 
   const handleStudioFlowInput = async (rawInput: string) => {
@@ -1765,9 +1831,10 @@ ${currentHtml}
       const include = /はい|yes|載せる|のせる/i.test(first);
       setStudioProfile((prev) => ({ ...prev, includeCompanyInfo: include }));
       if (!include) {
-        setStudioStep('completed');
+        const nextProfile = { ...studioProfile, includeCompanyInfo: false, companyFields: [], companyDetails: {} };
+        setStudioProfile(nextProfile);
         clearMultiPromptState();
-        await prepareStudioPreview({ ...studioProfile, includeCompanyInfo: false }, updatedMessages);
+        await prepareStudioPreview(nextProfile, updatedMessages);
         return;
       }
       setStudioStep('companyInfoFields');
@@ -1809,23 +1876,76 @@ ${currentHtml}
       return;
     }
 
-    if (studioStep === 'revisionInput') {
-      const nextCount = studioRevisionCount + 1;
-      const revised = await generateStudioRevision(String(generatedCode || ''), first, studioProfile);
-      setGeneratedCode(revised);
-      setStudioRevisionCount(nextCount);
-
-      if (nextCount >= 3) {
-        setShowConfirmSave(false);
-        setStudioStep('completed');
-        appendAiMessage({ content: '修正回数が3回に達したため、制作担当に共有して、3営業日以内にご連絡させますので少々お待ちください。' });
-        setConversationEnded(true);
+    if (studioStep === 'revisionSelect') {
+      if (first.includes('最初からやり直し')) {
+        appendAiMessage({ content: '最初の質問からやり直します！' });
+        startStudioFlow();
         return;
       }
 
-      setStudioStep('completed');
+      setStudioRevisionTarget(first);
+      setStudioStep('revisionDetail');
+
+      if (first === 'テイスト') {
+        applyStudioPrompt(['新しいテイストを1つ選択してください。'], [STUDIO_TASTE_OPTIONS], ['single']);
+      } else if (first === '使いたい色') {
+        applyStudioPrompt(['新しい色を1つ選択してください。'], [STUDIO_COLOR_OPTIONS], ['single']);
+      } else if (first === '店舗（会社）情報') {
+        applyStudioPrompt(['店舗（会社）情報を掲載しますか？'], [['はい', 'いいえ']], ['single']);
+      } else if (first === 'サービス内容') {
+        applyStudioPrompt(['新しいサービス内容を入力してください（複数ある場合は「、」区切り）。'], [[]], ['single'], ['text']);
+      } else if (first === '業種') {
+        applyStudioPrompt(['新しい業種を入力してください。'], [[]], ['single'], ['text']);
+      } else {
+        applyStudioPrompt(['新しい屋号名（会社名）を入力してください。'], [[]], ['single'], ['text']);
+      }
+      appendAiMessage({ content: `${first}の新しい内容を教えてください。` });
+      return;
+    }
+
+    if (studioStep === 'revisionDetail') {
+      const field = studioRevisionTarget || '屋号名（会社名）';
+      const before = getStudioFieldBeforeValue(studioProfile, field);
+
+      let afterValue = first;
+      let nextProfile = { ...studioProfile };
+
+      if (field === '屋号名（会社名）') {
+        nextProfile = { ...nextProfile, shopName: afterValue };
+      } else if (field === '業種') {
+        nextProfile = { ...nextProfile, industry: afterValue };
+      } else if (field === 'サービス内容') {
+        const services = splitChoiceValues(afterValue);
+        nextProfile = { ...nextProfile, services };
+        afterValue = services.join(' / ') || afterValue;
+      } else if (field === 'テイスト') {
+        nextProfile = { ...nextProfile, taste: afterValue };
+      } else if (field === '使いたい色') {
+        const color = (afterValue.match(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})/) || [afterValue])[0];
+        nextProfile = { ...nextProfile, color };
+        afterValue = color;
+      } else if (field === '店舗（会社）情報') {
+        const include = /はい|yes|載せる|のせる/i.test(afterValue);
+        nextProfile = {
+          ...nextProfile,
+          includeCompanyInfo: include,
+          companyFields: include ? nextProfile.companyFields : [],
+          companyDetails: include ? nextProfile.companyDetails : {},
+        };
+        afterValue = include ? profileCompanyInfoSummary(nextProfile) : '掲載しない';
+      }
+
+      setStudioProfile(nextProfile);
+      const instruction = buildRevisionInstruction(field, before, afterValue);
+      setStudioRevisionDraft({ field, before, after: afterValue, instruction });
       setShowConfirmSave(true);
-      appendAiMessage({ content: `修正を反映しました。内容を確認して「OK」または「修正」を選んでください。（残り${3 - nextCount}回）` });
+      setConfirmMode('revision');
+      setStudioStep('completed');
+      clearMultiPromptState();
+      appendAiMessage({
+        content: `この内容で制作しますか？\n- 修正項目: ${field}\n- Before: ${before}\n- After: ${afterValue}`,
+      });
+      return;
     }
   };
 
@@ -2227,6 +2347,33 @@ ${currentHtml}
 
   // 確認ボタンが押されたとき
   const handleConfirmSave = async () => {
+    if (confirmMode === 'revision') {
+      if (!studioRevisionDraft) {
+        setShowConfirmSave(false);
+        appendAiMessage({ content: '修正内容を確認できなかったため、もう一度「修正」からやり直してください。' });
+        return;
+      }
+      if (studioHtmlGenerationCount >= 3) {
+        setShowConfirmSave(false);
+        setConversationEnded(true);
+        appendAiMessage({ content: 'HTML生成が3回に達したため、制作担当に共有して、3営業日以内にご連絡させますので少々お待ちください。' });
+        return;
+      }
+
+      setShowConfirmSave(false);
+      const revised = await generateStudioRevision(String(generatedCode || ''), studioRevisionDraft.instruction, studioProfile);
+      const nextCount = studioHtmlGenerationCount + 1;
+      setStudioHtmlGenerationCount(nextCount);
+      setGeneratedCode(revised);
+      setConfirmMode('preview');
+      setShowConfirmSave(true);
+      setStudioStep('completed');
+      setStudioRevisionTarget('');
+      setStudioRevisionDraft(null);
+      appendAiMessage({ content: `修正を反映しました。内容を確認して「OK」または「修正」を選んでください。（HTML生成 ${Math.min(nextCount, 3)}/3）` });
+      return;
+    }
+
     const html = String(generatedCode || '').trim();
     if (!html) {
       setShowConfirmSave(false);
@@ -2243,6 +2390,7 @@ ${currentHtml}
     setShowConfirmSave(false);
     const saved = await saveToLab(confirmMessages.length ? confirmMessages : messages, html, aiExplanation || '下書き確認完了');
     if (!saved) return;
+    setConfirmMode(null);
     setStudioStep('completed');
     setConversationEnded(true);
     setMessages(prev => [
@@ -2256,15 +2404,17 @@ ${currentHtml}
 
   const handleRequestRevision = () => {
     if (activeServiceMode === 'pal_studio') {
-      if (studioRevisionCount >= 3) {
-        setShowConfirmSave(false);
-        setConversationEnded(true);
-        appendAiMessage({ content: '修正回数が3回に達したため、制作担当に共有して、3営業日以内にご連絡させますので少々お待ちください。' });
+      if (confirmMode === 'revision') {
+        startStudioRevisionSelection();
         return;
       }
-      setShowConfirmSave(false);
-      setStudioStep('revisionInput');
-      appendAiMessage({ content: '修正したい点を1つ教えてください。' });
+      if (studioHtmlGenerationCount >= 3) {
+        setShowConfirmSave(false);
+        setConversationEnded(true);
+        appendAiMessage({ content: 'HTML生成が3回に達したため、制作担当に共有して、3営業日以内にご連絡させますので少々お待ちください。' });
+        return;
+      }
+      startStudioRevisionSelection();
       return;
     }
 
@@ -2517,7 +2667,6 @@ ${currentHtml}
                       {(() => {
                         const selectionKind = multiPromptSelectionKinds[index] || 'single';
                         const options = multiPromptSelectOptions[index] || [];
-                        const isTwoChoice = isTwoChoicePrompt(options, selectionKind);
                         return (
                           <>
                       <div className="flex items-center gap-2 mb-2">
@@ -2528,7 +2677,7 @@ ${currentHtml}
                             next[index] = 'select';
                             setMultiPromptModes(next);
                           }}
-                          disabled={options.length === 0 || isTwoChoice}
+                          disabled={options.length === 0}
                           className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all duration-300 ${(multiPromptModes[index] || 'text') === 'select' ? 'bg-indigo-50/90 border-indigo-200 text-indigo-700 shadow-[0_6px_16px_rgba(79,70,229,0.12)]' : 'bg-white/80 border-white text-slate-500 hover:bg-white'}`}
                         >
                           選択式
@@ -2546,7 +2695,7 @@ ${currentHtml}
                         </button>
                       </div>
 
-                      {(multiPromptModes[index] || 'text') === 'select' && options.length > 0 && !isTwoChoice ? (
+                      {(multiPromptModes[index] || 'text') === 'select' && options.length > 0 ? (
                         selectionKind === 'multi' ? (
                           <div className={`${options.length >= 8 ? 'flex flex-wrap gap-2' : 'grid grid-cols-1 sm:grid-cols-2 gap-2'}`}>
                             {options.map((option) => {
