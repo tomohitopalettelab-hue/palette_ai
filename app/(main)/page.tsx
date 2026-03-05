@@ -56,6 +56,16 @@ type HearingSummary = {
   recruiting: string | null;
 };
 
+type HearingChecklist = {
+  shopName: boolean;
+  sections: boolean;
+  phoneAddress: boolean;
+  concept: boolean;
+  color: boolean;
+  email: boolean;
+  missingLabels: string[];
+};
+
 function PaletteDesignInner() {
   const searchParams = useSearchParams();
   const queryCid = searchParams.get('cid')?.trim();
@@ -73,6 +83,7 @@ function PaletteDesignInner() {
   const [generatedCode, setGeneratedCode] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(templates[0]?.id || '');
   const [showConfirmSave, setShowConfirmSave] = useState(false);
+  const [awaitingFinalRequest, setAwaitingFinalRequest] = useState(false);
   const [previewRenderMode, setPreviewRenderMode] = useState<'html' | 'image'>('html');
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [isPreviewImageLoading, setIsPreviewImageLoading] = useState(false);
@@ -160,12 +171,6 @@ function PaletteDesignInner() {
       .trim();
 
     if (!text) return [];
-
-    const isWireframeConfirmation = /(ワイヤーフレーム|構成でワイヤーフレーム|以下のような構成)/.test(text)
-      && /(よろしいでしょうか|OKであれば|その旨お伝えください|確認してください)/.test(text);
-    if (isWireframeConfirmation) {
-      return [];
-    }
 
     const splitOptionTokensSimple = (source: string): string[] => {
       return Array.from(new Set(
@@ -802,34 +807,6 @@ function PaletteDesignInner() {
     return null;
   };
 
-  const escapeHtml = (value: string): string => {
-    return String(value || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  };
-
-  const buildFallbackPreviewHtml = (text: string): string => {
-    const body = escapeHtml(
-      String(text || '')
-        .replace(/```html[\s\S]*?```/gi, '')
-        .replace(/```[\s\S]*?```/g, '')
-        .trim(),
-    );
-    return `
-      <main style="max-width:960px;margin:0 auto;padding:32px 24px;font-family:'Noto Sans JP',sans-serif;color:#0f172a;line-height:1.8;background:#ffffff;">
-        <h2 style="font-size:20px;margin:0 0 16px;font-weight:700;">構成案プレビュー</h2>
-        <pre style="white-space:pre-wrap;margin:0;padding:18px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;font-size:14px;">${body || '構成案テキストを表示します。'}</pre>
-      </main>
-    `.trim();
-  };
-
-  const isWireframeLikeResponse = (text: string): boolean => {
-    return /(ワイヤーフレーム|構成案|こちらの構成でよろしいでしょうか|OKであればその旨お伝えください|確認してください|この構成を参考に制作させていただきます|3\s*[〜~\-]\s*5営業日|３\s*[〜~\-]\s*５営業日|楽しみにお待ちください)/.test(String(text || ''));
-  };
-
   useEffect(() => {
     const latestMessage = messages[messages.length - 1];
     if (!latestMessage || latestMessage.role !== 'ai') {
@@ -953,17 +930,6 @@ function PaletteDesignInner() {
     const explanation = extracted.explanation || '';
     setAiExplanation(explanation);
     
-    // 「ワイヤーフレーム」や「構成案」という言葉が含まれている場合は、
-    // DB保存のための情報を保持しておく（OK が来たら saveToLab を呼ぶ）
-    if (text.includes("ワイヤーフレーム") || text.includes("構成案") || text.includes("図面")) {
-      console.log("ワイヤーフレームを検知しました。OK が送信されたら保存します。");
-      // wireframe でも currentMessages を保持しておく
-      setConfirmMessages(currentMessages);
-      setShowConfirmSave(true); // OKボタンを表示
-      // conversationEndedはfalseのまま
-      return true;
-    }
-
     // 本番デザインと判断されたので、保存候補として情報を保持しておく
     setConfirmMessages(currentMessages);
     setShowConfirmSave(true); // HTMLが生成されたら即表示
@@ -1000,6 +966,24 @@ function PaletteDesignInner() {
       .join(' ')
       .toLowerCase();
 
+    const extractDescriptionTokens = (description: string): string[] => {
+      const cleaned = String(description || '')
+        .replace(/[(){}\[\]"'`]/g, ' ')
+        .replace(/[。、，,・/:;!！?？]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (!cleaned) return [];
+
+      const raw = cleaned
+        .split(/\s+/)
+        .map((token) => token.trim().toLowerCase())
+        .filter((token) => token.length >= 2)
+        .filter((token) => !/^(デザイン|テンプレート|レイアウト|セクション|対応|高い|汎用性|モダン|クリーン)$/i.test(token));
+
+      return Array.from(new Set(raw)).slice(0, 24);
+    };
+
     const scores: Record<string, number> = {};
 
     templates.forEach((template) => {
@@ -1024,6 +1008,17 @@ function PaletteDesignInner() {
           if (text.includes(keyword.toLowerCase())) scores[template.id] += 1;
         });
       });
+
+      // description に含まれる語句との一致を重視する。
+      const descriptionTokens = extractDescriptionTokens(template.description);
+      descriptionTokens.forEach((token) => {
+        if (text.includes(token)) scores[template.id] += 2;
+      });
+
+      const fullDescription = String(template.description || '').toLowerCase();
+      if (fullDescription.length >= 6 && text.includes(fullDescription.slice(0, Math.min(16, fullDescription.length)))) {
+        scores[template.id] += 2;
+      }
     });
 
     const sorted = Object.entries(scores).sort(([, a], [, b]) => b - a);
@@ -1073,24 +1068,115 @@ function PaletteDesignInner() {
     return parts.join(' ');
   };
 
+  const collectHearingChecklist = (currentMessages: ChatMessage[]): HearingChecklist => {
+    const answers = buildUserAnswers(currentMessages);
+    const joined = answers
+      .map((item) => `${item.q || ''} ${item.a || ''}`)
+      .join('\n')
+      .toLowerCase();
+
+    const emailPattern = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
+    const phonePattern = /0\d{1,4}-\d{1,4}-\d{3,4}/;
+    const hasAddressKeyword = /(住所|所在地|都|道|府|県|市|区|町|丁目|番地|アクセス)/i.test(joined);
+
+    const shopName = /(屋号|会社名|法人名|ブランド名|サービス名)/i.test(joined);
+    const sections = /(セクション|構成|掲載|表示する内容|載せたい内容|ページ構成)/i.test(joined);
+    const phoneAddress = phonePattern.test(joined) || (/(電話番号|tel|住所|所在地)/i.test(joined) && hasAddressKeyword);
+    const concept = /(強み|コンセプト|特徴|売り|差別化|想い)/i.test(joined);
+    const color = /(色|カラー|配色|カラーパレット)/i.test(joined);
+    const email = emailPattern.test(joined) || /(メールアドレス|mail|e-mail|お問い合わせ先メール)/i.test(joined);
+
+    const missingLabels: string[] = [];
+    if (!shopName) missingLabels.push('屋号名');
+    if (!sections) missingLabels.push('表示するセクション');
+    if (!phoneAddress) missingLabels.push('電話番号・住所');
+    if (!concept) missingLabels.push('強み・コンセプト');
+    if (!color) missingLabels.push('使いたい色');
+    if (!email) missingLabels.push('メールアドレス');
+
+    return { shopName, sections, phoneAddress, concept, color, email, missingLabels };
+  };
+
+  const generateDraftFromTemplate = async (
+    template: Template,
+    currentMessages: ChatMessage[],
+    summary: HearingSummary,
+  ): Promise<string> => {
+    const answerSummary = buildUserAnswers(currentMessages)
+      .map((item) => `Q: ${String(item.q || '').slice(0, 120)}\nA: ${String(item.a || '')}`)
+      .join('\n\n');
+
+    const draftPrompt = `
+あなたはWebデザイナーです。以下のヒアリング内容をもとに、ベースHTMLを顧客専用の下書きデザインへ書き換えてください。
+
+制約:
+- HTML構造は大きく崩さない
+- 本文は日本語中心
+- 未確認情報は捏造せず、必要最小限のプレースホルダー表現にする
+- 最後は \`\`\`html ... \`\`\` だけを返す
+
+必須反映:
+- 屋号名
+- 表示セクション
+- 電話番号/住所
+- 強み/コンセプト
+- 希望色
+- メールアドレス
+
+要約:
+${JSON.stringify(summary)}
+
+ヒアリング内容:
+${answerSummary}
+
+ベースHTML:
+${template.html}
+`;
+
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system: draftPrompt, history: [] }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String(data?.text || `draft generate failed (${response.status})`));
+      }
+      const extracted = extractHtmlCandidate(String(data?.text || ''));
+      return extracted?.html?.trim() || template.html;
+    } catch (error) {
+      console.error('draft generation error:', error);
+      return template.html;
+    }
+  };
+
   const maybePrepareTemplatePreview = async (
     currentMessages: ChatMessage[],
     summary: HearingSummary,
     triggerText: string,
   ): Promise<boolean> => {
     if (activeServiceMode !== 'pal_studio') return false;
-
-    const hearingScore = Object.values(summary).filter(Boolean).length;
-    const userAnswerCount = currentMessages.filter((msg) => msg.role === 'user').length;
     const explicitPreviewRequest = /(プレビュー|テンプレ|デザイン案|進めて|作成|提案|確認|ok|OK|お任せ)/.test(String(triggerText || ''));
 
-    if (!explicitPreviewRequest && hearingScore < 3 && userAnswerCount < 4) {
+    const checklist = collectHearingChecklist(currentMessages);
+    if (checklist.missingLabels.length > 0) {
+      if (explicitPreviewRequest) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'ai',
+            content: `下書き作成の前に、以下を確認させてください。\n- ${checklist.missingLabels.join('\n- ')}`,
+          },
+        ]);
+      }
       return false;
     }
 
     const selectedTemplate = autoSelectTemplate(buildUserAnswers(currentMessages));
+    const draftHtml = await generateDraftFromTemplate(selectedTemplate, currentMessages, summary);
     setSelectedTemplateId(selectedTemplate.id);
-    setGeneratedCode(selectedTemplate.html);
+    setGeneratedCode(draftHtml);
     setConfirmMessages(currentMessages);
     setAiExplanation(`テンプレート選定: ${selectedTemplate.name} (${selectedTemplate.id})`);
     setShowConfirmSave(true);
@@ -1103,7 +1189,7 @@ function PaletteDesignInner() {
       ...prev,
       {
         role: 'ai',
-        content: `ヒアリング内容からテンプレート「${selectedTemplate.name}」を選定しました。右側でHTMLまたは画像プレビューを確認して、修正かOKを選んでください。`,
+        content: 'ヒアリング内容から下書きを作成しました。右側でHTMLまたは画像プレビューを確認して、修正かOKを選んでください。',
       },
     ]);
 
@@ -1150,7 +1236,7 @@ function PaletteDesignInner() {
   };
 
   // 明示的に保存を行う関数
-  const saveToLab = async (currentMessages: any[], html: string): Promise<boolean> => {
+  const saveToLab = async (currentMessages: any[], html: string, descriptionOverride?: string): Promise<boolean> => {
     if (!html) {
       console.error("保存するHTMLがありません");
       setMessages(prev => [
@@ -1173,7 +1259,7 @@ function PaletteDesignInner() {
         customer_id: resolvedCustomerId || sessionCustomerId,
         name: customerName,
         answers: userAnswers,
-        description: aiExplanation || "デザイン方針の詳細記録なし",
+        description: descriptionOverride || aiExplanation || "デザイン方針の詳細記録なし",
         htmlCode: html,
         status: 'reviewing',
       };
@@ -1475,16 +1561,36 @@ function PaletteDesignInner() {
       }
     }
 
-    // ★ wireframe 後（conversationEnded = true）の OK 送信時に保存処理を実行
-    if (conversationEnded && /OK|ok|了解|承認/.test(messageToSend)) {
-      console.log("wireframe 系統での OK 送信を検知。saveToLab を実行します。");
-      const saved = await saveToLab(confirmMessages, generatedCode);
+    if (conversationEnded) {
+      // OK 以外のメッセージは無視
+      return;
+    }
+
+    if (awaitingFinalRequest && activeServiceMode === 'pal_studio') {
+      const userMessage: ChatMessage = { role: 'user', content: messageToSend };
+      const updatedMessages = [...messages, userMessage];
+      setMessages(updatedMessages);
+      setInputText('');
+      setIsLoading(true);
+      setAwaitingFinalRequest(false);
+
+      const finalDescription = `${aiExplanation}\n制作担当への要望: ${messageToSend}`.trim();
+      setAiExplanation(finalDescription);
+
+      const saved = await saveToLab(updatedMessages, String(generatedCode || '').trim(), finalDescription);
+      setIsLoading(false);
       if (!saved) {
         return;
       }
-      // その後、通常通り AI に OK メッセージを送信
-    } else if (conversationEnded) {
-      // OK 以外のメッセージは無視
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'ai',
+          content: 'ありがとうございます。制作担当に要望を共有しました。これでヒアリングを終了します。',
+        },
+      ]);
+      setConversationEnded(true);
       return;
     }
 
@@ -1521,7 +1627,10 @@ function PaletteDesignInner() {
 動的補足:
 - 現在は Pal Studio 専用モードです。以降は「1ページHPのHTMLヒアリング」のみを行ってください。
 - 他サービス（Palette Ai / Pal Trust）の案内・分岐・提案は行わないでください。
-- 回答は必ずヒアリング継続（質問）のみを返してください。ワイヤーフレームやHTMLコードは出力しないでください。
+- 回答は必ずヒアリング継続（質問）のみを返してください。HTMLコードは出力しないでください。
+- チャット文中で「テンプレート」という単語を使わないでください。代わりに「下書き」「プレビュー」と表現してください。
+- 次の項目が揃うまで、テンプレート選定に進まないでください: 屋号名 / 表示するセクション / 電話番号と住所 / 強みやコンセプト / 使いたい色 / メールアドレス。
+- 質問順序は原則として、屋号名 → 表示セクション → 電話番号・住所 → 強み・コンセプト → 色 → メールアドレス。
 - 顧客の呼称は「${displayCustomerName}様」を優先し、顧客ID（例: P1111）で呼ばないでください。
 - 会社概要の質問は次の形式を使用してください。
   お店の場所や連絡先など、「会社概要」について、どのような情報をお伝えしますか？ (複数選択) (選択肢: 住所、電話番号、営業時間、定休日、アクセス方法、その他)
@@ -1674,16 +1783,7 @@ function PaletteDesignInner() {
           return;
         }
 
-        const isWireframeResponse = isWireframeLikeResponse(aiText);
-        const hasRenderableHtml = await extractCode(aiText, newMessages);
-        if (isWireframeResponse && !hasRenderableHtml) {
-          setGeneratedCode(buildFallbackPreviewHtml(aiText));
-          setConfirmMessages(newMessages);
-        }
-        await saveDraftToLab(newMessages, /よろしいでしょうか|OKであれば|確認してください/.test(aiText) ? 'reviewing' : 'hearing');
-        if (hasRenderableHtml || isWireframeResponse) {
-          setShowConfirmSave(true);
-        }
+        await saveDraftToLab(newMessages, 'hearing');
 
       } else {
         setMessages(prev => [...prev, { role: 'ai', content: "すみません、エラーが起きてしまいました。" } as ChatMessage]);
@@ -1711,18 +1811,14 @@ function PaletteDesignInner() {
     }
 
     setShowConfirmSave(false);
-    const saved = await saveToLab(confirmMessages, html);
-    if (!saved) {
-      return;
-    }
     setMessages(prev => [
       ...prev,
       {
         role: 'ai',
-        content: 'ありがとうございました！\nこの構成を参考に制作させていただきます。\n３～５営業日以内に担当よりご連絡いたします。\n楽しみにお待ちください☺'
+        content: 'プレビューを確認ありがとうございます。\n最後に、制作担当に伝えたい要望があれば教えてください。なければ「なし」と入力してください。'
       }
     ]);
-    setConversationEnded(true);
+    setAwaitingFinalRequest(true);
   };
 
   const handleRequestRevision = () => {
@@ -2177,11 +2273,7 @@ function PaletteDesignInner() {
               </div>
             )}
           </div>
-          {selectedTemplateId && (
-            <p className="mt-3 text-[11px] font-bold text-slate-500">
-              Template: {templates.find((template) => template.id === selectedTemplateId)?.name || selectedTemplateId}
-            </p>
-          )}
+
         </div>
       </div>
     </div>
