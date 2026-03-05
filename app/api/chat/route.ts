@@ -4,6 +4,8 @@ import { palDbGet } from '../_lib/pal-db-client';
 
 const PALETTE_ID_PATTERN = /\b([A-Za-z][0-9]{4})\b/;
 const SERVICE_QUERY_PATTERN = /(顧客ID|paletteid|サービス|契約|プラン|内容|案内|確認|照会|教えて)/i;
+const UNSUPPORTED_FEATURE_PATTERN = /(ブログ投稿|ブログ機能|投稿機能|ニュース投稿|予約機能|予約フォーム|会員機能|マイページ|EC機能|決済機能|チャットボット実装|LINE連携|在庫管理)/i;
+const UNSUPPORTED_FEATURE_MESSAGE = 'ブログとか投稿系とか予約機能とか、いま提示した条件いがいのことは、現在のプランでは実装できないので、プランアップするか、Palette Labへお問い合わせください。';
 
 const formatDate = (raw?: string | null): string => {
   if (!raw) return '未設定';
@@ -76,6 +78,10 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { message, history, system } = body;
 
+    if (UNSUPPORTED_FEATURE_PATTERN.test(String(message || ''))) {
+      return NextResponse.json({ text: UNSUPPORTED_FEATURE_MESSAGE });
+    }
+
     const serviceSummary = await tryFetchServiceSummary(String(message || ''));
     if (serviceSummary) {
       return NextResponse.json({ text: serviceSummary });
@@ -120,6 +126,8 @@ export async function POST(req: Request) {
           - お問い合わせフォーム: 必須項目・送信先メール・注意事項
           - 採用情報: 募集職種・雇用形態・勤務地・応募方法
           - 実績紹介: 実績ジャンル・件数感・見せ方
+        5.5. 基本は「1ページのシンプルなHP」前提で進め、ユーザーが明示しない限り予約機能・ブログ投稿機能・会員機能などの拡張機能は質問しないでください。
+        5.6. ユーザーがセクション構成を提示した場合は、その構成を最優先し、セクション外の追加要求はしないでください。
         6. 不足情報はダミーで埋めず、必ず質問で回収してください。
         7. 選択式で答えられる問いは「(選択肢: A、B、C)」形式で提示し、複数回答を想定する場合は必ず「(複数選択)」を明記してください。
         8. ワイヤーフレーム作成時は以下のスタイルガイド（${wireframeStyle}）を含め、グレー・白・黒・点線・実線のみで設計図として表現してください。

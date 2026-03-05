@@ -693,6 +693,10 @@ function PaletteDesignInner() {
     setMultiPromptAnswers([]);
   };
 
+  const isTwoChoicePrompt = (options: string[], selectionKind: PromptSelectionKind): boolean => {
+    return selectionKind === 'single' && Array.isArray(options) && options.length === 2;
+  };
+
   useEffect(() => {
     const latestMessage = messages[messages.length - 1];
     if (!latestMessage || latestMessage.role !== 'ai') {
@@ -714,7 +718,9 @@ function PaletteDesignInner() {
     setMultiPromptItems(prompts.map((item) => item.question));
     setMultiPromptSelectOptions(prompts.map((item) => item.options));
     setMultiPromptSelectionKinds(prompts.map((item) => item.selectionKind));
-    setMultiPromptModes(prompts.map((item) => (item.options.length > 0 ? 'select' : 'text')));
+    setMultiPromptModes(
+      prompts.map((item) => (item.options.length > 0 && !isTwoChoicePrompt(item.options, item.selectionKind) ? 'select' : 'text')),
+    );
     setMultiPromptSelected(prompts.map(() => ''));
     setMultiPromptSelectedMulti(prompts.map(() => []));
     setMultiPromptAnswers(prompts.map(() => ''));
@@ -1571,6 +1577,12 @@ function PaletteDesignInner() {
                   {multiPromptItems.map((item, index) => (
                     <div key={`${index}-${item}`}>
                       <label className="block text-[11px] font-bold text-slate-600 mb-1">{index + 1}. {item}</label>
+                      {(() => {
+                        const selectionKind = multiPromptSelectionKinds[index] || 'single';
+                        const options = multiPromptSelectOptions[index] || [];
+                        const isTwoChoice = isTwoChoicePrompt(options, selectionKind);
+                        return (
+                          <>
                       <div className="flex items-center gap-2 mb-2">
                         <button
                           type="button"
@@ -1579,7 +1591,7 @@ function PaletteDesignInner() {
                             next[index] = 'select';
                             setMultiPromptModes(next);
                           }}
-                          disabled={(multiPromptSelectOptions[index] || []).length === 0}
+                          disabled={options.length === 0 || isTwoChoice}
                           className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all duration-300 ${(multiPromptModes[index] || 'text') === 'select' ? 'bg-indigo-50/90 border-indigo-200 text-indigo-700 shadow-[0_6px_16px_rgba(79,70,229,0.12)]' : 'bg-white/80 border-white text-slate-500 hover:bg-white'}`}
                         >
                           選択式
@@ -1597,10 +1609,10 @@ function PaletteDesignInner() {
                         </button>
                       </div>
 
-                      {(multiPromptModes[index] || 'text') === 'select' && (multiPromptSelectOptions[index] || []).length > 0 ? (
-                        (multiPromptSelectionKinds[index] || 'single') === 'multi' ? (
+                      {(multiPromptModes[index] || 'text') === 'select' && options.length > 0 && !isTwoChoice ? (
+                        selectionKind === 'multi' ? (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {(multiPromptSelectOptions[index] || []).map((option) => {
+                            {options.map((option) => {
                               const selected = multiPromptSelectedMulti[index] || [];
                               const isSelected = selected.includes(option);
                               return (
@@ -1634,7 +1646,7 @@ function PaletteDesignInner() {
                           </div>
                         ) : (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {(multiPromptSelectOptions[index] || []).map((option) => {
+                            {options.map((option) => {
                               const isSelected = (multiPromptSelected[index] || '') === option;
                               return (
                                 <button
@@ -1676,6 +1688,9 @@ function PaletteDesignInner() {
                           className="w-full px-3 py-2.5 rounded-2xl border border-white bg-white/85 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-200/60 shadow-[0_6px_18px_rgba(0,0,0,0.04)] resize-y min-h-[44px]"
                         />
                       )}
+                          </>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
