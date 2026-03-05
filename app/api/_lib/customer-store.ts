@@ -1,5 +1,13 @@
 import { sql } from '@vercel/postgres';
 
+if (!process.env.POSTGRES_URL) {
+  process.env.POSTGRES_URL =
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    '';
+}
+
 type CustomerRecord = Record<string, any>;
 
 let initialized = false;
