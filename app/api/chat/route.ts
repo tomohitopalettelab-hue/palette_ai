@@ -110,9 +110,19 @@ export async function POST(req: Request) {
       ? String(system)
       : 'あなたはプロのWebデザイナーです。ユーザーの要望を丁寧にヒアリングし、必要に応じてHTMLワイヤーフレームを作成します。';
 
+    const hearingOnlyMode = /ワイヤーフレームやHTMLコードは出力しない|ヒアリング継続（質問）のみ/.test(baseSystem);
+
     const systemInstruction = isApproved 
       ? `あなたはディレクターです。以下の案内メッセージのみを、HTMLを含めずプレーンテキストで返してください。
           「ありがとうございます！ヒアリング内容をLabに保存しました。管理画面で確認できます。」`
+      : hearingOnlyMode
+      ? `${baseSystem}
+
+         あなたはヒアリング担当です。次の制約を守ってください。
+         - 回答は常に「次に確認すべき1つの質問」のみを返す。
+         - ワイヤーフレーム、HTMLコード、コードブロックは出力しない。
+         - 回答完了メッセージ（ありがとうございました等）で会話を終了しない。
+         - 顧客IDで呼ばず「お客様」または確定した屋号名で呼ぶ。`
       : `${baseSystem}
 
          あなたは超一流のWebディレクターです。構造的で美しいワイヤーフレームをHTMLで作成してください。
@@ -203,7 +213,7 @@ export async function POST(req: Request) {
     const hasHtmlOutput = /```html[\s\S]*?```|<(?:!DOCTYPE|html|head|body|main|section|div|header|footer|article|nav|style)\b/i.test(text);
     const looksLikeWireframeFlow = /(ワイヤーフレーム|構成案|最終確認|作成いたします|作成します|進めさせていただきます|この構成を参考に制作させていただきます|3\s*[〜~\-]\s*5営業日|３\s*[〜~\-]\s*５営業日|楽しみにお待ちください)/.test(text);
 
-    if (!isApproved && looksLikeWireframeFlow && !hasHtmlOutput) {
+    if (!isApproved && !hearingOnlyMode && looksLikeWireframeFlow && !hasHtmlOutput) {
       try {
         const fallback = await ai.models.generateContent({
           model: usedModel,

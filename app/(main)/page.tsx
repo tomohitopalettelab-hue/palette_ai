@@ -3,6 +3,7 @@
 import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Send, Layout, MessageSquare, Sparkles, User, Box, PenLine, RefreshCw, BellRing } from 'lucide-react';
+import { templates, Template } from '../admin/templates';
 
 type ServiceCard = {
   key: string;
@@ -41,6 +42,19 @@ type ChatMessage = {
 };
 
 type PromptSelectionKind = 'single' | 'multi';
+type ServiceMode = 'none' | 'pal_studio' | 'palette_ai' | 'pal_trust' | 'other';
+
+type HearingSummary = {
+  companyName: string | null;
+  businessService: string | null;
+  target: string | null;
+  designPreference: string | null;
+  contents: string | null;
+  works: string | null;
+  companyProfile: string | null;
+  contactForm: string | null;
+  recruiting: string | null;
+};
 
 function PaletteDesignInner() {
   const searchParams = useSearchParams();
@@ -57,7 +71,11 @@ function PaletteDesignInner() {
   const [authServiceSummary, setAuthServiceSummary] = useState('');
   const [authContractCards, setAuthContractCards] = useState<ContractInfoCard[]>([]);
   const [generatedCode, setGeneratedCode] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(templates[0]?.id || '');
   const [showConfirmSave, setShowConfirmSave] = useState(false);
+  const [previewRenderMode, setPreviewRenderMode] = useState<'html' | 'image'>('html');
+  const [previewImageUrl, setPreviewImageUrl] = useState('');
+  const [isPreviewImageLoading, setIsPreviewImageLoading] = useState(false);
   const [confirmMessages, setConfirmMessages] = useState<any[]>([]);
   const [aiExplanation, setAiExplanation] = useState(""); // AI の意思決定・方針を保存
   const [conversationEnded, setConversationEnded] = useState(false); // ヒアリング完了フラグ
@@ -70,6 +88,7 @@ function PaletteDesignInner() {
   const [multiPromptSelectedMulti, setMultiPromptSelectedMulti] = useState<string[][]>([]);
   const [isSubmittingMultiPrompt, setIsSubmittingMultiPrompt] = useState(false);
   const [quickQuestionButtons, setQuickQuestionButtons] = useState<QuickQuestionButton[]>([]);
+  const [activeServiceMode, setActiveServiceMode] = useState<ServiceMode>('none');
   const [sessionCustomerId] = useState(
     () => queryCid || `cust-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   );
@@ -79,7 +98,7 @@ function PaletteDesignInner() {
     const value = String(raw || '').trim();
     if (!value) return '';
     if (/^[A-Z][0-9]{4}$/i.test(value)) return '';
-    return value;
+    return value.replace(/\s*様\s*$/u, '').trim();
   };
 
   const displayCustomerName = normalizeCustomerName(authCustomerName) || 'お客様';
@@ -973,7 +992,134 @@ function PaletteDesignInner() {
     return userAnswers;
   };
 
-  const saveDraftToLab = async (currentMessages: any[], status: 'hearing' | 'reviewing' | 'completed' = 'hearing') => {
+  const autoSelectTemplate = (answers: { q: string; a: string }[]): Template => {
+    if (!answers || answers.length === 0) return templates[0];
+
+    const text = answers
+      .map((item) => `${item.q || ''} ${item.a || ''}`)
+      .join(' ')
+      .toLowerCase();
+
+    const scores: Record<string, number> = {};
+
+    templates.forEach((template) => {
+      scores[template.id] = 0;
+      template.tags.forEach((tag) => {
+        if (text.includes(tag.toLowerCase())) scores[template.id] += 3;
+
+        const keywords: Record<string, string[]> = {
+          simple: ['シンプル', 'すっきり', '簡潔', '標準'],
+          luxury: ['高級', 'エレガント', '上品', '高価', 'ラグジュアリー'],
+          business: ['企業', '会社', '信頼', '誠実', 'ビジネス', 'コーポレート'],
+          pop: ['元気', '明るい', '楽しい', 'ポップ', '子供', 'キッズ'],
+          minimal: ['ミニマル', '余白', '洗練', '無駄のない', '白'],
+          dark: ['クール', 'かっこいい', '黒', 'ダーク', '夜', 'テック'],
+          natural: ['自然', 'オーガニック', '優しい', '緑', 'カフェ', 'ナチュラル'],
+          japanese: ['和風', '日本', '伝統', '和食', '旅館'],
+          portfolio: ['写真', '作品', 'ポートフォリオ', 'ギャラリー', 'クリエイター'],
+          lp: ['販売', '集客', 'ランディング', '訴求', 'コンバージョン'],
+        };
+
+        (keywords[tag] || []).forEach((keyword) => {
+          if (text.includes(keyword.toLowerCase())) scores[template.id] += 1;
+        });
+      });
+    });
+
+    const sorted = Object.entries(scores).sort(([, a], [, b]) => b - a);
+    const selectedId = sorted[0] && sorted[0][1] > 0 ? sorted[0][0] : templates[0].id;
+    return templates.find((template) => template.id === selectedId) || templates[0];
+  };
+
+  const fetchPreviewImage = async (query: string) => {
+    const q = String(query || '').trim();
+    if (!q) {
+      setPreviewImageUrl('');
+      return;
+    }
+    try {
+      setIsPreviewImageLoading(true);
+      const response = await fetch('/api/search-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: q }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || `画像プレビュー取得に失敗 (${response.status})`);
+      }
+      const firstImage = Array.isArray(data?.images) ? data.images[0] : null;
+      setPreviewImageUrl(String(firstImage?.url || firstImage?.thumb || '').trim());
+    } catch (error) {
+      console.error('preview image fetch error:', error);
+      setPreviewImageUrl('');
+    } finally {
+      setIsPreviewImageLoading(false);
+    }
+  };
+
+  const createPreviewImageQuery = (summary: HearingSummary, template: Template) => {
+    const parts = [
+      summary.businessService,
+      summary.designPreference,
+      summary.target,
+      template.tags.slice(0, 2).join(' '),
+      'website hero',
+    ]
+      .filter(Boolean)
+      .map((part) => String(part).trim())
+      .filter((part) => part.length > 0);
+
+    return parts.join(' ');
+  };
+
+  const maybePrepareTemplatePreview = async (
+    currentMessages: ChatMessage[],
+    summary: HearingSummary,
+    triggerText: string,
+  ): Promise<boolean> => {
+    if (activeServiceMode !== 'pal_studio') return false;
+
+    const hearingScore = Object.values(summary).filter(Boolean).length;
+    const userAnswerCount = currentMessages.filter((msg) => msg.role === 'user').length;
+    const explicitPreviewRequest = /(プレビュー|テンプレ|デザイン案|進めて|作成|提案|確認|ok|OK|お任せ)/.test(String(triggerText || ''));
+
+    if (!explicitPreviewRequest && hearingScore < 3 && userAnswerCount < 4) {
+      return false;
+    }
+
+    const selectedTemplate = autoSelectTemplate(buildUserAnswers(currentMessages));
+    setSelectedTemplateId(selectedTemplate.id);
+    setGeneratedCode(selectedTemplate.html);
+    setConfirmMessages(currentMessages);
+    setAiExplanation(`テンプレート選定: ${selectedTemplate.name} (${selectedTemplate.id})`);
+    setShowConfirmSave(true);
+    setPreviewRenderMode('html');
+
+    const imageQuery = createPreviewImageQuery(summary, selectedTemplate);
+    void fetchPreviewImage(imageQuery);
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: 'ai',
+        content: `ヒアリング内容からテンプレート「${selectedTemplate.name}」を選定しました。右側でHTMLまたは画像プレビューを確認して、修正かOKを選んでください。`,
+      },
+    ]);
+
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setTimeout(() => setActiveTab('preview'), 300);
+    }
+
+    return true;
+  };
+
+  const saveDraftToLab = async (
+    currentMessages: any[],
+    status: 'hearing' | 'reviewing' | 'completed' = 'hearing',
+    htmlOverride?: string,
+    descriptionOverride?: string,
+  ) => {
     try {
       const firstUserMessage = currentMessages.find((m: any) => m.role === 'user')?.content || '新規顧客';
       const userAnswers = buildUserAnswers(currentMessages);
@@ -983,8 +1129,8 @@ function PaletteDesignInner() {
         customer_id: resolvedCustomerId || sessionCustomerId,
         name: String(firstUserMessage).slice(0, 80) || '新規顧客',
         answers: userAnswers,
-        description: aiExplanation || 'ヒアリング中',
-        htmlCode: generatedCode || '',
+        description: descriptionOverride || aiExplanation || 'ヒアリング中',
+        htmlCode: htmlOverride ?? generatedCode ?? '',
         status,
       };
 
@@ -1163,6 +1309,13 @@ function PaletteDesignInner() {
 
   const handleServiceCardClick = (card: ServiceCard) => {
     setQuickQuestionButtons([]);
+    setActiveServiceMode(card.key === 'pal_studio'
+      ? 'pal_studio'
+      : card.key === 'palette_ai'
+        ? 'palette_ai'
+        : card.key === 'pal_trust'
+          ? 'pal_trust'
+          : 'other');
 
     if (card.key === 'pal_studio') {
       const phase = String(card.phase || '');
@@ -1335,7 +1488,7 @@ function PaletteDesignInner() {
       return;
     }
 
-    if (isContractInfoRequest(messageToSend)) {
+    if (activeServiceMode !== 'pal_studio' && isContractInfoRequest(messageToSend)) {
       const userMessage: ChatMessage = { role: 'user', content: messageToSend };
       const cards = authContractCards;
       setMessages([
@@ -1363,7 +1516,17 @@ function PaletteDesignInner() {
 
     // 共通ルールは /api/chat/route.ts の systemInstruction に一本化。
     // ここでは顧客名などの動的ヒントだけを追加で渡す。
-    const systemContext = `
+    const systemContext = activeServiceMode === 'pal_studio'
+      ? `
+動的補足:
+- 現在は Pal Studio 専用モードです。以降は「1ページHPのHTMLヒアリング」のみを行ってください。
+- 他サービス（Palette Ai / Pal Trust）の案内・分岐・提案は行わないでください。
+- 回答は必ずヒアリング継続（質問）のみを返してください。ワイヤーフレームやHTMLコードは出力しないでください。
+- 顧客の呼称は「${displayCustomerName}様」を優先し、顧客ID（例: P1111）で呼ばないでください。
+- 会社概要の質問は次の形式を使用してください。
+  お店の場所や連絡先など、「会社概要」について、どのような情報をお伝えしますか？ (複数選択) (選択肢: 住所、電話番号、営業時間、定休日、アクセス方法、その他)
+`
+      : `
 動的補足:
 - 顧客の呼称は「${displayCustomerName}様」を優先し、顧客ID（例: P1111）で呼ばないでください。
 - 会社概要の質問は次の形式を使用してください。
@@ -1490,10 +1653,28 @@ function PaletteDesignInner() {
       if (response.ok) {
         const aiRawText = trimSecurityRefusalMessage(String(data.text || ''));
         const aiText = normalizeAssistantOutput(aiRawText);
-        const isWireframeResponse = isWireframeLikeResponse(aiText);
         const aiMessage: ChatMessage = { role: 'ai', content: aiText };
         const newMessages: ChatMessage[] = [...updatedMessages, aiMessage];
         setMessages(newMessages);
+
+        if (activeServiceMode === 'pal_studio') {
+          const prepared = await maybePrepareTemplatePreview(newMessages, summaryPayload, `${messageToSend}\n${aiText}`);
+          if (prepared) {
+            const selectedTemplate = templates.find((template) => template.id === selectedTemplateId) || autoSelectTemplate(buildUserAnswers(newMessages));
+            await saveDraftToLab(
+              newMessages,
+              'reviewing',
+              selectedTemplate.html,
+              `テンプレート選定: ${selectedTemplate.name} (${selectedTemplate.id})`,
+            );
+            return;
+          }
+
+          await saveDraftToLab(newMessages, 'hearing');
+          return;
+        }
+
+        const isWireframeResponse = isWireframeLikeResponse(aiText);
         const hasRenderableHtml = await extractCode(aiText, newMessages);
         if (isWireframeResponse && !hasRenderableHtml) {
           setGeneratedCode(buildFallbackPreviewHtml(aiText));
@@ -1946,9 +2127,45 @@ function PaletteDesignInner() {
              <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                <Layout className="w-4 h-4" /> Live Preview
              </h2>
+             <div className="flex items-center gap-2">
+               <button
+                 type="button"
+                 onClick={() => setPreviewRenderMode('html')}
+                 className={`px-3 py-1.5 rounded-full text-[10px] font-black border transition-all ${previewRenderMode === 'html' ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+               >
+                 HTML
+               </button>
+               <button
+                 type="button"
+                 onClick={() => setPreviewRenderMode('image')}
+                 className={`px-3 py-1.5 rounded-full text-[10px] font-black border transition-all ${previewRenderMode === 'image' ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+               >
+                 IMAGE
+               </button>
+             </div>
           </div>
           <div className="flex-1 rounded-[30px] shadow-neu-inset bg-white md:bg-[#F8FAFC]/50 overflow-hidden border border-white/40">
-            {generatedCode ? (
+            {previewRenderMode === 'image' ? (
+              isPreviewImageLoading ? (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-3">
+                  <div className="w-5 h-5 rounded-full border-2 border-slate-300 border-t-indigo-500 animate-spin" />
+                  <p className="text-[11px] font-bold">画像プレビューを準備中...</p>
+                </div>
+              ) : previewImageUrl ? (
+                <div className="h-full w-full p-5 md:p-8">
+                  <img
+                    src={previewImageUrl}
+                    alt="Template mood preview"
+                    className="w-full h-full object-cover rounded-2xl border border-slate-100"
+                  />
+                </div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-slate-300 space-y-4">
+                  <Box className="w-16 h-16 opacity-10" />
+                  <p className="text-[10px] font-bold tracking-[0.3em] opacity-30 uppercase text-center">No image preview</p>
+                </div>
+              )
+            ) : generatedCode ? (
               <iframe 
                 srcDoc={`<html><head><script src="https://cdn.tailwindcss.com"></script><style>body { margin: 0; font-family: sans-serif; }</style></head><body>${generatedCode}</body></html>`} 
                 className="w-full h-full border-none" 
@@ -1960,6 +2177,11 @@ function PaletteDesignInner() {
               </div>
             )}
           </div>
+          {selectedTemplateId && (
+            <p className="mt-3 text-[11px] font-bold text-slate-500">
+              Template: {templates.find((template) => template.id === selectedTemplateId)?.name || selectedTemplateId}
+            </p>
+          )}
         </div>
       </div>
     </div>
