@@ -161,16 +161,22 @@ function PaletteDesignInner() {
       const question = sanitizePromptText(questionMatch ? questionMatch[1] : text.replace(optionTagPattern, '').trim());
       const rawOptions = optionTagMatch[1];
       const hasExplicitMulti = /[（(]\s*(複数選択|チェック)\s*[）)]|\b複数選択\b|\bチェック\b/i.test(text);
+      const hasExplicitSingle = /[（(]\s*(2択|二択|単一選択)\s*[）)]|\b2択\b|\b二択\b|\b単一選択\b/i.test(text);
       const options = rawOptions.split(/\s*[\/，、,・]\s*|\s+または\s+|\s+or\s+|\s+もしくは\s+/i)
         .map((token) => token.trim())
         .filter((token) => token.length >= 1 && token.length <= 24)
         .filter((token) => !/[?？。]/.test(token))
         .filter((token) => !/^(例えば|例|候補|選択肢|入力|回答|ください|お願いします|など)$/i.test(token));
       if (question.length > 0 && options.length >= 2) {
+        const selectionKind: PromptSelectionKind = hasExplicitSingle
+          ? 'single'
+          : (hasExplicitMulti || options.length >= 3)
+            ? 'multi'
+            : 'single';
         return [{
           question,
           options,
-          selectionKind: hasExplicitMulti ? 'multi' : 'single',
+          selectionKind,
         }];
       }
     }
