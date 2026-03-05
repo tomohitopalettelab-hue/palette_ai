@@ -137,6 +137,41 @@ function PaletteDesignInner() {
       return [];
     }
 
+    const splitOptionTokensSimple = (source: string): string[] => {
+      return Array.from(new Set(
+        String(source || '')
+          .replace(/[()（）]/g, ' ')
+          .replace(/など.*$/i, '')
+          .split(/\s*[\/，、,・]\s*|\s+または\s+|\s+or\s+|\s+もしくは\s+|\s+及び\s+|\s+および\s+/i)
+          .map((token) => token.trim())
+          .filter((token) => token.length >= 1 && token.length <= 24)
+          .filter((token) => !/^(選択肢|候補|例|入力|回答|ください|お願いします)$/i.test(token))
+      )).slice(0, 10);
+    };
+
+    // 強制補助UI: 質問文にタグが入っていれば、通常推論をスキップしてUI生成を優先する。
+    const normalizedTagText = text.replace(/[（]/g, '(').replace(/[）]/g, ')');
+    const hasTagPrompt = /\((?:2択|二択|単一選択|複数選択|チェック)\)|\((?:選択肢|候補)\s*[:：]/i.test(normalizedTagText);
+    if (hasTagPrompt) {
+      const question = sanitizePromptText((normalizedTagText.match(/^(.*?[?？])/)?.[1] || normalizedTagText.split('\n').find((line) => line.trim()) || ''));
+      const optionTagMatchForced = normalizedTagText.match(/\((?:選択肢|候補)\s*[:：]\s*([^\)]+)\)/i);
+      const forcedOptions = splitOptionTokensSimple(optionTagMatchForced?.[1] || '');
+      const forcedMulti = /\((?:複数選択|チェック)\)|\b複数選択\b|\bチェック\b/i.test(normalizedTagText);
+      const forcedSingle = /\((?:2択|二択|単一選択)\)|\b2択\b|\b二択\b|\b単一選択\b/i.test(normalizedTagText);
+
+      const options = forcedOptions.length >= 2
+        ? forcedOptions
+        : (forcedSingle ? ['はい', 'いいえ'] : []);
+
+      if (question && options.length >= 2) {
+        return [{
+          question,
+          options,
+          selectionKind: forcedMulti ? 'multi' : 'single',
+        }];
+      }
+    }
+
     const lines = text.split('\n');
     // 最強2択検出: 質問文全体（改行含む）に「(2択)」「（2択）」があれば必ず2択UI
     const twoChoiceGlobalPattern = /[（(]\s*2択\s*[）)]|[（(]\s*二択\s*[）)]|\(2択\)|\(二択\)|（2択）|（二択）|2択|二択|単一選択/i;
