@@ -152,7 +152,6 @@ function PaletteDesignInner() {
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [mobileViewportHeight, setMobileViewportHeight] = useState<number | null>(null);
   const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
-  const [mobileViewportOffsetTop, setMobileViewportOffsetTop] = useState(0);
   const [studioProfile, setStudioProfile] = useState<StudioProfile>({
     shopName: '',
     industry: '',
@@ -199,20 +198,27 @@ function PaletteDesignInner() {
   const scrollEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previewModeInitializedRef = useRef(false);
+  const keepInputTimerRef = useRef<number | null>(null);
 
   const scrollToBottom = () => {
     scrollEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   const keepInputVisible = () => {
-    // Wait for virtual keyboard animation, then bring the composer area back into view.
-    window.setTimeout(() => {
+    if (typeof window === 'undefined') return;
+    if (keepInputTimerRef.current) {
+      window.clearTimeout(keepInputTimerRef.current);
+    }
+
+    // Wait for keyboard animation once, then align input without smooth repeated motion.
+    keepInputTimerRef.current = window.setTimeout(() => {
       if (typeof window !== 'undefined') {
         window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
       }
       scrollToBottom();
-      textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }, 180);
+      textareaRef.current?.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+      keepInputTimerRef.current = null;
+    }, mobileKeyboardInset > 0 ? 80 : 220);
   };
   
   useEffect(() => {
@@ -268,7 +274,6 @@ function PaletteDesignInner() {
     const updateViewportMetrics = () => {
       const nextHeight = Math.round(viewport.height);
       setMobileViewportHeight(nextHeight > 0 ? nextHeight : null);
-      setMobileViewportOffsetTop(Math.max(0, Math.round(viewport.offsetTop || 0)));
 
       const keyboardHeight = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
       // Ignore tiny viewport jitters and react only when keyboard is likely visible.
@@ -291,6 +296,14 @@ function PaletteDesignInner() {
       keepInputVisible();
     }
   }, [isMobileViewport, mobileKeyboardInset]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && keepInputTimerRef.current) {
+        window.clearTimeout(keepInputTimerRef.current);
+      }
+    };
+  }, []);
 
   const sanitizePromptText = (text: string): string => {
     return String(text || '')
@@ -2907,7 +2920,6 @@ ${currentHtml}
       style={isMobileViewport && mobileViewportHeight
         ? {
             height: `${mobileViewportHeight}px`,
-            transform: mobileViewportOffsetTop ? `translateY(${mobileViewportOffsetTop}px)` : undefined,
           }
         : undefined}
     >
