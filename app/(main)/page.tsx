@@ -178,6 +178,23 @@ function PaletteDesignInner() {
 
   const displayCustomerName = normalizeCustomerName(authCustomerName) || 'お客様';
 
+  const resolvePersistedCustomerName = (currentMessages: ChatMessage[], html?: string): string => {
+    const authName = normalizeCustomerName(authCustomerName);
+    if (authName) return authName;
+
+    const shopName = normalizeCustomerName(String(studioProfile.shopName || ''));
+    if (shopName) return shopName;
+
+    const titleMatch = String(html || '').match(/<title>(.*?)<\/title>/i);
+    const titleName = normalizeCustomerName(String(titleMatch?.[1] || ''));
+    if (titleName) return titleName;
+
+    const firstUserMessage = normalizeCustomerName(
+      String(currentMessages.find((m: any) => m.role === 'user')?.content || ''),
+    );
+    return firstUserMessage || '新規顧客';
+  };
+
   const scrollEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -1556,15 +1573,17 @@ ${template.html}
     status: 'hearing' | 'reviewing' | 'completed' = 'hearing',
     htmlOverride?: string,
     descriptionOverride?: string,
+    templateIdOverride?: string,
   ) => {
     try {
-      const firstUserMessage = currentMessages.find((m: any) => m.role === 'user')?.content || '新規顧客';
       const userAnswers = buildUserAnswers(currentMessages);
+      const customerName = resolvePersistedCustomerName(currentMessages, htmlOverride || generatedCode);
 
       const payload = {
         id: sessionCustomerId,
         customer_id: resolvedCustomerId || sessionCustomerId,
-        name: String(firstUserMessage).slice(0, 80) || '新規顧客',
+        name: customerName,
+        selectedTemplateId: templateIdOverride || selectedTemplateId,
         answers: userAnswers,
         description: descriptionOverride || aiExplanation || 'ヒアリング中',
         htmlCode: htmlOverride ?? generatedCode ?? '',
@@ -1597,11 +1616,7 @@ ${template.html}
       return false;
     }
     try {
-      const titleMatch = html.match(/<title>(.*?)<\/title>/);
-      let customerName = titleMatch ? titleMatch[1] : (currentMessages.find(m => m.role === 'user')?.content || "新規顧客");
-      if (!titleMatch) {
-        customerName += ` (${new Date().toLocaleTimeString()})`;
-      }
+      const customerName = resolvePersistedCustomerName(currentMessages, html);
 
       const userAnswers = buildUserAnswers(currentMessages);
 
@@ -1609,6 +1624,7 @@ ${template.html}
         id: sessionCustomerId,
         customer_id: resolvedCustomerId || sessionCustomerId,
         name: customerName,
+        selectedTemplateId,
         answers: userAnswers,
         description: descriptionOverride || aiExplanation || "デザイン方針の詳細記録なし",
         htmlCode: html,
@@ -2634,6 +2650,7 @@ ${currentHtml}
               'reviewing',
               selectedTemplate.html,
               `テンプレート選定: ${selectedTemplate.name} (${selectedTemplate.id})`,
+              selectedTemplate.id,
             );
             return;
           }
