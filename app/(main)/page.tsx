@@ -79,6 +79,7 @@ type StudioStep =
   | 'companyInfoToggle'
   | 'companyInfoFields'
   | 'companyInfoDetails'
+  | 'appealPoint'
   | 'revisionSelect'
   | 'revisionDetail'
   | 'revisionConfirm'
@@ -100,6 +101,7 @@ type StudioProfile = {
   industry: string;
   services: string[];
   sections: string[];
+  appealPoint: string;
   taste: string;
   color: string;
   includeCompanyInfo: boolean | null;
@@ -140,6 +142,7 @@ function PaletteDesignInner() {
   const [multiPromptSelectedMulti, setMultiPromptSelectedMulti] = useState<string[][]>([]);
   const [isSubmittingMultiPrompt, setIsSubmittingMultiPrompt] = useState(false);
   const [quickQuestionButtons, setQuickQuestionButtons] = useState<QuickQuestionButton[]>([]);
+  const [neutralActionButtons, setNeutralActionButtons] = useState<ActionButton[]>([]);
   const [activeServiceMode, setActiveServiceMode] = useState<ServiceMode>('none');
   const [studioStep, setStudioStep] = useState<StudioStep>('idle');
   const [studioHtmlGenerationCount, setStudioHtmlGenerationCount] = useState(0);
@@ -151,6 +154,7 @@ function PaletteDesignInner() {
     industry: '',
     services: [],
     sections: [],
+    appealPoint: '',
     taste: '',
     color: '',
     includeCompanyInfo: null,
@@ -1587,6 +1591,7 @@ ${template.html}
       industry: '',
       services: [],
       sections: [],
+      appealPoint: '',
       taste: '',
       color: '',
       includeCompanyInfo: null,
@@ -1606,7 +1611,7 @@ ${template.html}
       businessService: [profile.industry, ...profile.services].filter(Boolean).join(' / ') || null,
       target: null,
       designPreference: [profile.taste, profile.color].filter(Boolean).join(' / ') || null,
-      contents: profile.sections.join(' / ') || null,
+      contents: [profile.sections.join(' / '), profile.appealPoint].filter(Boolean).join(' / ') || null,
       works: null,
       companyProfile: companyInfo || null,
       contactForm: profile.companyDetails['メールアドレス'] || null,
@@ -1625,6 +1630,7 @@ ${template.html}
 - 屋号名は「${profile.shopName}」
 - 業種は「${profile.industry}」
 - サービス内容: ${profile.services.join(' / ')}
+- 強み・アピールポイント: ${profile.appealPoint || '未設定'}
 - テイスト: ${profile.taste}
 - 会社情報掲載: ${profile.includeCompanyInfo ? 'あり' : 'なし'}
 - 会社情報詳細: ${Object.entries(profile.companyDetails).map(([k, v]) => `${k}:${v}`).join(' / ') || 'なし'}
@@ -1672,6 +1678,7 @@ ${instruction}
 - 業種: ${profile.industry}
 - テイスト: ${profile.taste}
 - メインカラー: ${profile.color}
+- 強み・アピールポイント: ${profile.appealPoint || '未設定'}
 
 制約:
 - HTML構造は大きく崩さない
@@ -1866,8 +1873,9 @@ ${currentHtml}
       if (!include) {
         const nextProfile = { ...studioProfile, includeCompanyInfo: false, companyFields: [], companyDetails: {} };
         setStudioProfile(nextProfile);
-        clearMultiPromptState();
-        await prepareStudioPreview(nextProfile, updatedMessages);
+        setStudioStep('appealPoint');
+        applyStudioPrompt(['最後に強みやアピールポイントをお聞かせください！'], [[]], ['single'], ['text']);
+        appendAiMessage({ content: '最後に強みやアピールポイントをお聞かせください！' });
         return;
       }
       setStudioStep('companyInfoFields');
@@ -1902,6 +1910,15 @@ ${currentHtml}
         ...studioProfile,
         companyDetails: nextDetails,
       };
+      setStudioProfile(nextProfile);
+      setStudioStep('appealPoint');
+      applyStudioPrompt(['最後に強みやアピールポイントをお聞かせください！'], [[]], ['single'], ['text']);
+      appendAiMessage({ content: '最後に強みやアピールポイントをお聞かせください！' });
+      return;
+    }
+
+    if (studioStep === 'appealPoint') {
+      const nextProfile = { ...studioProfile, appealPoint: first };
       setStudioProfile(nextProfile);
       setStudioStep('completed');
       clearMultiPromptState();
@@ -2048,6 +2065,7 @@ ${currentHtml}
   const handleServiceCardClick = (card: ServiceCard) => {
     setConversationEnded(false);
     setQuickQuestionButtons([]);
+    setNeutralActionButtons([]);
     setActiveServiceMode(card.key === 'pal_studio'
       ? 'pal_studio'
       : card.key === 'palette_ai'
@@ -2277,6 +2295,7 @@ ${currentHtml}
     const userMessage: ChatMessage = { role: 'user', content: messageToSend };
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
+    setNeutralActionButtons([]);
     await saveDraftToLab(updatedMessages, 'hearing');
     setInputText("");
     setIsLoading(true);
@@ -2499,8 +2518,7 @@ ${currentHtml}
     }
 
     setShowConfirmSave(false);
-    const saved = await saveToLab(confirmMessages.length ? confirmMessages : messages, html, aiExplanation || '下書き確認完了');
-    if (!saved) return;
+    void saveToLab(confirmMessages.length ? confirmMessages : messages, html, aiExplanation || '下書き確認完了');
     setConfirmMode(null);
     setStudioStep('postOkMessageToggle');
     applyStudioPrompt(['制作担当にメッセージはありますか？'], [['あり', 'なし']], ['single']);
@@ -2536,16 +2554,20 @@ ${currentHtml}
     nextMessages.push({
       role: 'ai',
       content: 'なにかお手伝いできることはありますか？',
-      actionButtons: [{ key: 'contract-services', label: '契約サービス' }],
     });
 
     setShowConfirmSave(false);
     setConfirmMode(null);
     setActiveServiceMode('none');
     setStudioStep('idle');
+    setNeutralActionButtons([{ key: 'contract-services', label: '契約サービス' }]);
     clearMultiPromptState();
     setConversationEnded(false);
     setMessages((prev) => [...prev, ...nextMessages]);
+  };
+
+  const buildPreviewSrcDoc = (html: string): string => {
+    return `<html><head><script src="https://cdn.tailwindcss.com"></script><style>body { margin: 0; font-family: sans-serif; } a, button, [role=\"button\"], input, select, textarea, form { pointer-events: none !important; cursor: default !important; }</style></head><body>${html}<script>document.addEventListener('click', function(e){ var target = e.target; if (target && target.closest) { var interactive = target.closest('a, button, [role="button"], input, select, textarea, form'); if (interactive) { e.preventDefault(); e.stopPropagation(); } } }, true);</script></body></html>`;
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -2939,6 +2961,21 @@ ${currentHtml}
                 </div>
               </div>
             )}
+
+            {neutralActionButtons.length > 0 && authStep === 'authenticated' && !isLoading && activeServiceMode === 'none' && (
+              <div className="mb-2 flex items-center justify-end gap-2 px-1">
+                {neutralActionButtons.map((button) => (
+                  <button
+                    key={button.key}
+                    type="button"
+                    onClick={() => handleActionButtonClick(button)}
+                    className="px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide text-white bg-gradient-to-r from-indigo-500 to-cyan-500 shadow-[0_8px_18px_rgba(59,130,246,0.28)] hover:from-indigo-400 hover:to-cyan-400 hover:-translate-y-0.5 transition-all duration-300"
+                  >
+                    {button.label}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="p-2 rounded-[30px] shadow-neu-flat bg-white/30 border border-white/50">
               <div className="flex items-end shadow-neu-inset rounded-[24px] bg-[#F0F2F5]/50 px-3 py-1">
                 <textarea 
@@ -2992,14 +3029,14 @@ ${currentHtml}
                 <div className="h-full w-full flex items-center justify-center p-4 md:p-6 bg-slate-100/60">
                   <div className="w-[360px] max-w-full h-full max-h-[760px] rounded-[32px] border-[8px] border-slate-900 bg-white shadow-2xl overflow-hidden">
                     <iframe
-                      srcDoc={`<html><head><script src="https://cdn.tailwindcss.com"></script><style>body { margin: 0; font-family: sans-serif; }</style></head><body>${generatedCode}</body></html>`}
+                      srcDoc={buildPreviewSrcDoc(generatedCode)}
                       className="w-full h-full border-none"
                     />
                   </div>
                 </div>
               ) : (
                 <iframe
-                  srcDoc={`<html><head><script src="https://cdn.tailwindcss.com"></script><style>body { margin: 0; font-family: sans-serif; }</style></head><body>${generatedCode}</body></html>`}
+                  srcDoc={buildPreviewSrcDoc(generatedCode)}
                   className="w-full h-full border-none"
                 />
               )
