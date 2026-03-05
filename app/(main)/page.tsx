@@ -160,6 +160,7 @@ function PaletteDesignInner() {
       const questionMatch = text.match(/^(.*?[?？])/);
       const question = sanitizePromptText(questionMatch ? questionMatch[1] : text.replace(optionTagPattern, '').trim());
       const rawOptions = optionTagMatch[1];
+      const hasExplicitMulti = /[（(]\s*(複数選択|チェック)\s*[）)]|\b複数選択\b|\bチェック\b/i.test(text);
       const options = rawOptions.split(/\s*[\/，、,・]\s*|\s+または\s+|\s+or\s+|\s+もしくは\s+/i)
         .map((token) => token.trim())
         .filter((token) => token.length >= 1 && token.length <= 24)
@@ -169,7 +170,7 @@ function PaletteDesignInner() {
         return [{
           question,
           options,
-          selectionKind: 'single',
+          selectionKind: hasExplicitMulti ? 'multi' : 'single',
         }];
       }
     }
