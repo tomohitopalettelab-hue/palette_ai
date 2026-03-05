@@ -648,6 +648,41 @@ function PaletteDesignInner() {
     }));
   };
 
+  const parseTaggedPromptFallback = (content: string): { question: string; options: string[]; selectionKind: PromptSelectionKind } | null => {
+    const normalized = String(content || '').replace(/[（]/g, '(').replace(/[）]/g, ')').trim();
+    if (!normalized) return null;
+
+    const optionMatch = normalized.match(/\(\s*(?:選択肢|候補)\s*[:：]\s*([\s\S]*?)\)/i);
+    if (!optionMatch) return null;
+
+    const options = Array.from(new Set(
+      String(optionMatch[1] || '')
+        .replace(/など.*$/i, '')
+        .split(/\s*[\/，、,・]\s*|\s+または\s+|\s+or\s+|\s+もしくは\s+|\s+及び\s+|\s+および\s+/i)
+        .map((token) => token.trim())
+        .filter((token) => token.length >= 1 && token.length <= 24)
+        .filter((token) => !/^(選択肢|候補|例|入力|回答|ください|お願いします)$/i.test(token))
+    ));
+
+    if (options.length < 2) return null;
+
+    const beforeTag = normalized.slice(0, optionMatch.index || normalized.length);
+    const qMatches = Array.from(beforeTag.matchAll(/([^。！？\n]*[?？])/g));
+    const question = sanitizePromptText(
+      (qMatches.length ? qMatches[qMatches.length - 1][1] : '').trim(),
+    ) || '当てはまるものを選択してください。';
+
+    const forcedMulti = /\(\s*(?:複数選択|チェック)\s*\)|\b複数選択\b|\bチェック\b/i.test(normalized);
+    const forcedSingle = /\(\s*(?:2択|二択|単一選択)\s*\)|\b2択\b|\b二択\b|\b単一選択\b/i.test(normalized);
+    const selectionKind: PromptSelectionKind = forcedSingle ? 'single' : (forcedMulti || options.length >= 3) ? 'multi' : 'single';
+
+    return {
+      question,
+      options,
+      selectionKind,
+    };
+  };
+
   const clearMultiPromptState = () => {
     setMultiPromptItems([]);
     setMultiPromptSelectOptions([]);
@@ -665,7 +700,12 @@ function PaletteDesignInner() {
       return;
     }
 
-    const prompts = parseMultiPrompts(String(latestMessage.content || ''));
+    const content = String(latestMessage.content || '');
+    let prompts = parseMultiPrompts(content);
+    if (!prompts.length) {
+      const forced = parseTaggedPromptFallback(content);
+      if (forced) prompts = [forced];
+    }
     if (!prompts.length) {
       clearMultiPromptState();
       return;
@@ -1047,9 +1087,13 @@ function PaletteDesignInner() {
         }
 
         setAuthStep('authenticated');
+        const verifiedPaletteId = String(verifyData?.paletteId || authPaletteId || '').trim().toUpperCase();
+        if (verifiedPaletteId) {
+          setAuthPaletteId(verifiedPaletteId);
+        }
         setAuthServiceSummary(String(verifyData?.summaryText || ''));
         setAuthContractCards(buildContractInfoCards(verifyData?.summary || {}));
-        const customerName = String(verifyData?.accountName || authPaletteId || 'お客様');
+        const customerName = String(verifyData?.accountName || verifiedPaletteId || authPaletteId || 'お客様');
         setMessages([
           ...updatedMessages,
           {
