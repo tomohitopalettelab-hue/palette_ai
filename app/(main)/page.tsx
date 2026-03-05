@@ -152,6 +152,7 @@ function PaletteDesignInner() {
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [mobileViewportHeight, setMobileViewportHeight] = useState<number | null>(null);
   const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
+  const [mobileViewportOffsetTop, setMobileViewportOffsetTop] = useState(0);
   const [studioProfile, setStudioProfile] = useState<StudioProfile>({
     shopName: '',
     industry: '',
@@ -197,6 +198,7 @@ function PaletteDesignInner() {
 
   const scrollEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const previewModeInitializedRef = useRef(false);
 
   const scrollToBottom = () => {
     scrollEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -205,6 +207,9 @@ function PaletteDesignInner() {
   const keepInputVisible = () => {
     // Wait for virtual keyboard animation, then bring the composer area back into view.
     window.setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      }
       scrollToBottom();
       textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 180);
@@ -223,11 +228,37 @@ function PaletteDesignInner() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const updateMobileFlag = () => setIsMobileViewport(window.innerWidth < 768);
+    const updateMobileFlag = () => {
+      const isMobile = window.innerWidth < 768;
+      setIsMobileViewport(isMobile);
+      if (!previewModeInitializedRef.current) {
+        setPreviewRenderMode(isMobile ? 'mobile' : 'desktop');
+        previewModeInitializedRef.current = true;
+      }
+    };
     updateMobileFlag();
     window.addEventListener('resize', updateMobileFlag);
     return () => window.removeEventListener('resize', updateMobileFlag);
   }, []);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!isMobileViewport) return;
+
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+
+    // Prevent iOS Safari from moving the whole page while focusing the textarea.
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+    };
+  }, [isMobileViewport]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -237,6 +268,7 @@ function PaletteDesignInner() {
     const updateViewportMetrics = () => {
       const nextHeight = Math.round(viewport.height);
       setMobileViewportHeight(nextHeight > 0 ? nextHeight : null);
+      setMobileViewportOffsetTop(Math.max(0, Math.round(viewport.offsetTop || 0)));
 
       const keyboardHeight = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
       // Ignore tiny viewport jitters and react only when keyboard is likely visible.
@@ -2867,11 +2899,17 @@ ${currentHtml}
 
   const isSelectionOnlyStage = activeServiceMode === 'pal_studio' && (studioStep === 'revisionSelect' || studioStep === 'revisionConfirm' || studioStep === 'postOkMessageToggle');
   const isMainInputDisabled = conversationEnded || isSelectionOnlyStage;
+  const mobileKeyboardLift = isMobileViewport && mobileKeyboardInset > 0 ? Math.max(0, mobileKeyboardInset - 6) : 0;
 
   return (
     <div
       className="fixed inset-0 w-full h-[100dvh] flex items-start md:items-center justify-start md:justify-center p-0 md:p-8 overflow-hidden bg-slate-50 touch-auto md:touch-none"
-      style={isMobileViewport && mobileViewportHeight ? { height: `${mobileViewportHeight}px` } : undefined}
+      style={isMobileViewport && mobileViewportHeight
+        ? {
+            height: `${mobileViewportHeight}px`,
+            transform: mobileViewportOffsetTop ? `translateY(${mobileViewportOffsetTop}px)` : undefined,
+          }
+        : undefined}
     >
       <div className="fixed top-0 left-0 w-full h-full pointer-events-none -z-10 overflow-hidden">
         <div className="absolute w-[500px] h-[500px] bg-pink-400/10 blur-[120px] rounded-full -top-20 -left-20 animate-pulse" />
@@ -3206,7 +3244,10 @@ ${currentHtml}
                 ))}
               </div>
             )}
-            <div className="p-2 rounded-[30px] shadow-neu-flat bg-white/30 border border-white/50">
+            <div
+              className="p-2 rounded-[30px] shadow-neu-flat bg-white/30 border border-white/50"
+              style={mobileKeyboardLift > 0 ? { transform: `translateY(-${mobileKeyboardLift}px)`, transition: 'transform 160ms ease' } : undefined}
+            >
               <div className="flex items-end shadow-neu-inset rounded-[24px] bg-[#F0F2F5]/50 px-3 py-1">
                 <textarea 
                   ref={textareaRef} 
@@ -3238,20 +3279,24 @@ ${currentHtml}
                <Layout className="w-4 h-4" /> Live Preview
              </h2>
              <div className="flex items-center gap-2">
-               <button
-                 type="button"
-                 onClick={() => setPreviewRenderMode('desktop')}
-                 className={`px-3 py-1.5 rounded-full text-[10px] font-black border transition-all ${previewRenderMode === 'desktop' ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
-               >
-                 PC
-               </button>
-               <button
-                 type="button"
-                 onClick={() => setPreviewRenderMode('mobile')}
-                 className={`px-3 py-1.5 rounded-full text-[10px] font-black border transition-all ${previewRenderMode === 'mobile' ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
-               >
-                 スマホ
-               </button>
+               {!isMobileViewport && (
+                 <>
+                   <button
+                     type="button"
+                     onClick={() => setPreviewRenderMode('desktop')}
+                     className={`px-3 py-1.5 rounded-full text-[10px] font-black border transition-all ${previewRenderMode === 'desktop' ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+                   >
+                     PC
+                   </button>
+                   <button
+                     type="button"
+                     onClick={() => setPreviewRenderMode('mobile')}
+                     className={`px-3 py-1.5 rounded-full text-[10px] font-black border transition-all ${previewRenderMode === 'mobile' ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+                   >
+                     スマホ
+                   </button>
+                 </>
+               )}
              </div>
           </div>
           <div className="flex-1 rounded-[30px] shadow-neu-inset bg-white md:bg-[#F8FAFC]/50 overflow-hidden border border-white/40">
