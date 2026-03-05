@@ -160,8 +160,33 @@ function PaletteDesignInner() {
       )).slice(0, 10);
     };
 
-    // 強制補助UI: 質問文にタグが入っていれば、通常推論をスキップしてUI生成を優先する。
+    // 最優先: 「(複数選択) (選択肢: ...)」があれば必ず補助UIを出す。
     const normalizedTagText = text.replace(/[（]/g, '(').replace(/[）]/g, ')');
+    const forcedMultiTagMatch = normalizedTagText.match(/\(\s*複数選択\s*\)[\s\S]*?\(\s*(?:選択肢|候補)\s*[:：]\s*([^\)]+)\)/i);
+    if (forcedMultiTagMatch) {
+      const forcedOptions = splitOptionTokensSimple(forcedMultiTagMatch[1] || '');
+      if (forcedOptions.length >= 2) {
+        const questionLine = normalizedTagText
+          .split('\n')
+          .map((line) => sanitizePromptText(line))
+          .find((line) => /[?？]/.test(line));
+        const question = sanitizePromptText(
+          String(questionLine || '当てはまるものを選択してください。')
+            .replace(/[（(]\s*複数選択\s*[）)]/gi, '')
+            .replace(/[（(]\s*(?:選択肢|候補)\s*[:：][^）)]*[）)]/gi, '')
+            .replace(/\s+/g, ' ')
+            .trim(),
+        ) || '当てはまるものを選択してください。';
+
+        return [{
+          question,
+          options: forcedOptions,
+          selectionKind: 'multi',
+        }];
+      }
+    }
+
+    // 強制補助UI: 質問文にタグが入っていれば、通常推論をスキップしてUI生成を優先する。
     const hasTagPrompt = /\((?:2択|二択|単一選択|複数選択|チェック)\)|\((?:選択肢|候補)\s*[:：]/i.test(normalizedTagText);
     if (hasTagPrompt) {
       const taggedLines = normalizedTagText
@@ -980,6 +1005,14 @@ function PaletteDesignInner() {
     return content.slice(0, endIndex + endToken.length).trim();
   };
 
+  const normalizeAssistantOutput = (text: string): string => {
+    const content = String(text || '');
+    if (!content) return content;
+    return content
+      .replace(/\b[A-Z][0-9]{4}\s*様/g, `${displayCustomerName}様`)
+      .replace(/[（(]\s*(?:2択|二択|単一選択)\s*[）)]/gi, '');
+  };
+
   const getServiceCardStyle = (serviceKey: string): React.CSSProperties => {
     if (serviceKey === 'palette_ai') {
       return {
@@ -1346,7 +1379,8 @@ function PaletteDesignInner() {
       
       const data = await response.json();
       if (response.ok) {
-        const aiText = trimSecurityRefusalMessage(String(data.text || ''));
+        const aiRawText = trimSecurityRefusalMessage(String(data.text || ''));
+        const aiText = normalizeAssistantOutput(aiRawText);
         const hasHtmlBlock = /```html[\s\S]*?```/i.test(aiText);
         const aiMessage: ChatMessage = { role: 'ai', content: aiText };
         const newMessages: ChatMessage[] = [...updatedMessages, aiMessage];

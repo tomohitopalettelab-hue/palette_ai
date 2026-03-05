@@ -189,7 +189,9 @@ export async function POST(req: Request) {
     }
     if (lastError || !response) throw lastError || new Error("Unable to generate response from any model");
 
-    const text = (response as any).text;
+    const text = String((response as any).text || '')
+      .replace(/[（(]\s*(?:2択|二択|単一選択)\s*[）)]/gi, '')
+      .replace(/\b[A-Z][0-9]{4}\s*様/g, 'お客様');
     return NextResponse.json({ text });
 
   } catch (error: any) {
