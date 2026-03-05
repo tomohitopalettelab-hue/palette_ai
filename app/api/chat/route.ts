@@ -1,5 +1,68 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from 'next/server';
+import { palDbGet } from '../_lib/pal-db-client';
+
+const PALETTE_ID_PATTERN = /\b([A-Za-z][0-9]{4})\b/;
+const SERVICE_QUERY_PATTERN = /(顧客ID|paletteid|サービス|契約|プラン|内容|案内|確認|照会|教えて)/i;
+
+const formatDate = (raw?: string | null): string => {
+  if (!raw) return '未設定';
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return String(raw);
+  return date.toLocaleDateString('ja-JP');
+};
+
+const buildServiceSummaryText = (summary: any, paletteId: string): string => {
+  const accountName = summary?.account?.name || '顧客名未設定';
+  const contracts: any[] = Array.isArray(summary?.contracts) ? summary.contracts : [];
+  const plans: any[] = Array.isArray(summary?.plans) ? summary.plans : [];
+
+  if (!contracts.length) {
+    return `顧客ID ${paletteId}（${accountName}）の有効なサービス情報は現在登録されていません。`;
+  }
+
+  const planMap = new Map<string, any>(plans.map((plan) => [String(plan.id), plan]));
+  const lines = contracts.map((contract, index) => {
+    const plan = planMap.get(String(contract.planId));
+    const planName = plan?.name || '不明なプラン';
+    const phase = contract?.phase || '未設定';
+    const status = contract?.status || '未設定';
+    const startDate = formatDate(contract?.startDate);
+    const endDate = contract?.endDate ? formatDate(contract.endDate) : '継続中';
+    const price = Number(contract?.priceYen || 0).toLocaleString('ja-JP');
+    return `${index + 1}. ${planName} / フェーズ: ${phase} / ステータス: ${status} / 期間: ${startDate}〜${endDate} / 月額: ¥${price}`;
+  });
+
+  return [
+    `顧客ID ${paletteId}（${accountName}）のサービス内容です。`,
+    ...lines,
+  ].join('\n');
+};
+
+const tryFetchServiceSummary = async (message: string): Promise<string | null> => {
+  if (!SERVICE_QUERY_PATTERN.test(message)) return null;
+
+  const match = String(message || '').match(PALETTE_ID_PATTERN);
+  if (!match) return null;
+
+  const paletteId = match[1].toUpperCase();
+  const params = new URLSearchParams();
+  params.set('paletteId', paletteId);
+
+  try {
+    const response = await palDbGet(`/api/palette-summary?${params.toString()}`);
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || data?.success === false) {
+      return `顧客ID ${paletteId} のサービス情報が見つかりませんでした。IDをご確認ください。`;
+    }
+
+    return buildServiceSummaryText(data, paletteId);
+  } catch (error) {
+    console.error('service summary fetch error:', error);
+    return 'サービス情報の取得中にエラーが発生しました。時間をおいて再度お試しください。';
+  }
+};
 
 export async function POST(req: Request) {
   try {
@@ -12,6 +75,11 @@ export async function POST(req: Request) {
     const ai = new GoogleGenAI({ apiKey });
     const body = await req.json();
     const { message, history, system } = body;
+
+    const serviceSummary = await tryFetchServiceSummary(String(message || ''));
+    if (serviceSummary) {
+      return NextResponse.json({ text: serviceSummary });
+    }
 
     // --- 修正点1: 判定の厳格化 ---
     // 文中にOKが含まれるだけで反応しないよう、完全一致に近い判定に変更
