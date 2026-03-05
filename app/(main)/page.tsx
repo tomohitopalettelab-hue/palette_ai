@@ -149,6 +149,9 @@ function PaletteDesignInner() {
   const [confirmMode, setConfirmMode] = useState<ConfirmMode>(null);
   const [studioRevisionTarget, setStudioRevisionTarget] = useState<string>('');
   const [studioRevisionDraft, setStudioRevisionDraft] = useState<StudioRevisionDraft | null>(null);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [mobileViewportHeight, setMobileViewportHeight] = useState<number | null>(null);
+  const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
   const [studioProfile, setStudioProfile] = useState<StudioProfile>({
     shopName: '',
     industry: '',
@@ -192,6 +195,45 @@ function PaletteDesignInner() {
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
     }
   }, [inputText]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const updateMobileFlag = () => setIsMobileViewport(window.innerWidth < 768);
+    updateMobileFlag();
+    window.addEventListener('resize', updateMobileFlag);
+    return () => window.removeEventListener('resize', updateMobileFlag);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const updateViewportMetrics = () => {
+      const nextHeight = Math.round(viewport.height);
+      setMobileViewportHeight(nextHeight > 0 ? nextHeight : null);
+
+      const keyboardHeight = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      // Ignore tiny viewport jitters and react only when keyboard is likely visible.
+      setMobileKeyboardInset(keyboardHeight > 60 ? Math.round(keyboardHeight) : 0);
+    };
+
+    updateViewportMetrics();
+    viewport.addEventListener('resize', updateViewportMetrics);
+    viewport.addEventListener('scroll', updateViewportMetrics);
+    window.addEventListener('orientationchange', updateViewportMetrics);
+    return () => {
+      viewport.removeEventListener('resize', updateViewportMetrics);
+      viewport.removeEventListener('scroll', updateViewportMetrics);
+      window.removeEventListener('orientationchange', updateViewportMetrics);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isMobileViewport && mobileKeyboardInset > 0) {
+      scrollToBottom();
+    }
+  }, [isMobileViewport, mobileKeyboardInset]);
 
   const sanitizePromptText = (text: string): string => {
     return String(text || '')
@@ -2282,6 +2324,13 @@ ${currentHtml}
     setShowConfirmSave(false);
     setQuickQuestionButtons([]);
     const messageToSend = overrideText || inputText;
+
+    // 複数質問UI表示中は、通常の送信ボタンでも「まとめ送信」を実行する。
+    if (!overrideText && multiPromptItems.length > 0 && !isSubmittingMultiPrompt && !isLoading && !conversationEnded) {
+      await handleSubmitMultiPrompt();
+      return;
+    }
+
     if (!messageToSend.trim() || isLoading) return;
 
     // 送信時は補助UIをいったん閉じ、直後のAI回答で再構築する。
@@ -2795,7 +2844,10 @@ ${currentHtml}
   const isMainInputDisabled = conversationEnded || isSelectionOnlyStage;
 
   return (
-    <div className="fixed inset-0 w-full h-[100dvh] flex items-center justify-center p-0 md:p-8 overflow-hidden bg-slate-50 touch-none">
+    <div
+      className="fixed inset-0 w-full h-[100dvh] flex items-center justify-center p-0 md:p-8 overflow-hidden bg-slate-50 touch-auto md:touch-none"
+      style={isMobileViewport && mobileViewportHeight ? { height: `${mobileViewportHeight}px` } : undefined}
+    >
       <div className="fixed top-0 left-0 w-full h-full pointer-events-none -z-10 overflow-hidden">
         <div className="absolute w-[500px] h-[500px] bg-pink-400/10 blur-[120px] rounded-full -top-20 -left-20 animate-pulse" />
         <div className="absolute w-[600px] h-[600px] bg-cyan-400/10 blur-[150px] rounded-full -bottom-20 -right-20 animate-pulse" style={{ animationDelay: '-5s' }} />
@@ -3135,6 +3187,7 @@ ${currentHtml}
                   ref={textareaRef} 
                   value={inputText} 
                   onChange={(e) => setInputText(e.target.value)} 
+                  onFocus={scrollToBottom}
                   onKeyDown={handleKeyDown} 
                   placeholder={isSelectionOnlyStage ? '上の選択ボタンから回答してください。' : authStep === 'askId' ? '顧客ID（例: A0001）を入力...' : authStep === 'askPassword' ? 'パスワードを入力...' : '回答を入力...'} 
                   rows={1} 
