@@ -803,6 +803,45 @@ function PaletteDesignInner() {
     }
 
     const content = String(latestMessage.content || '');
+    const normalized = content.replace(/[（]/g, '(').replace(/[）]/g, ')');
+
+    // 最終フォールバック: 明示タグがある場合は必ず補助UIを表示する。
+    const hardMultiMatch = normalized.match(/\(\s*複数選択\s*\)[\s\S]*?\(\s*(?:選択肢|候補)\s*[:：]\s*([^\)]+)\)/i);
+    if (hardMultiMatch) {
+      const options = Array.from(new Set(
+        String(hardMultiMatch[1] || '')
+          .replace(/など.*$/i, '')
+          .split(/\s*[\/，、,・]\s*|\s+または\s+|\s+or\s+|\s+もしくは\s+|\s+及び\s+|\s+および\s+/i)
+          .map((token) => token.trim())
+          .filter((token) => token.length >= 1 && token.length <= 24)
+          .filter((token) => !/^(選択肢|候補|例|入力|回答|ください|お願いします)$/i.test(token)),
+      ));
+
+      if (options.length >= 2) {
+        const questionLine = normalized
+          .split('\n')
+          .map((line) => sanitizePromptText(line))
+          .find((line) => /[?？]/.test(line));
+        const question = sanitizePromptText(
+          String(questionLine || '当てはまるものを選択してください。')
+            .replace(/[（(]\s*複数選択\s*[）)]/gi, '')
+            .replace(/[（(]\s*(?:選択肢|候補)\s*[:：][^）)]*[）)]/gi, '')
+            .replace(/\s+/g, ' ')
+            .trim(),
+        ) || '当てはまるものを選択してください。';
+
+        setShowConfirmSave(false);
+        setMultiPromptItems([question]);
+        setMultiPromptSelectOptions([options]);
+        setMultiPromptSelectionKinds(['multi']);
+        setMultiPromptModes(['select']);
+        setMultiPromptSelected(['']);
+        setMultiPromptSelectedMulti([[]]);
+        setMultiPromptAnswers(['']);
+        return;
+      }
+    }
+
     let prompts = parseMultiPrompts(content);
     if (!prompts.length) {
       const forced = parseTaggedPromptFallback(content);
@@ -812,6 +851,8 @@ function PaletteDesignInner() {
       clearMultiPromptState();
       return;
     }
+
+    setShowConfirmSave(false);
 
     setMultiPromptItems(prompts.map((item) => item.question));
     setMultiPromptSelectOptions(prompts.map((item) => item.options));
