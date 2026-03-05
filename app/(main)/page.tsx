@@ -199,9 +199,10 @@ function PaletteDesignInner() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previewModeInitializedRef = useRef(false);
   const keepInputTimerRef = useRef<number | null>(null);
+  const isComposerFocusedRef = useRef(false);
 
-  const scrollToBottom = () => {
-    scrollEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    scrollEndRef.current?.scrollIntoView({ behavior, block: 'end' });
   };
 
   const keepInputVisible = () => {
@@ -210,12 +211,13 @@ function PaletteDesignInner() {
       window.clearTimeout(keepInputTimerRef.current);
     }
 
-    // Wait for keyboard animation once, then align input without smooth repeated motion.
+    // Wait for keyboard animation once, then align input without adding extra momentum.
     keepInputTimerRef.current = window.setTimeout(() => {
-      if (typeof window !== 'undefined') {
-        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      if (!isComposerFocusedRef.current) {
+        keepInputTimerRef.current = null;
+        return;
       }
-      scrollToBottom();
+      scrollToBottom('auto');
       textareaRef.current?.scrollIntoView({ behavior: 'auto', block: 'nearest' });
       keepInputTimerRef.current = null;
     }, mobileKeyboardInset > 0 ? 80 : 220);
@@ -292,7 +294,7 @@ function PaletteDesignInner() {
   }, []);
 
   useEffect(() => {
-    if (isMobileViewport && mobileKeyboardInset > 0) {
+    if (isMobileViewport && mobileKeyboardInset > 0 && isComposerFocusedRef.current) {
       keepInputVisible();
     }
   }, [isMobileViewport, mobileKeyboardInset]);
@@ -2912,8 +2914,6 @@ ${currentHtml}
 
   const isSelectionOnlyStage = activeServiceMode === 'pal_studio' && (studioStep === 'revisionSelect' || studioStep === 'revisionConfirm' || studioStep === 'postOkMessageToggle');
   const isMainInputDisabled = conversationEnded || isSelectionOnlyStage;
-  const mobileKeyboardLift = isMobileViewport && mobileKeyboardInset > 0 ? Math.max(0, mobileKeyboardInset - 6) : 0;
-
   return (
     <div
       className="fixed inset-0 w-full h-[100dvh] flex items-start md:items-center justify-start md:justify-center p-0 md:p-8 overflow-hidden bg-slate-50 touch-auto md:touch-none"
@@ -3256,16 +3256,19 @@ ${currentHtml}
                 ))}
               </div>
             )}
-            <div
-              className="p-2 rounded-[30px] shadow-neu-flat bg-white/30 border border-white/50"
-              style={mobileKeyboardLift > 0 ? { transform: `translateY(-${mobileKeyboardLift}px)`, transition: 'transform 160ms ease' } : undefined}
-            >
+            <div className="p-2 rounded-[30px] shadow-neu-flat bg-white/30 border border-white/50">
               <div className="flex items-end shadow-neu-inset rounded-[24px] bg-[#F0F2F5]/50 px-3 py-1">
                 <textarea 
                   ref={textareaRef} 
                   value={inputText} 
                   onChange={(e) => setInputText(e.target.value)} 
-                  onFocus={keepInputVisible}
+                  onFocus={() => {
+                    isComposerFocusedRef.current = true;
+                    keepInputVisible();
+                  }}
+                  onBlur={() => {
+                    isComposerFocusedRef.current = false;
+                  }}
                   onKeyDown={handleKeyDown} 
                   placeholder={isSelectionOnlyStage ? '上の選択ボタンから回答してください。' : authStep === 'askId' ? '顧客ID（例: A0001）を入力...' : authStep === 'askPassword' ? 'パスワードを入力...' : '回答を入力...'} 
                   rows={1} 
