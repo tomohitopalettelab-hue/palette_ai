@@ -80,6 +80,8 @@ type StudioStep =
   | 'companyInfoDetails'
   | 'revisionSelect'
   | 'revisionDetail'
+  | 'postOkMessageToggle'
+  | 'postOkMessageInput'
   | 'completed';
 
 type ConfirmMode = 'preview' | 'revision' | null;
@@ -116,11 +118,12 @@ function PaletteDesignInner() {
   const [authPaletteId, setAuthPaletteId] = useState('');
   const [authCustomerName, setAuthCustomerName] = useState('');
   const [authServiceSummary, setAuthServiceSummary] = useState('');
+  const [authServiceCards, setAuthServiceCards] = useState<ServiceCard[]>([]);
   const [authContractCards, setAuthContractCards] = useState<ContractInfoCard[]>([]);
   const [generatedCode, setGeneratedCode] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(templates[0]?.id || '');
   const [showConfirmSave, setShowConfirmSave] = useState(false);
-  const [previewRenderMode, setPreviewRenderMode] = useState<'html' | 'image'>('html');
+  const [previewRenderMode, setPreviewRenderMode] = useState<'desktop' | 'mobile'>('desktop');
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [isPreviewImageLoading, setIsPreviewImageLoading] = useState(false);
   const [confirmMessages, setConfirmMessages] = useState<any[]>([]);
@@ -1356,7 +1359,7 @@ ${template.html}
     setConfirmMessages(currentMessages);
     setAiExplanation(`テンプレート選定: ${selectedTemplate.name} (${selectedTemplate.id})`);
     setShowConfirmSave(true);
-    setPreviewRenderMode('html');
+    setPreviewRenderMode('desktop');
 
     const imageQuery = createPreviewImageQuery(summary, selectedTemplate);
     void fetchPreviewImage(imageQuery);
@@ -1570,6 +1573,7 @@ ${template.html}
   };
 
   const startStudioFlow = () => {
+    setConversationEnded(false);
     setStudioHtmlGenerationCount(0);
     setConfirmMode(null);
     setStudioRevisionTarget('');
@@ -1744,7 +1748,7 @@ ${currentHtml}
     setShowConfirmSave(true);
     setConfirmMode('preview');
     setStudioStep('completed');
-    setPreviewRenderMode('html');
+    setPreviewRenderMode('desktop');
     void fetchPreviewImage(createPreviewImageQuery(buildStudioSummary(profile), draft.template));
     appendAiMessage({ content: `下書きを表示しました。内容を確認して「OK」または「修正」を選んでください。（HTML生成 ${Math.min(studioHtmlGenerationCount + 1, 3)}/3）` });
   };
@@ -1876,6 +1880,28 @@ ${currentHtml}
       return;
     }
 
+    if (studioStep === 'postOkMessageToggle') {
+      const hasMessage = /あり|はい|yes/i.test(first);
+      if (!hasMessage) {
+        finishStudioFlow(false);
+        return;
+      }
+      setStudioStep('postOkMessageInput');
+      applyStudioPrompt(['制作担当へのメッセージをご記入ください。'], [[]], ['single'], ['text']);
+      appendAiMessage({ content: 'メッセージをご記入ください！' });
+      return;
+    }
+
+    if (studioStep === 'postOkMessageInput') {
+      const note = String(first || '').trim();
+      if (note) {
+        const savedMessages = [...updatedMessages, { role: 'ai', content: `制作担当メモ: ${note}` } as ChatMessage];
+        void saveDraftToLab(savedMessages, 'reviewing', generatedCode, `${aiExplanation || '下書き確認完了'} / 制作担当メモ: ${note}`);
+      }
+      finishStudioFlow(true);
+      return;
+    }
+
     if (studioStep === 'revisionSelect') {
       if (first.includes('最初からやり直し')) {
         appendAiMessage({ content: '最初の質問からやり直します！' });
@@ -1950,6 +1976,7 @@ ${currentHtml}
   };
 
   const handleServiceCardClick = (card: ServiceCard) => {
+    setConversationEnded(false);
     setQuickQuestionButtons([]);
     setActiveServiceMode(card.key === 'pal_studio'
       ? 'pal_studio'
@@ -2092,6 +2119,7 @@ ${currentHtml}
           setAuthPaletteId(verifiedPaletteId);
         }
         setAuthServiceSummary(String(verifyData?.summaryText || ''));
+        setAuthServiceCards(Array.isArray(verifyData?.serviceCards) ? verifyData.serviceCards : []);
         setAuthContractCards(buildContractInfoCards(verifyData?.summary || {}));
         const customerName = normalizeCustomerName(String(verifyData?.accountName || verifyData?.customerName || ''));
         setAuthCustomerName(customerName || '');
@@ -2391,15 +2419,9 @@ ${currentHtml}
     const saved = await saveToLab(confirmMessages.length ? confirmMessages : messages, html, aiExplanation || '下書き確認完了');
     if (!saved) return;
     setConfirmMode(null);
-    setStudioStep('completed');
-    setConversationEnded(true);
-    setMessages(prev => [
-      ...prev,
-      {
-        role: 'ai',
-        content: '制作担当に送ります！5営業日以内にご連絡しますので、少々お待ちください！'
-      }
-    ]);
+    setStudioStep('postOkMessageToggle');
+    applyStudioPrompt(['制作担当にメッセージはありますか？'], [['あり', 'なし']], ['single']);
+    appendAiMessage({ content: '制作担当にメッセージはありますか？' });
   };
 
   const handleRequestRevision = () => {
@@ -2420,6 +2442,34 @@ ${currentHtml}
 
     setShowConfirmSave(false);
     handleSend("修正お願いします");
+  };
+
+  const finishStudioFlow = (withAcknowledgement: boolean) => {
+    const fallbackCards = messages
+      .slice()
+      .reverse()
+      .find((msg) => msg.role === 'ai' && Array.isArray(msg.serviceCards) && msg.serviceCards.length > 0)
+      ?.serviceCards || [];
+    const cards = authServiceCards.length ? authServiceCards : fallbackCards;
+
+    const nextMessages: ChatMessage[] = [];
+    if (withAcknowledgement) {
+      nextMessages.push({ role: 'ai', content: '承りました！' });
+    }
+    nextMessages.push({ role: 'ai', content: '制作担当に送ります！5営業日以内にご連絡しますので、少々お待ちください！' });
+    nextMessages.push({
+      role: 'ai',
+      content: '改めて、サービスを選択してください。',
+      serviceCards: cards,
+    });
+
+    setShowConfirmSave(false);
+    setConfirmMode(null);
+    setActiveServiceMode('none');
+    setStudioStep('idle');
+    clearMultiPromptState();
+    setConversationEnded(true);
+    setMessages((prev) => [...prev, ...nextMessages]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -2489,6 +2539,9 @@ ${currentHtml}
       handleSubmitMultiPrompt();
     }
   };
+
+  const isSelectionOnlyStage = activeServiceMode === 'pal_studio' && (studioStep === 'revisionSelect' || studioStep === 'postOkMessageToggle');
+  const isMainInputDisabled = conversationEnded || isSelectionOnlyStage;
 
   return (
     <div className="fixed inset-0 w-full h-[100dvh] flex items-center justify-center p-0 md:p-8 overflow-hidden bg-slate-50 touch-none">
@@ -2689,6 +2742,7 @@ ${currentHtml}
                             next[index] = 'text';
                             setMultiPromptModes(next);
                           }}
+                          disabled={isSelectionOnlyStage}
                           className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all duration-300 ${(multiPromptModes[index] || 'text') === 'text' ? 'bg-indigo-50/90 border-indigo-200 text-indigo-700 shadow-[0_6px_16px_rgba(79,70,229,0.12)]' : 'bg-white/80 border-white text-slate-500 hover:bg-white'}`}
                         >
                           自由入力
@@ -2811,15 +2865,15 @@ ${currentHtml}
                   value={inputText} 
                   onChange={(e) => setInputText(e.target.value)} 
                   onKeyDown={handleKeyDown} 
-                  placeholder={authStep === 'askId' ? '顧客ID（例: A0001）を入力...' : authStep === 'askPassword' ? 'パスワードを入力...' : '回答を入力...'} 
+                  placeholder={isSelectionOnlyStage ? '上の選択ボタンから回答してください。' : authStep === 'askId' ? '顧客ID（例: A0001）を入力...' : authStep === 'askPassword' ? 'パスワードを入力...' : '回答を入力...'} 
                   rows={1} 
-                  disabled={conversationEnded}
+                  disabled={isMainInputDisabled}
                   className="flex-1 bg-transparent border-none py-3 text-base focus:outline-none text-slate-700 font-medium resize-none min-h-[40px] max-h-[120px] touch-auto" 
                 />
                 <button 
                   type="button" 
                   onClick={() => handleSend()} 
-                  disabled={isLoading} 
+                  disabled={isLoading || isMainInputDisabled} 
                   className="bg-gradient-to-r from-indigo-500 to-fuchsia-500 w-10 h-10 rounded-full flex items-center justify-center text-white shadow-[0_10px_24px_rgba(79,70,229,0.28)] hover:from-indigo-400 hover:to-fuchsia-400 hover:-translate-y-0.5 active:scale-90 shrink-0 mb-1 ml-2 transition-all duration-300"
                 >
                   <Send className="w-4 h-4" />
@@ -2837,46 +2891,37 @@ ${currentHtml}
              <div className="flex items-center gap-2">
                <button
                  type="button"
-                 onClick={() => setPreviewRenderMode('html')}
-                 className={`px-3 py-1.5 rounded-full text-[10px] font-black border transition-all ${previewRenderMode === 'html' ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+                 onClick={() => setPreviewRenderMode('desktop')}
+                 className={`px-3 py-1.5 rounded-full text-[10px] font-black border transition-all ${previewRenderMode === 'desktop' ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
                >
-                 HTML
+                 PC
                </button>
                <button
                  type="button"
-                 onClick={() => setPreviewRenderMode('image')}
-                 className={`px-3 py-1.5 rounded-full text-[10px] font-black border transition-all ${previewRenderMode === 'image' ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+                 onClick={() => setPreviewRenderMode('mobile')}
+                 className={`px-3 py-1.5 rounded-full text-[10px] font-black border transition-all ${previewRenderMode === 'mobile' ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
                >
-                 IMAGE
+                 スマホ
                </button>
              </div>
           </div>
           <div className="flex-1 rounded-[30px] shadow-neu-inset bg-white md:bg-[#F8FAFC]/50 overflow-hidden border border-white/40">
-            {previewRenderMode === 'image' ? (
-              isPreviewImageLoading ? (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-3">
-                  <div className="w-5 h-5 rounded-full border-2 border-slate-300 border-t-indigo-500 animate-spin" />
-                  <p className="text-[11px] font-bold">画像プレビューを準備中...</p>
-                </div>
-              ) : previewImageUrl ? (
-                <div className="h-full w-full p-5 md:p-8">
-                  <img
-                    src={previewImageUrl}
-                    alt="Template mood preview"
-                    className="w-full h-full object-cover rounded-2xl border border-slate-100"
-                  />
+            {generatedCode ? (
+              previewRenderMode === 'mobile' ? (
+                <div className="h-full w-full flex items-center justify-center p-4 md:p-6 bg-slate-100/60">
+                  <div className="w-[360px] max-w-full h-full max-h-[760px] rounded-[32px] border-[8px] border-slate-900 bg-white shadow-2xl overflow-hidden">
+                    <iframe
+                      srcDoc={`<html><head><script src="https://cdn.tailwindcss.com"></script><style>body { margin: 0; font-family: sans-serif; }</style></head><body>${generatedCode}</body></html>`}
+                      className="w-full h-full border-none"
+                    />
+                  </div>
                 </div>
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-slate-300 space-y-4">
-                  <Box className="w-16 h-16 opacity-10" />
-                  <p className="text-[10px] font-bold tracking-[0.3em] opacity-30 uppercase text-center">No image preview</p>
-                </div>
+                <iframe
+                  srcDoc={`<html><head><script src="https://cdn.tailwindcss.com"></script><style>body { margin: 0; font-family: sans-serif; }</style></head><body>${generatedCode}</body></html>`}
+                  className="w-full h-full border-none"
+                />
               )
-            ) : generatedCode ? (
-              <iframe 
-                srcDoc={`<html><head><script src="https://cdn.tailwindcss.com"></script><style>body { margin: 0; font-family: sans-serif; }</style></head><body>${generatedCode}</body></html>`} 
-                className="w-full h-full border-none" 
-              />
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-slate-300 space-y-4">
                 <Box className="w-16 h-16 opacity-10" />
