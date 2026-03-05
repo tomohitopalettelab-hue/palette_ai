@@ -153,7 +153,22 @@ function PaletteDesignInner() {
     const normalizedTagText = text.replace(/[（]/g, '(').replace(/[）]/g, ')');
     const hasTagPrompt = /\((?:2択|二択|単一選択|複数選択|チェック)\)|\((?:選択肢|候補)\s*[:：]/i.test(normalizedTagText);
     if (hasTagPrompt) {
-      const question = sanitizePromptText((normalizedTagText.match(/^(.*?[?？])/)?.[1] || normalizedTagText.split('\n').find((line) => line.trim()) || ''));
+      const taggedLines = normalizedTagText
+        .split('\n')
+        .map((line) => sanitizePromptText(line))
+        .filter(Boolean);
+
+      const taggedQuestionLine = taggedLines.find((line) => /[?？]/.test(line) && /(2択|二択|単一選択|複数選択|チェック|選択肢\s*[:：]|候補\s*[:：])/i.test(line));
+      const latestQuestionLine = [...taggedLines].reverse().find((line) => /[?？]/.test(line));
+
+      const extractedQuestion = sanitizePromptText(
+        (taggedQuestionLine || latestQuestionLine || '')
+          .replace(/[（(]\s*(2択|二択|単一選択|複数選択|チェック)\s*[）)]/gi, '')
+          .replace(/[（(]\s*(?:選択肢|候補)\s*[:：][^）)]*[）)]/gi, '')
+          .replace(/\s+/g, ' ')
+          .trim(),
+      );
+      const question = extractedQuestion || '当てはまるものを選択してください。';
       const optionTagMatchForced = normalizedTagText.match(/\((?:選択肢|候補)\s*[:：]\s*([^\)]+)\)/i);
       const forcedOptions = splitOptionTokensSimple(optionTagMatchForced?.[1] || '');
       const forcedMulti = /\((?:複数選択|チェック)\)|\b複数選択\b|\bチェック\b/i.test(normalizedTagText);
@@ -163,7 +178,7 @@ function PaletteDesignInner() {
         ? forcedOptions
         : (forcedSingle ? ['はい', 'いいえ'] : []);
 
-      if (question && options.length >= 2) {
+      if (options.length >= 2) {
         return [{
           question,
           options,
