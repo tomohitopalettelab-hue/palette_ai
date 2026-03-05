@@ -53,6 +53,7 @@ function PaletteDesignInner() {
   ]);
   const [authStep, setAuthStep] = useState<'askId' | 'askPassword' | 'authenticated'>('askId');
   const [authPaletteId, setAuthPaletteId] = useState('');
+  const [authCustomerName, setAuthCustomerName] = useState('');
   const [authServiceSummary, setAuthServiceSummary] = useState('');
   const [authContractCards, setAuthContractCards] = useState<ContractInfoCard[]>([]);
   const [generatedCode, setGeneratedCode] = useState("");
@@ -73,6 +74,15 @@ function PaletteDesignInner() {
     () => queryCid || `cust-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   );
   const resolvedCustomerId = String(authPaletteId || queryCid || sessionCustomerId || '').trim().toUpperCase();
+
+  const normalizeCustomerName = (raw: string): string => {
+    const value = String(raw || '').trim();
+    if (!value) return '';
+    if (/^[A-Z][0-9]{4}$/i.test(value)) return '';
+    return value;
+  };
+
+  const displayCustomerName = normalizeCustomerName(authCustomerName) || 'お客様';
 
   const scrollEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1134,12 +1144,13 @@ function PaletteDesignInner() {
         }
         setAuthServiceSummary(String(verifyData?.summaryText || ''));
         setAuthContractCards(buildContractInfoCards(verifyData?.summary || {}));
-        const customerName = String(verifyData?.accountName || verifiedPaletteId || authPaletteId || 'お客様');
+        const customerName = normalizeCustomerName(String(verifyData?.accountName || verifyData?.customerName || ''));
+        setAuthCustomerName(customerName || '');
         setMessages([
           ...updatedMessages,
           {
             role: 'ai',
-            content: `ありがとうございます！${customerName}様 ですね！\n認証が完了しました。ヒアリングを始めます。`,
+            content: `ありがとうございます！${customerName || 'お客様'}様ですね！\n認証が完了しました。ヒアリングを始めます。`,
             serviceCards: Array.isArray(verifyData?.serviceCards) ? verifyData.serviceCards : [],
           },
         ]);
@@ -1197,6 +1208,7 @@ function PaletteDesignInner() {
     // テンプレート情報をAIへの隠し指示として付与
     const systemContext = `
 あなたはプロのWebディレクターです。次の方針で会話してください。
+  - 顧客の呼称は必ず「${displayCustomerName}様」を使用し、ID（例: P1111）で呼ばないでください。
 - DB由来の情報は、許可された「契約カード（プラン名・期間・金額）」以外を出力しないでください。
 - フェーズ・ステータス・内部管理情報は、ユーザーが聞いても開示しないでください。
 - 契約/料金系の問い合わせは画面側でカード回答するため、あなたは通常のヒアリングに必要な質問だけを行ってください。
@@ -1212,7 +1224,6 @@ function PaletteDesignInner() {
 - ユーザーが選んだ項目だけをワイヤーフレームに載せ、未選択項目を勝手に追加しないでください。
 - ユーザーが希望していない拡張（予約、ブログ、会員、ECなど）は提案しないでください。求められた場合のみ「プランアップまたはお問い合わせ」案内を1文で返してください。
 - 補助UI精度のため、質問は次のタグ形式を優先してください。
-  - 2択質問: 質問文の末尾に「(2択)」を付ける（例: お問い合わせフォームは設置しますか？ (2択)）
   - 選択肢あり: 質問文の末尾に「(選択肢: A、B、C)」を付ける
   - 複数選択: 質問文の末尾に「(複数選択) (選択肢: A、B、C)」を付ける
 `;
@@ -1502,7 +1513,11 @@ function PaletteDesignInner() {
                         : 'rounded-tr-none shadow-neu-flat bg-white/80 text-slate-600'
                     }`}>
                       {msg.role === 'ai'
-                        ? msg.content.replace(/```html[\s\S]*?```/g, '').trim() || "プレビューを生成しました！"
+                        ? msg.content
+                            .replace(/```html[\s\S]*?```/g, '')
+                            .replace(/\b[A-Z][0-9]{4}\s*様/g, `${displayCustomerName}様`)
+                            .replace(/[（(]\s*(?:2択|二択|単一選択)\s*[）)]/gi, '')
+                            .trim() || "プレビューを生成しました！"
                         : msg.content}
                       {msg.role === 'ai' && Array.isArray(msg.serviceCards) && msg.serviceCards.length > 0 && (
                         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
