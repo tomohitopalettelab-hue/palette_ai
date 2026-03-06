@@ -4,6 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Palette AI",
   description: "AI Chat Application",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 // 修正ポイント：iOSの勝手なズームとスクロールを物理的に止める設定（Mainから移動）
