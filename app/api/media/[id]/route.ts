@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { buildPalDbUrl } from '../../_lib/pal-db-client';
 
-export async function DELETE(_req: Request, context: { params: { id?: string } }) {
+export async function DELETE(_req: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const id = String(context.params?.id || '').trim();
+    const params = await context.params;
+    const id = String(params?.id || '').trim();
     if (!id) {
       return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 });
     }
