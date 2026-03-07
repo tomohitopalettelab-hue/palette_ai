@@ -1914,8 +1914,8 @@ ${template.html}
     }
     if (serviceKey === 'pal_video') {
       return {
-        backgroundColor: '#FFEBD955',
-        borderColor: '#FF9F6E66',
+        backgroundColor: '#FBE9EC',
+        borderColor: '#E95464',
       };
     }
     if (serviceKey === 'pal_studio') {
