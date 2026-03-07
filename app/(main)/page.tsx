@@ -43,7 +43,7 @@ type ChatMessage = {
 };
 
 type PromptSelectionKind = 'single' | 'multi';
-type ServiceMode = 'none' | 'pal_studio' | 'palette_ai' | 'pal_trust' | 'other';
+type ServiceMode = 'none' | 'pal_studio' | 'pal_video' | 'palette_ai' | 'pal_trust' | 'other';
 type StudioPlanTier = 'lite' | 'standard' | 'pro';
 
 type HearingSummary = {
@@ -146,6 +146,7 @@ function PaletteDesignInner() {
   const [quickQuestionButtons, setQuickQuestionButtons] = useState<QuickQuestionButton[]>([]);
   const [neutralActionButtons, setNeutralActionButtons] = useState<ActionButton[]>([]);
   const [activeServiceMode, setActiveServiceMode] = useState<ServiceMode>('none');
+  const [activeServiceCard, setActiveServiceCard] = useState<ServiceCard | null>(null);
   const [studioPlanTier, setStudioPlanTier] = useState<StudioPlanTier>('standard');
   const [studioStep, setStudioStep] = useState<StudioStep>('idle');
   const [studioHtmlGenerationCount, setStudioHtmlGenerationCount] = useState(0);
@@ -1640,6 +1641,101 @@ ${template.html}
     return true;
   };
 
+  const normalizePalVideoPurpose = (raw: string): string => {
+    const value = String(raw || '').toLowerCase();
+    if (/reel|リール|ショート|short|ストーリー/.test(value)) return 'instagram_reel';
+    if (/フィード|feed/.test(value)) return 'instagram_feed';
+    if (/youtube|ユーチューブ/.test(value)) return 'youtube';
+    if (/広告|プロモ|promotion|ad/.test(value)) return 'promotion';
+    return '';
+  };
+
+  const extractPalVideoDuration = (raw: string): number | null => {
+    const text = String(raw || '');
+    const match = text.match(/(\d+)\s*(秒|分)/);
+    if (!match) return null;
+    const value = Number(match[1]);
+    if (!Number.isFinite(value)) return null;
+    return match[2] === '分' ? value * 60 : value;
+  };
+
+  const splitTelop = (raw: string): { main: string; sub: string } => {
+    const text = String(raw || '').trim();
+    if (!text) return { main: '', sub: '' };
+    const parts = text.split(/[\n\/／]/).map((part) => part.trim()).filter(Boolean);
+    if (parts.length === 0) return { main: '', sub: '' };
+    if (parts.length === 1) return { main: parts[0], sub: '' };
+    return { main: parts[0], sub: parts.slice(1).join(' / ') };
+  };
+
+  const extractHexColors = (raw: string): string[] => {
+    const matches = String(raw || '').match(/#[0-9a-fA-F]{6}/g);
+    return Array.isArray(matches) ? matches.slice(0, 2) : [];
+  };
+
+  const extractUrls = (raw: string): string[] => {
+    const matches = String(raw || '').match(/https?:\/\/[^\s)]+/g);
+    return Array.isArray(matches) ? matches : [];
+  };
+
+  const buildPalVideoPayload = (currentMessages: any[]) => {
+    const answers = buildUserAnswers(currentMessages);
+    const purposeAnswer = answers.find((item) => /(用途|媒体|プラットフォーム|instagram|インスタ|youtube|広告|プロモ)/i.test(item.q))?.a || '';
+    const durationAnswer = answers.find((item) => /(尺|秒|時間|長さ|動画の長さ)/i.test(item.q))?.a || '';
+    const telopAnswer = answers.find((item) => /(テロップ|コピー|キャッチ|キャッチコピー)/i.test(item.q))?.a || '';
+    const colorAnswer = answers.find((item) => /(色|カラー|配色|トーン|雰囲気)/i.test(item.q))?.a || '';
+    const materialAnswer = answers.find((item) => /(素材|画像|写真|ロゴ|動画素材)/i.test(item.q))?.a || '';
+
+    const purpose = normalizePalVideoPurpose(purposeAnswer) || normalizePalVideoPurpose(answers.map((item) => item.a).join(' '));
+    const durationSec = extractPalVideoDuration(durationAnswer || answers.map((item) => item.a).join(' ')) || 30;
+    const telop = splitTelop(telopAnswer || '');
+    const colors = extractHexColors(colorAnswer);
+    const imageUrls = [
+      ...extractUrls(materialAnswer),
+      ...answers.flatMap((item) => extractUrls(item.a)),
+    ];
+
+    const hearingMessages = currentMessages
+      .filter((msg: any) => msg?.role === 'ai' || msg?.role === 'user')
+      .map((msg: any) => ({
+        role: msg.role === 'ai' ? 'assistant' : 'user',
+        content: String(msg.content || ''),
+      }));
+
+    return {
+      purpose: purpose || 'instagram_reel',
+      durationSec,
+      telopMain: telop.main || 'テロップ未設定',
+      telopSub: telop.sub || 'サブテロップ未設定',
+      colorPrimary: colors[0] || '',
+      colorAccent: colors[1] || '',
+      colorNote: colorAnswer || '',
+      imageUrls: Array.from(new Set(imageUrls)),
+      hearingAnswers: answers,
+      hearingMessages,
+    };
+  };
+
+  const upsertPalVideoJob = async (currentMessages: any[]) => {
+    if (activeServiceMode !== 'pal_video') return;
+    const planCode = String(activeServiceCard?.planCode || 'pal_video_lite');
+    const payload = buildPalVideoPayload(currentMessages);
+    try {
+      await fetch('/api/palette-ai/pal-video-job', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paletteId: resolvedCustomerId,
+          planCode,
+          status: '編集中',
+          payload,
+        }),
+      });
+    } catch (error) {
+      console.error('pal_video job sync failed:', error);
+    }
+  };
+
   const saveDraftToLab = async (
     currentMessages: any[],
     status: 'hearing' | 'reviewing' | 'completed' = 'hearing',
@@ -1672,6 +1768,8 @@ ${template.html}
         const err = await response.json().catch(() => ({}));
         throw new Error(err?.error || `保存に失敗しました (${response.status})`);
       }
+
+      await upsertPalVideoJob(currentMessages);
     } catch (err) {
       console.error('下書き保存エラー:', err);
     }
@@ -1812,6 +1910,12 @@ ${template.html}
       return {
         backgroundColor: '#FFFFFFCC',
         borderColor: '#E2E8F0',
+      };
+    }
+    if (serviceKey === 'pal_video') {
+      return {
+        backgroundColor: '#FFEBD955',
+        borderColor: '#FF9F6E66',
       };
     }
     if (serviceKey === 'pal_studio') {
@@ -2332,8 +2436,11 @@ ${currentHtml}
     setConversationEnded(false);
     setQuickQuestionButtons([]);
     setNeutralActionButtons([]);
+    setActiveServiceCard(card);
     setActiveServiceMode(card.key === 'pal_studio'
       ? 'pal_studio'
+      : card.key === 'pal_video'
+        ? 'pal_video'
       : card.key === 'palette_ai'
         ? 'palette_ai'
         : card.key === 'pal_trust'
@@ -2384,6 +2491,13 @@ ${currentHtml}
     }
 
     setStudioPlanTier('standard');
+
+    if (card.key === 'pal_video') {
+      appendAiMessage({
+        content: 'Pal Video のヒアリングを開始します。用途・尺・テロップ・色・素材（画像/ロゴ）の希望を教えてください。',
+      });
+      return;
+    }
 
     if (card.key === 'palette_ai') {
       appendAiMessage({
@@ -2604,6 +2718,16 @@ ${currentHtml}
 - 会社概要の質問は次の形式を使用してください。
   お店の場所や連絡先など、「会社概要」について、どのような情報をお伝えしますか？ (複数選択) (選択肢: 住所、電話番号、営業時間、定休日、アクセス方法、その他)
 `
+      : activeServiceMode === 'pal_video'
+        ? `
+動的補足:
+- 現在は Pal Video 専用モードです。動画制作のヒアリングのみを行ってください。
+- 次の項目が揃うまで、制作完了の宣言はしないでください: 用途 / 尺 / テロップ / 色 / 素材（画像・ロゴ）
+- 用途は Instagramリール・Instagramフィード・YouTube・プロモーションのいずれかに分類できるように確認してください。
+- テロップはメインとサブがあれば分けて確認してください。1つしかない場合はメイン扱いで構いません。
+- 素材の有無を必ず確認し、画像/ロゴURLの提示方法を案内してください。
+- 顧客の呼称は「${displayCustomerName}様」を優先し、顧客ID（例: P1111）で呼ばないでください。
+`
       : `
 動的補足:
 - 顧客の呼称は「${displayCustomerName}様」を優先し、顧客ID（例: P1111）で呼ばないでください。
@@ -2618,29 +2742,40 @@ ${currentHtml}
         .trim();
     };
 
-    const fieldOrder = [
-      '屋号名・会社名',
-      '業種・サービス',
-      'ターゲット',
-      'デザインの好み',
-      '掲載内容',
-      '実績紹介',
-      '会社概要',
-      'お問い合わせ',
-      '採用情報',
-    ];
+    const isPalVideoMode = activeServiceMode === 'pal_video';
+    const fieldOrder = isPalVideoMode
+      ? ['用途', '尺', 'テロップ', '色', '素材']
+      : [
+          '屋号名・会社名',
+          '業種・サービス',
+          'ターゲット',
+          'デザインの好み',
+          '掲載内容',
+          '実績紹介',
+          '会社概要',
+          'お問い合わせ',
+          '採用情報',
+        ];
 
-    const fieldPatterns: { label: string; pattern: RegExp }[] = [
-      { label: '屋号名・会社名', pattern: /(屋号|会社名|法人名|社名|ブランド名)/i },
-      { label: '業種・サービス', pattern: /(業種|サービス|事業内容|取扱|提供)/i },
-      { label: 'ターゲット', pattern: /(ターゲット|対象|顧客層|ペルソナ)/i },
-      { label: 'デザインの好み', pattern: /(雰囲気|デザイン|テイスト|トーン|色味)/i },
-      { label: '掲載内容', pattern: /(掲載|内容|ページ|必要な項目|構成)/i },
-      { label: '実績紹介', pattern: /(実績|制作実績|事例|ポートフォリオ|ギャラリー)/i },
-      { label: '会社概要', pattern: /(会社概要|アクセス|住所|電話|営業時間|定休日|所在地)/i },
-      { label: 'お問い合わせ', pattern: /(問い合わせ|お問合せ|フォーム|連絡先|メール|電話窓口)/i },
-      { label: '採用情報', pattern: /(採用|求人|募集|雇用形態|職種|応募方法)/i },
-    ];
+    const fieldPatterns: { label: string; pattern: RegExp }[] = isPalVideoMode
+      ? [
+          { label: '用途', pattern: /(用途|媒体|プラットフォーム|instagram|インスタ|youtube|広告|プロモ)/i },
+          { label: '尺', pattern: /(尺|秒|時間|長さ|動画の長さ)/i },
+          { label: 'テロップ', pattern: /(テロップ|コピー|キャッチ|キャッチコピー)/i },
+          { label: '色', pattern: /(色|カラー|配色|トーン|雰囲気)/i },
+          { label: '素材', pattern: /(素材|画像|写真|ロゴ|動画素材)/i },
+        ]
+      : [
+          { label: '屋号名・会社名', pattern: /(屋号|会社名|法人名|社名|ブランド名)/i },
+          { label: '業種・サービス', pattern: /(業種|サービス|事業内容|取扱|提供)/i },
+          { label: 'ターゲット', pattern: /(ターゲット|対象|顧客層|ペルソナ)/i },
+          { label: 'デザインの好み', pattern: /(雰囲気|デザイン|テイスト|トーン|色味)/i },
+          { label: '掲載内容', pattern: /(掲載|内容|ページ|必要な項目|構成)/i },
+          { label: '実績紹介', pattern: /(実績|制作実績|事例|ポートフォリオ|ギャラリー)/i },
+          { label: '会社概要', pattern: /(会社概要|アクセス|住所|電話|営業時間|定休日|所在地)/i },
+          { label: 'お問い合わせ', pattern: /(問い合わせ|お問合せ|フォーム|連絡先|メール|電話窓口)/i },
+          { label: '採用情報', pattern: /(採用|求人|募集|雇用形態|職種|応募方法)/i },
+        ];
 
     const summaryMap = new Map<string, string>();
     const addSummary = (label: string, value: string) => {

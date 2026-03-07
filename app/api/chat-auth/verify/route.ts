@@ -55,10 +55,18 @@ const isPalStudioPlanCode = (code: string): boolean => {
     || normalized === 'pal_studio_pro';
 };
 
+const isPalVideoPlanCode = (code: string): boolean => {
+  const normalized = String(code || '').trim().toLowerCase().replace(/-/g, '_');
+  return normalized === 'pal_video_lite'
+    || normalized === 'pal_video_standard'
+    || normalized === 'pal_video_pro';
+};
+
 const resolveServiceKey = (plan: any): string => {
   const code = String(plan?.code || '').toLowerCase();
   const normalized = code.replace(/-/g, '_');
   if (isPalStudioPlanCode(normalized)) return 'pal_studio';
+  if (isPalVideoPlanCode(normalized)) return 'pal_video';
   if (normalized.includes('palette_ai') || normalized === 'ai' || normalized.startsWith('ai_')) return 'palette_ai';
   if (normalized.includes('pal_trust') || normalized === 'trust' || normalized.startsWith('trust_')) return 'pal_trust';
   return 'other';
@@ -67,6 +75,9 @@ const resolveServiceKey = (plan: any): string => {
 const getServiceMeta = (serviceKey: string) => {
   if (serviceKey === 'pal_studio') {
     return { title: 'Pal Studio', description: 'HP/LP制作' };
+  }
+  if (serviceKey === 'pal_video') {
+    return { title: 'Pal Video', description: '動画制作' };
   }
   if (serviceKey === 'palette_ai') {
     return { title: 'Palette Ai', description: 'アシスタント' };
