@@ -1761,6 +1761,7 @@ ${template.html}
     if (/フィード|feed/.test(value)) return 'instagram_feed';
     if (/youtube|ユーチューブ/.test(value)) return 'youtube';
     if (/広告|プロモ|promotion|ad/.test(value)) return 'promotion';
+    if (/説明|解説|チュートリアル/.test(value)) return 'promotion';
     return '';
   };
 
@@ -1794,11 +1795,12 @@ ${template.html}
 
   const buildPalVideoPayload = (currentMessages: any[]) => {
     const answers = buildUserAnswers(currentMessages);
-    const purposeAnswer = answers.find((item) => /(用途|媒体|プラットフォーム|instagram|インスタ|youtube|広告|プロモ)/i.test(item.q))?.a || '';
+    const purposeAnswer = answers.find((item) => /(制作目的|用途|媒体|プラットフォーム|instagram|インスタ|youtube|広告|プロモ|説明)/i.test(item.q))?.a || '';
     const durationAnswer = answers.find((item) => /(尺|秒|時間|長さ|動画の長さ)/i.test(item.q))?.a || '';
     const telopAnswer = answers.find((item) => /(テロップ|コピー|キャッチ|キャッチコピー)/i.test(item.q))?.a || '';
     const colorAnswer = answers.find((item) => /(色|カラー|配色|トーン|雰囲気)/i.test(item.q))?.a || '';
     const materialAnswer = answers.find((item) => /(素材|画像|写真|ロゴ|動画素材)/i.test(item.q))?.a || '';
+    const bgmAnswer = answers.find((item) => /(bgm|音楽|曲|サウンド)/i.test(item.q))?.a || '';
 
     const purpose = normalizePalVideoPurpose(purposeAnswer) || normalizePalVideoPurpose(answers.map((item) => item.a).join(' '));
     const durationSec = extractPalVideoDuration(durationAnswer || answers.map((item) => item.a).join(' ')) || 30;
@@ -1825,15 +1827,71 @@ ${template.html}
       colorAccent: colors[1] || '',
       colorNote: colorAnswer || '',
       imageUrls: Array.from(new Set(imageUrls)),
+      bgm: bgmAnswer || '',
       hearingAnswers: answers,
       hearingMessages,
     };
+  };
+
+  const buildCreatomateFallbackPlan = (payload: any) => {
+    const cuts = Array.isArray(payload?.cuts) ? payload.cuts : [];
+    const durationSec = Number(payload?.durationSec || 30);
+    const sceneCount = cuts.length > 0 ? cuts.length : Math.max(1, Math.min(6, Math.round(durationSec / 5)));
+    const baseDuration = Math.max(2, Math.round(durationSec / sceneCount));
+    const safeCuts = cuts.length > 0
+      ? cuts
+      : Array.from({ length: sceneCount }).map((_, index) => ({
+          durationSec: baseDuration,
+          imageUrl: payload?.imageUrls?.[index] || payload?.imageUrls?.[0] || '',
+          textMain: index === 0 ? payload?.telopMain : `ポイント${index + 1}`,
+          textSub: index === 0 ? payload?.telopSub : '',
+          textAnimation: 'slide',
+          textTransition: 'fade',
+        }));
+
+    return {
+      templateId: 'pal_video_fixed_v1',
+      templateMode: 'fixed',
+      scenes: safeCuts.map((cut: any) => ({
+        durationSec: Number(cut.durationSec || baseDuration),
+        imageUrl: String(cut.imageUrl || ''),
+        title: String(cut.textMain || payload?.telopMain || ''),
+        subtitle: String(cut.textSub || payload?.telopSub || ''),
+        textAnimation: String(cut.textAnimation || 'slide'),
+        textTransition: String(cut.textTransition || 'fade'),
+      })),
+      style: {
+        primaryColor: String(payload?.colorPrimary || '#E95464'),
+        accentColor: String(payload?.colorAccent || '#1c9a8b'),
+        font: 'NotoSansJP',
+      },
+      audio: { bgm: String(payload?.bgm || 'light') },
+      dynamicTemplateCandidates: [],
+    };
+  };
+
+  const generateCreatomatePlan = async (payload: any, currentMessages: any[]) => {
+    try {
+      const response = await fetch('/api/palette-ai/pal-video-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload, hearingMessages: currentMessages }),
+      });
+      if (!response.ok) throw new Error(`script generate failed: ${response.status}`);
+      const data = await response.json().catch(() => ({}));
+      if (data?.success && data?.plan) return data.plan;
+      return buildCreatomateFallbackPlan(payload);
+    } catch (error) {
+      console.warn('creatomate plan fallback:', error);
+      return buildCreatomateFallbackPlan(payload);
+    }
   };
 
   const upsertPalVideoJob = async (currentMessages: any[]) => {
     if (activeServiceMode !== 'pal_video') return;
     const planCode = String(activeServiceCard?.planCode || 'pal_video_lite');
     const payload = buildPalVideoPayload(currentMessages);
+    const creatomatePlan = await generateCreatomatePlan(payload, currentMessages);
     try {
       await fetch('/api/palette-ai/pal-video-job', {
         method: 'POST',
@@ -1842,7 +1900,12 @@ ${template.html}
           paletteId: resolvedCustomerId,
           planCode,
           status: '編集中',
-          payload,
+          payload: {
+            ...payload,
+            creatomatePlan,
+            creatomateTemplateId: creatomatePlan?.templateId || 'pal_video_fixed_v1',
+            creatomateTemplateMode: creatomatePlan?.templateMode || 'fixed',
+          },
         }),
       });
     } catch (error) {
@@ -2607,8 +2670,12 @@ ${currentHtml}
     setStudioPlanTier('standard');
 
     if (card.key === 'pal_video') {
+      const palVideoPlanCode = String(card.planCode || '').toLowerCase();
+      const isLite = palVideoPlanCode.includes('pal_video_lite');
       appendAiMessage({
-        content: 'Pal Video のヒアリングを開始します。用途・尺・テロップ・色・素材（画像/ロゴ）の希望を教えてください。',
+        content: isLite
+          ? 'Pal Video ライトのヒアリングを開始します。まず制作目的を教えてください。(選択肢: 広告動画, SNS投稿, プロモーション, 説明動画)'
+          : 'Pal Video のヒアリングを開始します。用途・尺・テロップ・色・素材（画像/ロゴ）の希望を教えてください。',
       });
       return;
     }
@@ -2818,6 +2885,9 @@ ${currentHtml}
 
     // 共通ルールは /api/chat/route.ts の systemInstruction に一本化。
     // ここでは顧客名などの動的ヒントだけを追加で渡す。
+    const palVideoPlanCode = String(activeServiceCard?.planCode || '').toLowerCase();
+    const isPalVideoLite = palVideoPlanCode.includes('pal_video_lite');
+
     const systemContext = activeServiceMode === 'pal_studio'
       ? `
 動的補足:
@@ -2836,10 +2906,14 @@ ${currentHtml}
         ? `
 動的補足:
 - 現在は Pal Video 専用モードです。動画制作のヒアリングのみを行ってください。
-- 次の項目が揃うまで、制作完了の宣言はしないでください: 用途 / 尺 / テロップ / 色 / 素材（画像・ロゴ）
-- 用途は Instagramリール・Instagramフィード・YouTube・プロモーションのいずれかに分類できるように確認してください。
-- テロップはメインとサブがあれば分けて確認してください。1つしかない場合はメイン扱いで構いません。
-- 素材の有無を必ず確認し、画像/ロゴURLの提示方法を案内してください。
+- ${isPalVideoLite ? 'ライトプラン向けの質問を固定順で進めてください。' : '標準の質問項目を揃えてください。'}
+- 次の項目が揃うまで、制作完了の宣言はしないでください: ${isPalVideoLite ? '制作目的 / 秒数 / 素材（画像・ロゴ） / 色 / BGM' : '用途 / 尺 / テロップ / 色 / 素材（画像・ロゴ）'}
+- ${isPalVideoLite ? '質問順序は 1)制作目的 2)秒数 3)素材 4)色 5)BGM の順にしてください。' : '用途は Instagramリール・Instagramフィード・YouTube・プロモーションのいずれかに分類できるように確認してください。'}
+- ${isPalVideoLite ? '制作目的の質問は次の形式で出してください: 制作目的を教えてください。(選択肢: 広告動画, SNS投稿, プロモーション, 説明動画)' : 'テロップはメインとサブがあれば分けて確認してください。1つしかない場合はメイン扱いで構いません。'}
+- ${isPalVideoLite ? '秒数の質問は次の形式で出してください: 動画の秒数は何秒程度がいいですか？(選択肢: 15秒, 20秒, 25秒, 30秒)' : '素材の有無を必ず確認し、画像/ロゴURLの提示方法を案内してください。'}
+- ${isPalVideoLite ? '素材の質問は次の形式で出してください: 使いたいロゴや画像はありますか？（あればアップロードやURLで教えてください）' : ''}
+- ${isPalVideoLite ? '色の質問は次の形式で出してください: 使いたい色はありますか？（例: #E95464 など / pal_studioと同じイメージ）' : ''}
+- ${isPalVideoLite ? 'BGMの質問は次の形式で出してください: BGMのイメージはありますか？(選択肢: ライト/ポップ, クール/ミニマル, ウォーム/ナチュラル)' : ''}
 - 顧客の呼称は「${displayCustomerName}様」を優先し、顧客ID（例: P1111）で呼ばないでください。
 `
       : `
@@ -2858,7 +2932,9 @@ ${currentHtml}
 
     const isPalVideoMode = activeServiceMode === 'pal_video';
     const fieldOrder = isPalVideoMode
-      ? ['用途', '尺', 'テロップ', '色', '素材']
+      ? (isPalVideoLite
+        ? ['制作目的', '秒数', '素材', '色', 'BGM']
+        : ['用途', '尺', 'テロップ', '色', '素材'])
       : [
           '屋号名・会社名',
           '業種・サービス',
@@ -2872,13 +2948,21 @@ ${currentHtml}
         ];
 
     const fieldPatterns: { label: string; pattern: RegExp }[] = isPalVideoMode
-      ? [
-          { label: '用途', pattern: /(用途|媒体|プラットフォーム|instagram|インスタ|youtube|広告|プロモ)/i },
-          { label: '尺', pattern: /(尺|秒|時間|長さ|動画の長さ)/i },
-          { label: 'テロップ', pattern: /(テロップ|コピー|キャッチ|キャッチコピー)/i },
-          { label: '色', pattern: /(色|カラー|配色|トーン|雰囲気)/i },
-          { label: '素材', pattern: /(素材|画像|写真|ロゴ|動画素材)/i },
-        ]
+      ? (isPalVideoLite
+        ? [
+            { label: '制作目的', pattern: /(制作目的|用途|広告動画|sns|プロモーション|説明動画|instagram|インスタ|youtube)/i },
+            { label: '秒数', pattern: /(尺|秒|時間|長さ|動画の長さ)/i },
+            { label: '素材', pattern: /(素材|画像|写真|ロゴ|動画素材|アップロード)/i },
+            { label: '色', pattern: /(色|カラー|配色|トーン|雰囲気)/i },
+            { label: 'BGM', pattern: /(bgm|音楽|曲|サウンド|ミニマル|ポップ|ナチュラル)/i },
+          ]
+        : [
+            { label: '用途', pattern: /(用途|媒体|プラットフォーム|instagram|インスタ|youtube|広告|プロモ)/i },
+            { label: '尺', pattern: /(尺|秒|時間|長さ|動画の長さ)/i },
+            { label: 'テロップ', pattern: /(テロップ|コピー|キャッチ|キャッチコピー)/i },
+            { label: '色', pattern: /(色|カラー|配色|トーン|雰囲気)/i },
+            { label: '素材', pattern: /(素材|画像|写真|ロゴ|動画素材)/i },
+          ])
       : [
           { label: '屋号名・会社名', pattern: /(屋号|会社名|法人名|社名|ブランド名)/i },
           { label: '業種・サービス', pattern: /(業種|サービス|事業内容|取扱|提供)/i },
