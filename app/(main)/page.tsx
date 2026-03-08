@@ -313,7 +313,10 @@ function PaletteDesignInner() {
   const handleMediaSelect = (asset: MediaAsset) => {
     const url = String(asset?.url || '').trim();
     if (!url) return;
-    if (activeServiceMode === 'pal_video') {
+    const isStudioMediaSelection = activeServiceMode === 'pal_studio'
+      && studioStep !== 'idle'
+      && studioStep !== 'completed';
+    if (activeServiceMode === 'pal_video' || isStudioMediaSelection) {
       setSelectedMediaUrls((prev) => {
         if (prev.includes(url)) {
           return prev.filter((item) => item !== url);
@@ -1132,6 +1135,12 @@ function PaletteDesignInner() {
     { key: 'upload-media', label: 'アップロード' },
     { key: 'no-media', label: 'なし' },
     { key: 'media-done', label: '完了' },
+  ];
+  const STUDIO_MEDIA_ACTION_BUTTONS: ActionButton[] = [
+    { key: 'media-library', label: 'メディア' },
+    { key: 'upload-media', label: 'アップロード' },
+    { key: 'studio-media-none', label: 'なし' },
+    { key: 'studio-media-done', label: '完了' },
   ];
   const PAL_VIDEO_LITE_BGM_OPTIONS = ['ライト/ポップ', 'クール/ミニマル', 'ウォーム/ナチュラル'];
   const PAL_VIDEO_PURPOSE_LABELS: Record<string, string> = {
@@ -2481,7 +2490,10 @@ ${currentHtml}
         ['multi'],
       );
       appendAiMessage({ content: '次に、表示したいセクションを教えてください。' });
-      appendAiMessage({ content: '使いたいロゴや画像があれば、メディアボタンからアップロードしてください。' });
+      appendAiMessage({
+        content: '使いたいロゴや画像があれば、下のボタンから操作してください。',
+        actionButtons: STUDIO_MEDIA_ACTION_BUTTONS,
+      });
       return;
     }
 
@@ -2495,7 +2507,10 @@ ${currentHtml}
         ['multi'],
       );
       appendAiMessage({ content: '次に、表示したいセクションを教えてください。' });
-      appendAiMessage({ content: '使いたいロゴや画像があれば、メディアボタンからアップロードしてください。' });
+      appendAiMessage({
+        content: '使いたいロゴや画像があれば、下のボタンから操作してください。',
+        actionButtons: STUDIO_MEDIA_ACTION_BUTTONS,
+      });
       return;
     }
 
@@ -2866,6 +2881,21 @@ ${currentHtml}
       if (!showMediaLibraryPanel) {
         void loadMediaAssets();
       }
+      return;
+    }
+    if (button.key === 'studio-media-none') {
+      setShowMediaLibraryPanel(false);
+      setSelectedMediaUrls([]);
+      void handleSend('なし');
+      return;
+    }
+    if (button.key === 'studio-media-done') {
+      setShowMediaLibraryPanel(false);
+      const payload = selectedMediaUrls.length > 0
+        ? `以下のロゴ/画像を使用します。\n${selectedMediaUrls.join('\n')}`
+        : '完了';
+      setSelectedMediaUrls([]);
+      void handleSend(payload);
       return;
     }
     if (button.key === 'news-post') {
