@@ -2490,10 +2490,6 @@ ${currentHtml}
         ['multi'],
       );
       appendAiMessage({ content: '次に、表示したいセクションを教えてください。' });
-      appendAiMessage({
-        content: '使いたいロゴや画像があれば、下のボタンから操作してください。',
-        actionButtons: STUDIO_MEDIA_ACTION_BUTTONS,
-      });
       return;
     }
 
@@ -2507,15 +2503,15 @@ ${currentHtml}
         ['multi'],
       );
       appendAiMessage({ content: '次に、表示したいセクションを教えてください。' });
-      appendAiMessage({
-        content: '使いたいロゴや画像があれば、下のボタンから操作してください。',
-        actionButtons: STUDIO_MEDIA_ACTION_BUTTONS,
-      });
       return;
     }
 
     if (studioStep === 'sections') {
       setStudioProfile((prev) => ({ ...prev, sections: sanitizeSectionSelections(splitChoiceValues(first)) }));
+      appendAiMessage({
+        content: '使いたいロゴや画像があれば、下のボタンから操作してください。',
+        actionButtons: STUDIO_MEDIA_ACTION_BUTTONS,
+      });
       setStudioStep('taste');
       applyStudioPrompt(['テイストを1つ選択してください。'], [STUDIO_TASTE_OPTIONS], ['single']);
       appendAiMessage({ content: 'テイストを1つ選択してください。' });
