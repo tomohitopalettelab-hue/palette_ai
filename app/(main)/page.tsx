@@ -174,6 +174,14 @@ function PaletteDesignInner() {
     color: '',
     bgm: '',
   });
+  const [palVideoStandardStep, setPalVideoStandardStep] = useState<'purpose' | 'duration' | 'telop' | 'color' | 'media' | 'done'>('purpose');
+  const [palVideoStandardAnswers, setPalVideoStandardAnswers] = useState<{ purpose: string; duration: string; telop: string; color: string; mediaUrls: string[] }>({
+    purpose: '',
+    duration: '',
+    telop: '',
+    color: '',
+    mediaUrls: [],
+  });
   const [studioHtmlGenerationCount, setStudioHtmlGenerationCount] = useState(0);
   const [confirmMode, setConfirmMode] = useState<ConfirmMode>(null);
   const [studioRevisionTarget, setStudioRevisionTarget] = useState<string>('');
@@ -3025,6 +3033,68 @@ ${currentHtml}
     // ここでは顧客名などの動的ヒントだけを追加で渡す。
     const palVideoPlanCode = String(activeServiceCard?.planCode || '').toLowerCase();
     const isPalVideoLite = palVideoPlanCode.includes('pal_video_lite');
+
+    if (activeServiceMode === 'pal_video' && !isPalVideoLite) {
+      const nextMessages: ChatMessage[] = [...updatedMessages];
+      const nextAnswers = { ...palVideoStandardAnswers };
+      let nextStep = palVideoStandardStep;
+
+      const pushAi = (content: string, actionButtons?: ActionButton[]) => {
+        nextMessages.push({ role: 'ai', content, actionButtons });
+      };
+
+      if (palVideoStandardStep === 'purpose') {
+        nextAnswers.purpose = messageToSend.trim();
+        nextStep = 'duration';
+        pushAi('動画の秒数は何秒程度がいいですか？(選択肢: 15秒, 20秒, 25秒, 30秒)');
+        applyStudioPrompt(['動画の秒数は何秒程度がいいですか？'], [PAL_VIDEO_LITE_DURATION_OPTIONS], ['single']);
+      } else if (palVideoStandardStep === 'duration') {
+        nextAnswers.duration = messageToSend.trim();
+        nextStep = 'telop';
+        clearMultiPromptState();
+        pushAi('テロップを教えてください。（メインとサブがある場合は改行で入力してください）');
+      } else if (palVideoStandardStep === 'telop') {
+        nextAnswers.telop = messageToSend.trim();
+        nextStep = 'color';
+        pushAi('使いたい色はありますか？（例: #E95464 など）');
+        applyStudioPrompt(['使いたい色を1つ選択してください。'], [STUDIO_COLOR_OPTIONS], ['single']);
+      } else if (palVideoStandardStep === 'color') {
+        nextAnswers.color = messageToSend.trim();
+        nextStep = 'media';
+        clearMultiPromptState();
+        pushAi('使いたいロゴや画像はありますか？（あればアップロードやURLで教えてください）', PAL_VIDEO_LITE_MEDIA_BUTTONS);
+      } else if (palVideoStandardStep === 'media') {
+        const urlsFromText = extractUrls(messageToSend);
+        const urls = Array.from(new Set([...selectedMediaUrls, ...urlsFromText]));
+        nextAnswers.mediaUrls = urls;
+        setSelectedMediaUrls([]);
+        nextStep = 'done';
+        clearMultiPromptState();
+        const payload = buildPalVideoPayload(nextMessages);
+        nextMessages.push({ role: 'ai', content: buildPalVideoCompletionMessage(payload) });
+
+        const fallbackCards = messages
+          .slice()
+          .reverse()
+          .find((msg) => msg.role === 'ai' && Array.isArray(msg.serviceCards) && msg.serviceCards.length > 0)
+          ?.serviceCards || [];
+        const cards = authServiceCards.length ? authServiceCards : fallbackCards;
+        nextMessages.push({
+          role: 'ai',
+          content: 'なにかお手伝いできることはありますか？',
+          serviceCards: cards,
+        });
+        setActiveServiceMode('none');
+        setConversationEnded(false);
+      }
+
+      setPalVideoStandardStep(nextStep);
+      setPalVideoStandardAnswers(nextAnswers);
+      setMessages(nextMessages);
+      await saveDraftToLab(nextMessages, 'hearing');
+      setIsLoading(false);
+      return;
+    }
 
     if (activeServiceMode === 'pal_video' && isPalVideoLite) {
       const nextMessages: ChatMessage[] = [...updatedMessages];
