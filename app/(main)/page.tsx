@@ -1437,6 +1437,10 @@ function PaletteDesignInner() {
       return;
     }
 
+    if (activeServiceMode === 'pal_video') {
+      return;
+    }
+
     const latestMessage = messages[messages.length - 1];
     if (!latestMessage || latestMessage.role !== 'ai') {
       clearMultiPromptState();
