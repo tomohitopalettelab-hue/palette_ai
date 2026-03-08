@@ -1757,9 +1757,15 @@ ${template.html}
 
   const normalizePalVideoPurpose = (raw: string): string => {
     const value = String(raw || '').toLowerCase();
-    if (/reel|リール|ショート|short|ストーリー/.test(value)) return 'instagram_reel';
+    if (/ストーリー|ストーリーズ|stories/.test(value)) return 'instagram_story';
+    if (/reel|リール|ショート|short/.test(value)) return 'instagram_reel';
     if (/フィード|feed/.test(value)) return 'instagram_feed';
+    if (/youtubeショート|youtube\s*short|shorts/.test(value)) return 'youtube_short';
     if (/youtube|ユーチューブ/.test(value)) return 'youtube';
+    if (/tiktok|ティックトック/.test(value)) return 'tiktok';
+    if (/(^|\s|\b)x(\b|\s)|twitter|ツイッター/.test(value)) return 'x';
+    if (/line|voom|ライン/.test(value)) return 'line_voom';
+    if (/facebook|フェイスブック/.test(value)) return 'facebook';
     if (/広告|プロモ|promotion|ad/.test(value)) return 'promotion';
     if (/説明|解説|チュートリアル/.test(value)) return 'promotion';
     return '';
@@ -1795,7 +1801,7 @@ ${template.html}
 
   const buildPalVideoPayload = (currentMessages: any[]) => {
     const answers = buildUserAnswers(currentMessages);
-    const purposeAnswer = answers.find((item) => /(制作目的|用途|媒体|プラットフォーム|instagram|インスタ|youtube|広告|プロモ|説明)/i.test(item.q))?.a || '';
+    const purposeAnswer = answers.find((item) => /(制作目的|用途|媒体|プラットフォーム|instagram|インスタ|youtube|tiktok|x|twitter|line|voom|facebook|広告|プロモ|説明)/i.test(item.q))?.a || '';
     const durationAnswer = answers.find((item) => /(尺|秒|時間|長さ|動画の長さ)/i.test(item.q))?.a || '';
     const telopAnswer = answers.find((item) => /(テロップ|コピー|キャッチ|キャッチコピー)/i.test(item.q))?.a || '';
     const colorAnswer = answers.find((item) => /(色|カラー|配色|トーン|雰囲気)/i.test(item.q))?.a || '';
@@ -2912,7 +2918,7 @@ ${currentHtml}
 - 現在は Pal Video 専用モードです。動画制作のヒアリングのみを行ってください。
 - ${isPalVideoLite ? 'ライトプラン向けの質問を固定順で進めてください。' : '標準の質問項目を揃えてください。'}
 - 次の項目が揃うまで、制作完了の宣言はしないでください: ${isPalVideoLite ? '制作目的 / 秒数 / 素材（画像・ロゴ） / 色 / BGM' : '用途 / 尺 / テロップ / 色 / 素材（画像・ロゴ）'}
-- ${isPalVideoLite ? '質問順序は 1)制作目的 2)秒数 3)素材 4)色 5)BGM の順にしてください。' : '用途は Instagramリール・Instagramフィード・YouTube・プロモーションのいずれかに分類できるように確認してください。'}
+- ${isPalVideoLite ? '質問順序は 1)制作目的 2)秒数 3)素材 4)色 5)BGM の順にしてください。' : '用途は Instagramリール/ストーリーズ/フィード・YouTube/YouTubeショート・TikTok・X・LINE VOOM・Facebook・プロモーション のいずれかに分類できるように確認してください。'}
 - ${isPalVideoLite ? '制作目的の質問は次の形式で出してください: 制作目的を教えてください。(選択肢: 広告動画, SNS投稿, プロモーション, 説明動画)' : 'テロップはメインとサブがあれば分けて確認してください。1つしかない場合はメイン扱いで構いません。'}
 - ${isPalVideoLite ? '秒数の質問は次の形式で出してください: 動画の秒数は何秒程度がいいですか？(選択肢: 15秒, 20秒, 25秒, 30秒)' : '素材の有無を必ず確認し、画像/ロゴURLの提示方法を案内してください。'}
 - ${isPalVideoLite ? '素材の質問は次の形式で出してください: 使いたいロゴや画像はありますか？（あればアップロードやURLで教えてください）' : ''}
@@ -2954,14 +2960,14 @@ ${currentHtml}
     const fieldPatterns: { label: string; pattern: RegExp }[] = isPalVideoMode
       ? (isPalVideoLite
         ? [
-            { label: '制作目的', pattern: /(制作目的|用途|広告動画|sns|プロモーション|説明動画|instagram|インスタ|youtube)/i },
+            { label: '制作目的', pattern: /(制作目的|用途|広告動画|sns|プロモーション|説明動画|instagram|インスタ|youtube|tiktok|x|twitter|line|voom|facebook|リール|ストーリー|ショート)/i },
             { label: '秒数', pattern: /(尺|秒|時間|長さ|動画の長さ)/i },
             { label: '素材', pattern: /(素材|画像|写真|ロゴ|動画素材|アップロード)/i },
             { label: '色', pattern: /(色|カラー|配色|トーン|雰囲気)/i },
             { label: 'BGM', pattern: /(bgm|音楽|曲|サウンド|ミニマル|ポップ|ナチュラル)/i },
           ]
         : [
-            { label: '用途', pattern: /(用途|媒体|プラットフォーム|instagram|インスタ|youtube|広告|プロモ)/i },
+            { label: '用途', pattern: /(用途|媒体|プラットフォーム|instagram|インスタ|youtube|tiktok|x|twitter|line|voom|facebook|リール|ストーリー|ショート|広告|プロモ)/i },
             { label: '尺', pattern: /(尺|秒|時間|長さ|動画の長さ)/i },
             { label: 'テロップ', pattern: /(テロップ|コピー|キャッチ|キャッチコピー)/i },
             { label: '色', pattern: /(色|カラー|配色|トーン|雰囲気)/i },
