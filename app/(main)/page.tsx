@@ -1098,6 +1098,46 @@ function PaletteDesignInner() {
     setMultiPromptAnswers(items.map(() => ''));
   };
 
+  const PAL_VIDEO_LITE_DURATION_OPTIONS = ['15秒', '20秒', '25秒', '30秒'];
+  const PAL_VIDEO_PURPOSE_LABELS: Record<string, string> = {
+    instagram_reel: 'Instagramリール',
+    instagram_story: 'Instagramストーリーズ',
+    instagram_feed: 'Instagramフィード',
+    youtube_short: 'YouTubeショート',
+    youtube: 'YouTube',
+    tiktok: 'TikTok',
+    x: 'X',
+    line_voom: 'LINE VOOM',
+    facebook: 'Facebook',
+    promotion: 'プロモーション/広告',
+  };
+  const PAL_VIDEO_BGM_LABELS: Record<string, string> = {
+    light: 'ライト/ポップ',
+    pop: 'ライト/ポップ',
+    cool: 'クール/ミニマル',
+    warm: 'ウォーム/ナチュラル',
+  };
+
+  const applyPalVideoLitePrompt = (text: string) => {
+    const normalized = String(text || '');
+    if (/動画の秒数|秒数は何秒|何秒程度/.test(normalized)) {
+      applyStudioPrompt(['動画の秒数は何秒程度がいいですか？'], [PAL_VIDEO_LITE_DURATION_OPTIONS], ['single']);
+      return;
+    }
+    if (/使いたい色|色はありますか/.test(normalized)) {
+      applyStudioPrompt(['使いたい色を1つ選択してください。'], [STUDIO_COLOR_OPTIONS], ['single']);
+    }
+  };
+
+  const buildPalVideoCompletionMessage = (payload: ReturnType<typeof buildPalVideoPayload>) => {
+    const purposeLabel = PAL_VIDEO_PURPOSE_LABELS[payload.purpose] || '動画';
+    const duration = Number(payload.durationSec || 0) || 15;
+    const colorText = payload.colorNote || payload.colorPrimary || '指定なし';
+    const rawBgm = String(payload.bgm || '').trim();
+    const bgmLabel = PAL_VIDEO_BGM_LABELS[rawBgm] || rawBgm || 'BGM指定なし';
+    return `ありがとうございました！これで、制作に必要な情報は全て揃いました。${purposeLabel}で、${duration}秒、${colorText}を基調とした${bgmLabel}のBGMの動画を制作します。\n5営業日以内に連絡しますので、楽しみにお待ちください！`;
+  };
+
   const extractStudioAnswers = (raw: string): string[] => {
     const source = String(raw || '').trim();
     if (!source) return [];
@@ -2723,6 +2763,14 @@ ${currentHtml}
   };
 
   const handleActionButtonClick = (button: ActionButton) => {
+    if (button.key === 'upload-media') {
+      mediaInputRef.current?.click();
+      return;
+    }
+    if (button.key === 'no-media') {
+      void handleSend('なし');
+      return;
+    }
     if (button.key === 'contract-services') {
       const fallbackCards = messages
         .slice()
@@ -2942,6 +2990,7 @@ ${currentHtml}
 - ${isPalVideoLite ? '秒数の質問は次の形式で出してください: 動画の秒数は何秒程度がいいですか？(選択肢: 15秒, 20秒, 25秒, 30秒)' : '素材の有無を必ず確認し、画像/ロゴURLの提示方法を案内してください。'}
 - ${isPalVideoLite ? '素材の質問は次の形式で出してください: 使いたいロゴや画像はありますか？（あればアップロードやURLで教えてください）' : ''}
 - ${isPalVideoLite ? '色の質問は次の形式で出してください: 使いたい色はありますか？（例: #E95464 など / pal_studioと同じイメージ）' : ''}
+- ${isPalVideoLite ? '色の質問は次の形式で出してください: 使いたい色はありますか？（例: #E95464 など）' : ''}
 - ${isPalVideoLite ? 'BGMの質問は次の形式で出してください: BGMのイメージはありますか？(選択肢: ライト/ポップ, クール/ミニマル, ウォーム/ナチュラル)' : ''}
 - 顧客の呼称は「${displayCustomerName}様」を優先し、顧客ID（例: P1111）で呼ばないでください。
 `
@@ -3093,16 +3142,50 @@ ${currentHtml}
       if (response.ok) {
         const aiRawText = trimSecurityRefusalMessage(String(data.text || ''));
         const aiText = normalizeAssistantOutput(aiRawText);
-        const aiMessage: ChatMessage = { role: 'ai', content: aiText };
-        const newMessages: ChatMessage[] = [...updatedMessages, aiMessage];
-        setMessages(newMessages);
+        const isPalVideoLiteMode = activeServiceMode === 'pal_video' && isPalVideoLite;
+        const isPalVideoCompletion = isPalVideoLiteMode && /制作に必要な情報|制作を開始します|制作します/.test(aiText);
+        const nextMessages: ChatMessage[] = [...updatedMessages];
+
+        if (isPalVideoCompletion) {
+          const payload = buildPalVideoPayload(updatedMessages);
+          nextMessages.push({ role: 'ai', content: buildPalVideoCompletionMessage(payload) });
+
+          const fallbackCards = messages
+            .slice()
+            .reverse()
+            .find((msg) => msg.role === 'ai' && Array.isArray(msg.serviceCards) && msg.serviceCards.length > 0)
+            ?.serviceCards || [];
+          const cards = authServiceCards.length ? authServiceCards : fallbackCards;
+          nextMessages.push({
+            role: 'ai',
+            content: 'なにかお手伝いできることはありますか？',
+            serviceCards: cards,
+          });
+          setActiveServiceMode('none');
+          setConversationEnded(false);
+        } else {
+          const aiMessage: ChatMessage = { role: 'ai', content: aiText };
+          if (isPalVideoLiteMode && /(ロゴ|画像).*ありますか/.test(aiText)) {
+            aiMessage.actionButtons = [
+              { key: 'upload-media', label: 'アップロード' },
+              { key: 'no-media', label: 'なし' },
+            ];
+          }
+          nextMessages.push(aiMessage);
+        }
+
+        setMessages(nextMessages);
+
+        if (isPalVideoLiteMode && !isPalVideoCompletion) {
+          applyPalVideoLitePrompt(aiText);
+        }
 
         if (activeServiceMode === 'pal_studio') {
-          const prepared = await maybePrepareTemplatePreview(newMessages, summaryPayload, `${messageToSend}\n${aiText}`);
+          const prepared = await maybePrepareTemplatePreview(nextMessages, summaryPayload, `${messageToSend}\n${aiText}`);
           if (prepared) {
-            const selectedTemplate = templates.find((template) => template.id === selectedTemplateId) || autoSelectTemplate(buildUserAnswers(newMessages));
+            const selectedTemplate = templates.find((template) => template.id === selectedTemplateId) || autoSelectTemplate(buildUserAnswers(nextMessages));
             await saveDraftToLab(
-              newMessages,
+              nextMessages,
               'reviewing',
               selectedTemplate.html,
               `テンプレート選定: ${selectedTemplate.name} (${selectedTemplate.id})`,
@@ -3111,11 +3194,11 @@ ${currentHtml}
             return;
           }
 
-          await saveDraftToLab(newMessages, 'hearing');
+          await saveDraftToLab(nextMessages, 'hearing');
           return;
         }
 
-        await saveDraftToLab(newMessages, 'hearing');
+        await saveDraftToLab(nextMessages, 'hearing');
 
       } else {
         setMessages(prev => [...prev, { role: 'ai', content: "すみません、エラーが起きてしまいました。" } as ChatMessage]);
