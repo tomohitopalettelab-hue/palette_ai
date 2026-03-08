@@ -99,7 +99,7 @@ export async function POST(req: Request) {
     const models = (
       process.env.CHAT_MODEL_LIST ||
       process.env.CHAT_MODEL ||
-      'gemini-2.5-flash-lite,gemini-2.5-flash'
+      'gemini-2.5-flash-lite'
     )
       .split(',')
       .map((m) => m.trim())

@@ -1833,7 +1833,9 @@ ${template.html}
       .map((msg: any) => ({
         role: msg.role === 'ai' ? 'assistant' : 'user',
         content: String(msg.content || ''),
-      }));
+      }))
+      .filter((msg: any) => !/(顧客id|palette id|パスワード|認証|ログイン|こんにちは！palette ai)/i.test(msg.content))
+      .filter((msg: any) => !/•{3,}/.test(msg.content));
 
     const resolvedPurpose = purpose || 'instagram_reel';
 
@@ -2701,7 +2703,7 @@ ${currentHtml}
       const isLite = palVideoPlanCode.includes('pal_video_lite');
       appendAiMessage({
         content: isLite
-          ? 'Pal Video ライトのヒアリングを開始します。まず制作目的を教えてください。(選択肢: 広告動画, SNS投稿, プロモーション, 説明動画)'
+          ? 'Pal Video ライトのヒアリングを開始します。まず用途を教えてください。(選択肢: Instagramリール, Instagramストーリーズ, Instagramフィード, YouTubeショート, TikTok, X, LINE VOOM, Facebook, プロモーション/広告)'
           : 'Pal Video のヒアリングを開始します。用途・尺・テロップ・色・素材（画像/ロゴ）の希望を教えてください。',
       });
       return;
@@ -2936,7 +2938,7 @@ ${currentHtml}
 - ${isPalVideoLite ? 'ライトプラン向けの質問を固定順で進めてください。' : '標準の質問項目を揃えてください。'}
 - 次の項目が揃うまで、制作完了の宣言はしないでください: ${isPalVideoLite ? '制作目的 / 秒数 / 素材（画像・ロゴ） / 色 / BGM' : '用途 / 尺 / テロップ / 色 / 素材（画像・ロゴ）'}
 - ${isPalVideoLite ? '質問順序は 1)制作目的 2)秒数 3)素材 4)色 5)BGM の順にしてください。' : '用途は Instagramリール/ストーリーズ/フィード・YouTube/YouTubeショート・TikTok・X・LINE VOOM・Facebook・プロモーション のいずれかに分類できるように確認してください。'}
-- ${isPalVideoLite ? '制作目的の質問は次の形式で出してください: 制作目的を教えてください。(選択肢: 広告動画, SNS投稿, プロモーション, 説明動画)' : 'テロップはメインとサブがあれば分けて確認してください。1つしかない場合はメイン扱いで構いません。'}
+- ${isPalVideoLite ? '用途の質問は次の形式で出してください: 用途を教えてください。(選択肢: Instagramリール, Instagramストーリーズ, Instagramフィード, YouTubeショート, TikTok, X, LINE VOOM, Facebook, プロモーション/広告)' : 'テロップはメインとサブがあれば分けて確認してください。1つしかない場合はメイン扱いで構いません。'}
 - ${isPalVideoLite ? '秒数の質問は次の形式で出してください: 動画の秒数は何秒程度がいいですか？(選択肢: 15秒, 20秒, 25秒, 30秒)' : '素材の有無を必ず確認し、画像/ロゴURLの提示方法を案内してください。'}
 - ${isPalVideoLite ? '素材の質問は次の形式で出してください: 使いたいロゴや画像はありますか？（あればアップロードやURLで教えてください）' : ''}
 - ${isPalVideoLite ? '色の質問は次の形式で出してください: 使いたい色はありますか？（例: #E95464 など / pal_studioと同じイメージ）' : ''}
