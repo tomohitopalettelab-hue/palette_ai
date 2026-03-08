@@ -87,6 +87,8 @@ type StudioStep =
   | 'services'
   | 'servicesOther'
   | 'sections'
+  | 'newsBlogUsage'
+  | 'newsBlogDisplay'
   | 'taste'
   | 'color'
   | 'companyInfoToggle'
@@ -117,6 +119,8 @@ type StudioProfile = {
   appealPoint: string;
   taste: string;
   color: string;
+  useNewsBlogPosts: boolean | null;
+  showNewsBlogPosts: boolean | null;
   includeCompanyInfo: boolean | null;
   companyFields: string[];
   companyDetails: Record<string, string>;
@@ -196,6 +200,8 @@ function PaletteDesignInner() {
     appealPoint: '',
     taste: '',
     color: '',
+    useNewsBlogPosts: null,
+    showNewsBlogPosts: null,
     includeCompanyInfo: null,
     companyFields: [],
     companyDetails: {},
@@ -2235,6 +2241,8 @@ ${template.html}
       appealPoint: '',
       taste: '',
       color: '',
+      useNewsBlogPosts: null,
+      showNewsBlogPosts: null,
       includeCompanyInfo: null,
       companyFields: [],
       companyDetails: {},
@@ -2249,12 +2257,17 @@ ${template.html}
     const companyInfo = Object.entries(profile.companyDetails)
       .map(([key, value]) => `${key}: ${value}`)
       .join(' / ');
+    const newsBlogSummary = profile.useNewsBlogPosts === null
+      ? ''
+      : profile.useNewsBlogPosts
+        ? `最新情報・ブログ: 利用する / 表示: ${profile.showNewsBlogPosts === null ? '未設定' : (profile.showNewsBlogPosts ? 'する' : 'しない')}`
+        : '最新情報・ブログ: 利用しない';
     return {
       companyName: profile.shopName || null,
       businessService: [profile.industry, ...profile.services].filter(Boolean).join(' / ') || null,
       target: null,
       designPreference: [profile.taste, profile.color].filter(Boolean).join(' / ') || null,
-      contents: [profile.sections.join(' / '), profile.appealPoint].filter(Boolean).join(' / ') || null,
+      contents: [profile.sections.join(' / '), profile.appealPoint, newsBlogSummary].filter(Boolean).join(' / ') || null,
       works: null,
       companyProfile: companyInfo || null,
       contactForm: profile.companyDetails['メールアドレス'] || null,
@@ -2278,6 +2291,8 @@ ${template.html}
 - サービス内容: ${profile.services.join(' / ')}
 - 強み・アピールポイント: ${profile.appealPoint || '未設定'}
 - テイスト: ${profile.taste}
+- 最新情報・ブログ: ${profile.useNewsBlogPosts === null ? '未設定' : (profile.useNewsBlogPosts ? '利用する' : '利用しない')}
+- 最新情報・ブログの表示: ${profile.useNewsBlogPosts ? (profile.showNewsBlogPosts ? '表示する' : '表示しない') : '未使用'}
 - 会社情報掲載: ${profile.includeCompanyInfo ? 'あり' : 'なし'}
 - 会社情報詳細: ${Object.entries(profile.companyDetails).map(([k, v]) => `${k}:${v}`).join(' / ') || 'なし'}
 
@@ -2498,6 +2513,37 @@ ${currentHtml}
 
     if (studioStep === 'sections') {
       setStudioProfile((prev) => ({ ...prev, sections: sanitizeSectionSelections(splitChoiceValues(first)) }));
+      if (studioPlanTier === 'standard') {
+        setStudioStep('newsBlogUsage');
+        applyStudioPrompt(['最新情報・ブログ投稿を利用しますか？'], [['はい', 'いいえ']], ['single']);
+        appendAiMessage({ content: '最新情報・ブログ投稿を利用するか選択してください。' });
+        return;
+      }
+      setStudioStep('taste');
+      applyStudioPrompt(['テイストを1つ選択してください。'], [STUDIO_TASTE_OPTIONS], ['single']);
+      appendAiMessage({ content: 'テイストを1つ選択してください。' });
+      return;
+    }
+
+    if (studioStep === 'newsBlogUsage') {
+      const useNewsBlogPosts = /はい|yes|使う|利用する/i.test(first);
+      if (!useNewsBlogPosts) {
+        setStudioProfile((prev) => ({ ...prev, useNewsBlogPosts: false, showNewsBlogPosts: false }));
+        setStudioStep('taste');
+        applyStudioPrompt(['テイストを1つ選択してください。'], [STUDIO_TASTE_OPTIONS], ['single']);
+        appendAiMessage({ content: 'テイストを1つ選択してください。' });
+        return;
+      }
+      setStudioProfile((prev) => ({ ...prev, useNewsBlogPosts: true }));
+      setStudioStep('newsBlogDisplay');
+      applyStudioPrompt(['最新情報・ブログをサイトに表示しますか？'], [['はい', 'いいえ']], ['single']);
+      appendAiMessage({ content: '最新情報・ブログをサイトに表示するか選択してください。' });
+      return;
+    }
+
+    if (studioStep === 'newsBlogDisplay') {
+      const showNewsBlogPosts = /はい|yes|表示する|載せる|のせる/i.test(first);
+      setStudioProfile((prev) => ({ ...prev, showNewsBlogPosts }));
       setStudioStep('taste');
       applyStudioPrompt(['テイストを1つ選択してください。'], [STUDIO_TASTE_OPTIONS], ['single']);
       appendAiMessage({ content: 'テイストを1つ選択してください。' });
@@ -3595,6 +3641,18 @@ ${currentHtml}
 
   const isSelectionOnlyStage = activeServiceMode === 'pal_studio' && (studioStep === 'revisionSelect' || studioStep === 'revisionConfirm' || studioStep === 'postOkMessageToggle');
   const isMainInputDisabled = conversationEnded || isSelectionOnlyStage;
+  const palVideoPlanCode = String(activeServiceCard?.planCode || '').toLowerCase();
+  const isPalVideoLiteMode = activeServiceMode === 'pal_video' && palVideoPlanCode.includes('pal_video_lite');
+  const isPalVideoMediaStep = activeServiceMode === 'pal_video' && (
+    (isPalVideoLiteMode && palVideoLiteStep === 'media')
+    || (!isPalVideoLiteMode && palVideoStandardStep === 'media')
+  );
+  const isStudioHearingStep = activeServiceMode === 'pal_studio'
+    && !conversationEnded
+    && !isSelectionOnlyStage
+    && studioStep !== 'idle'
+    && studioStep !== 'completed';
+  const imageAssets = mediaAssets.filter((asset) => String(asset.mimeType || '').startsWith('image/'));
   return (
     <div className="fixed inset-0 w-full h-[100dvh] flex items-start md:items-center justify-start md:justify-center p-0 md:p-8 overflow-hidden bg-slate-50 touch-auto md:touch-none">
       <div className="fixed top-0 left-0 w-full h-full pointer-events-none -z-10 overflow-hidden">
@@ -3738,6 +3796,154 @@ ${currentHtml}
           </main>
 
           <div className="mt-auto pt-3 pb-2 md:pb-0 shrink-0 sticky bottom-0 z-20 bg-white/35 backdrop-blur-md rounded-t-2xl md:bg-transparent md:backdrop-blur-0 md:rounded-none" style={{ paddingBottom: isMobileViewport ? 'calc(0.5rem + env(safe-area-inset-bottom, 0px))' : undefined }}>
+            {isStudioHearingStep && authStep === 'authenticated' && (
+              <div className="mb-3 rounded-[24px] border border-white bg-white/55 backdrop-blur-xl p-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[11px] font-black text-slate-500 uppercase tracking-widest">画像アップロード</div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => loadMediaAssets()}
+                      disabled={!canUseMedia || mediaLoading}
+                      className="px-2.5 py-1 rounded-full text-[10px] font-black border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      更新
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => mediaInputRef.current?.click()}
+                      disabled={!canUseMedia || isUploadingMedia}
+                      className="px-2.5 py-1 rounded-full text-[10px] font-black text-white bg-gradient-to-r from-indigo-500 to-fuchsia-500 shadow-[0_8px_16px_rgba(79,70,229,0.24)] hover:from-indigo-400 hover:to-fuchsia-400 disabled:opacity-50"
+                    >
+                      {isUploadingMedia ? 'アップロード中' : 'アップロード'}
+                    </button>
+                  </div>
+                </div>
+
+                {!canUseMedia && (
+                  <div className="text-[11px] text-slate-400">顧客ID認証後に利用できます。</div>
+                )}
+
+                {canUseMedia && mediaLoading && (
+                  <div className="text-[11px] text-slate-400">読み込み中...</div>
+                )}
+
+                {canUseMedia && !mediaLoading && mediaError && (
+                  <div className="text-[11px] text-red-500">{mediaError}</div>
+                )}
+
+                {canUseMedia && !mediaLoading && !mediaError && imageAssets.length === 0 && (
+                  <div className="text-[11px] text-slate-400">まだメディアがありません。</div>
+                )}
+
+                {canUseMedia && !mediaLoading && imageAssets.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {imageAssets.map((asset) => (
+                      <button
+                        key={asset.id}
+                        type="button"
+                        onClick={() => handleMediaSelect(asset)}
+                        className="group relative rounded-xl border bg-white/80 shadow-[0_6px_16px_rgba(15,23,42,0.08)] overflow-hidden"
+                      >
+                        <div className="aspect-[4/3] bg-slate-100">
+                          <img
+                            src={asset.url}
+                            alt={asset.originalName || 'media'}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {isPalVideoMediaStep && authStep === 'authenticated' && !conversationEnded && (
+              <div className="mb-3 rounded-[24px] border border-white bg-white/55 backdrop-blur-xl p-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[11px] font-black text-slate-500 uppercase tracking-widest">メディアアップロード</div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => loadMediaAssets()}
+                      disabled={!canUseMedia || mediaLoading}
+                      className="px-2.5 py-1 rounded-full text-[10px] font-black border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      更新
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => mediaInputRef.current?.click()}
+                      disabled={!canUseMedia || isUploadingMedia}
+                      className="px-2.5 py-1 rounded-full text-[10px] font-black text-white bg-gradient-to-r from-indigo-500 to-fuchsia-500 shadow-[0_8px_16px_rgba(79,70,229,0.24)] hover:from-indigo-400 hover:to-fuchsia-400 disabled:opacity-50"
+                    >
+                      {isUploadingMedia ? 'アップロード中' : 'アップロード'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleActionButtonClick({ key: 'media-done', label: '完了' })}
+                      disabled={!canUseMedia}
+                      className="px-2.5 py-1 rounded-full text-[10px] font-black border border-indigo-200 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50"
+                    >
+                      完了
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleActionButtonClick({ key: 'no-media', label: 'なし' })}
+                      disabled={!canUseMedia}
+                      className="px-2.5 py-1 rounded-full text-[10px] font-black border border-slate-200 text-slate-500 bg-white hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      なし
+                    </button>
+                  </div>
+                </div>
+
+                {!canUseMedia && (
+                  <div className="text-[11px] text-slate-400">顧客ID認証後に利用できます。</div>
+                )}
+
+                {canUseMedia && mediaLoading && (
+                  <div className="text-[11px] text-slate-400">読み込み中...</div>
+                )}
+
+                {canUseMedia && !mediaLoading && mediaError && (
+                  <div className="text-[11px] text-red-500">{mediaError}</div>
+                )}
+
+                {canUseMedia && !mediaLoading && !mediaError && imageAssets.length === 0 && (
+                  <div className="text-[11px] text-slate-400">まだメディアがありません。</div>
+                )}
+
+                {canUseMedia && !mediaLoading && imageAssets.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {imageAssets.map((asset) => {
+                      const isSelected = selectedMediaUrls.includes(String(asset.url || ''));
+                      return (
+                        <button
+                          key={asset.id}
+                          type="button"
+                          onClick={() => handleMediaSelect(asset)}
+                          className={`group relative rounded-xl border bg-white/80 shadow-[0_6px_16px_rgba(15,23,42,0.08)] overflow-hidden ${isSelected ? 'border-indigo-300 ring-2 ring-indigo-200' : 'border-white'}`}
+                        >
+                          <div className="aspect-[4/3] bg-slate-100">
+                            <img
+                              src={asset.url}
+                              alt={asset.originalName || 'media'}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          {isSelected && (
+                            <span className="absolute top-1 left-1 text-[9px] font-black px-2 py-0.5 rounded-full bg-indigo-600 text-white shadow">選択中</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             {quickQuestionButtons.length > 0 && authStep === 'authenticated' && !isLoading && !conversationEnded && multiPromptItems.length === 0 && !showConfirmSave && messages[messages.length - 1]?.role === 'ai' && /質問ありますか/.test(String(messages[messages.length - 1]?.content || '')) && (
               <div className="mb-3 rounded-[24px] border border-white bg-white/45 backdrop-blur-xl p-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
                 <p className="text-[11px] font-black text-slate-500 mb-2 tracking-wide">質問ありますか？</p>
