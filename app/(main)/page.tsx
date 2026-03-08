@@ -258,8 +258,6 @@ function PaletteDesignInner() {
 
   const handleMediaUpload = async (file: File) => {
     if (!canUseMedia) return;
-    setIsUploadingMedia(true);
-    setMediaError('');
     try {
       const formData = new FormData();
       formData.set('paletteId', resolvedCustomerId);
@@ -276,16 +274,22 @@ function PaletteDesignInner() {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'アップロードに失敗しました。';
       setMediaError(message);
-    } finally {
-      setIsUploadingMedia(false);
     }
   };
 
   const handleMediaFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    await handleMediaUpload(file);
-    event.target.value = '';
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    setIsUploadingMedia(true);
+    setMediaError('');
+    try {
+      for (const file of files) {
+        await handleMediaUpload(file);
+      }
+    } finally {
+      setIsUploadingMedia(false);
+      event.target.value = '';
+    }
   };
 
   const handleMediaSelect = (asset: MediaAsset) => {
@@ -1099,6 +1103,11 @@ function PaletteDesignInner() {
   };
 
   const PAL_VIDEO_LITE_DURATION_OPTIONS = ['15秒', '20秒', '25秒', '30秒'];
+  const PAL_VIDEO_LITE_MEDIA_BUTTONS: ActionButton[] = [
+    { key: 'upload-media', label: 'アップロード' },
+    { key: 'no-media', label: 'なし' },
+    { key: 'media-done', label: '完了' },
+  ];
   const PAL_VIDEO_PURPOSE_LABELS: Record<string, string> = {
     instagram_reel: 'Instagramリール',
     instagram_story: 'Instagramストーリーズ',
@@ -1124,7 +1133,7 @@ function PaletteDesignInner() {
       applyStudioPrompt(['動画の秒数は何秒程度がいいですか？'], [PAL_VIDEO_LITE_DURATION_OPTIONS], ['single']);
       return;
     }
-    if (/使いたい色|色はありますか/.test(normalized)) {
+    if (/使いたい色|色はありますか|色の希望|色を教えて/.test(normalized)) {
       applyStudioPrompt(['使いたい色を1つ選択してください。'], [STUDIO_COLOR_OPTIONS], ['single']);
     }
   };
@@ -3143,7 +3152,7 @@ ${currentHtml}
         const aiRawText = trimSecurityRefusalMessage(String(data.text || ''));
         const aiText = normalizeAssistantOutput(aiRawText);
         const isPalVideoLiteMode = activeServiceMode === 'pal_video' && isPalVideoLite;
-        const isPalVideoCompletion = isPalVideoLiteMode && /制作に必要な情報|制作を開始します|制作します/.test(aiText);
+        const isPalVideoCompletion = isPalVideoLiteMode && /(制作に必要な情報|確認事項は以上|制作を開始します|制作します)/.test(aiText);
         const nextMessages: ChatMessage[] = [...updatedMessages];
 
         if (isPalVideoCompletion) {
@@ -3166,10 +3175,7 @@ ${currentHtml}
         } else {
           const aiMessage: ChatMessage = { role: 'ai', content: aiText };
           if (isPalVideoLiteMode && /(ロゴ|画像).*ありますか/.test(aiText)) {
-            aiMessage.actionButtons = [
-              { key: 'upload-media', label: 'アップロード' },
-              { key: 'no-media', label: 'なし' },
-            ];
+            aiMessage.actionButtons = PAL_VIDEO_LITE_MEDIA_BUTTONS;
           }
           nextMessages.push(aiMessage);
         }
