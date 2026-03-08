@@ -87,8 +87,6 @@ type StudioStep =
   | 'services'
   | 'servicesOther'
   | 'sections'
-  | 'newsBlogUsage'
-  | 'newsBlogDisplay'
   | 'taste'
   | 'color'
   | 'companyInfoToggle'
@@ -119,8 +117,6 @@ type StudioProfile = {
   appealPoint: string;
   taste: string;
   color: string;
-  useNewsBlogPosts: boolean | null;
-  showNewsBlogPosts: boolean | null;
   includeCompanyInfo: boolean | null;
   companyFields: string[];
   companyDetails: Record<string, string>;
@@ -201,8 +197,6 @@ function PaletteDesignInner() {
     appealPoint: '',
     taste: '',
     color: '',
-    useNewsBlogPosts: null,
-    showNewsBlogPosts: null,
     includeCompanyInfo: null,
     companyFields: [],
     companyDetails: {},
@@ -1094,7 +1088,7 @@ function PaletteDesignInner() {
   ];
 
   const STUDIO_SECTION_OPTIONS_STANDARD = [
-    'トップ', 'コンセプト', '特徴', 'サービス', '実績・ギャラリー', 'お問い合わせ', '会社・店舗情報', 'その他（自由入力）',
+    'トップ', 'コンセプト', '特徴', 'サービス', '実績・ギャラリー', 'ニュース', 'ブログ', 'お問い合わせ', '会社・店舗情報', 'その他（自由入力）',
   ];
 
   const STUDIO_SECTION_OPTIONS_LITE = [
@@ -2242,8 +2236,6 @@ ${template.html}
       appealPoint: '',
       taste: '',
       color: '',
-      useNewsBlogPosts: null,
-      showNewsBlogPosts: null,
       includeCompanyInfo: null,
       companyFields: [],
       companyDetails: {},
@@ -2258,17 +2250,12 @@ ${template.html}
     const companyInfo = Object.entries(profile.companyDetails)
       .map(([key, value]) => `${key}: ${value}`)
       .join(' / ');
-    const newsBlogSummary = profile.useNewsBlogPosts === null
-      ? ''
-      : profile.useNewsBlogPosts
-        ? `最新情報・ブログ: 利用する / 表示: ${profile.showNewsBlogPosts === null ? '未設定' : (profile.showNewsBlogPosts ? 'する' : 'しない')}`
-        : '最新情報・ブログ: 利用しない';
     return {
       companyName: profile.shopName || null,
       businessService: [profile.industry, ...profile.services].filter(Boolean).join(' / ') || null,
       target: null,
       designPreference: [profile.taste, profile.color].filter(Boolean).join(' / ') || null,
-      contents: [profile.sections.join(' / '), profile.appealPoint, newsBlogSummary].filter(Boolean).join(' / ') || null,
+      contents: [profile.sections.join(' / '), profile.appealPoint].filter(Boolean).join(' / ') || null,
       works: null,
       companyProfile: companyInfo || null,
       contactForm: profile.companyDetails['メールアドレス'] || null,
@@ -2292,8 +2279,6 @@ ${template.html}
 - サービス内容: ${profile.services.join(' / ')}
 - 強み・アピールポイント: ${profile.appealPoint || '未設定'}
 - テイスト: ${profile.taste}
-- 最新情報・ブログ: ${profile.useNewsBlogPosts === null ? '未設定' : (profile.useNewsBlogPosts ? '利用する' : '利用しない')}
-- 最新情報・ブログの表示: ${profile.useNewsBlogPosts ? (profile.showNewsBlogPosts ? '表示する' : '表示しない') : '未使用'}
 - 会社情報掲載: ${profile.includeCompanyInfo ? 'あり' : 'なし'}
 - 会社情報詳細: ${Object.entries(profile.companyDetails).map(([k, v]) => `${k}:${v}`).join(' / ') || 'なし'}
 
@@ -2496,6 +2481,7 @@ ${currentHtml}
         ['multi'],
       );
       appendAiMessage({ content: '次に、表示したいセクションを教えてください。' });
+      appendAiMessage({ content: '使いたいロゴや画像があれば、メディアボタンからアップロードしてください。' });
       return;
     }
 
@@ -2509,42 +2495,12 @@ ${currentHtml}
         ['multi'],
       );
       appendAiMessage({ content: '次に、表示したいセクションを教えてください。' });
+      appendAiMessage({ content: '使いたいロゴや画像があれば、メディアボタンからアップロードしてください。' });
       return;
     }
 
     if (studioStep === 'sections') {
       setStudioProfile((prev) => ({ ...prev, sections: sanitizeSectionSelections(splitChoiceValues(first)) }));
-      if (studioPlanTier === 'standard') {
-        setStudioStep('newsBlogUsage');
-        applyStudioPrompt(['最新情報・ブログ投稿を利用しますか？'], [['はい', 'いいえ']], ['single']);
-        appendAiMessage({ content: '最新情報・ブログ投稿を利用するか選択してください。' });
-        return;
-      }
-      setStudioStep('taste');
-      applyStudioPrompt(['テイストを1つ選択してください。'], [STUDIO_TASTE_OPTIONS], ['single']);
-      appendAiMessage({ content: 'テイストを1つ選択してください。' });
-      return;
-    }
-
-    if (studioStep === 'newsBlogUsage') {
-      const useNewsBlogPosts = /はい|yes|使う|利用する/i.test(first);
-      if (!useNewsBlogPosts) {
-        setStudioProfile((prev) => ({ ...prev, useNewsBlogPosts: false, showNewsBlogPosts: false }));
-        setStudioStep('taste');
-        applyStudioPrompt(['テイストを1つ選択してください。'], [STUDIO_TASTE_OPTIONS], ['single']);
-        appendAiMessage({ content: 'テイストを1つ選択してください。' });
-        return;
-      }
-      setStudioProfile((prev) => ({ ...prev, useNewsBlogPosts: true }));
-      setStudioStep('newsBlogDisplay');
-      applyStudioPrompt(['最新情報・ブログをサイトに表示しますか？'], [['はい', 'いいえ']], ['single']);
-      appendAiMessage({ content: '最新情報・ブログをサイトに表示するか選択してください。' });
-      return;
-    }
-
-    if (studioStep === 'newsBlogDisplay') {
-      const showNewsBlogPosts = /はい|yes|表示する|載せる|のせる/i.test(first);
-      setStudioProfile((prev) => ({ ...prev, showNewsBlogPosts }));
       setStudioStep('taste');
       applyStudioPrompt(['テイストを1つ選択してください。'], [STUDIO_TASTE_OPTIONS], ['single']);
       appendAiMessage({ content: 'テイストを1つ選択してください。' });
