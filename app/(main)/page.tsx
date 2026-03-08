@@ -3920,69 +3920,6 @@ ${currentHtml}
               </div>
             )}
 
-            {isStudioHearingStep && authStep === 'authenticated' && (
-              <div className="mb-3 rounded-[24px] border border-white bg-white/55 backdrop-blur-xl p-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-[11px] font-black text-slate-500 uppercase tracking-widest">画像アップロード</div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => loadMediaAssets()}
-                      disabled={!canUseMedia || mediaLoading}
-                      className="px-2.5 py-1 rounded-full text-[10px] font-black border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-50"
-                    >
-                      更新
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => mediaInputRef.current?.click()}
-                      disabled={!canUseMedia || isUploadingMedia}
-                      className="px-2.5 py-1 rounded-full text-[10px] font-black text-white bg-gradient-to-r from-indigo-500 to-fuchsia-500 shadow-[0_8px_16px_rgba(79,70,229,0.24)] hover:from-indigo-400 hover:to-fuchsia-400 disabled:opacity-50"
-                    >
-                      {isUploadingMedia ? 'アップロード中' : 'アップロード'}
-                    </button>
-                  </div>
-                </div>
-
-                {!canUseMedia && (
-                  <div className="text-[11px] text-slate-400">顧客ID認証後に利用できます。</div>
-                )}
-
-                {canUseMedia && mediaLoading && (
-                  <div className="text-[11px] text-slate-400">読み込み中...</div>
-                )}
-
-                {canUseMedia && !mediaLoading && mediaError && (
-                  <div className="text-[11px] text-red-500">{mediaError}</div>
-                )}
-
-                {canUseMedia && !mediaLoading && !mediaError && imageAssets.length === 0 && (
-                  <div className="text-[11px] text-slate-400">まだメディアがありません。</div>
-                )}
-
-                {canUseMedia && !mediaLoading && imageAssets.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2">
-                    {imageAssets.map((asset) => (
-                      <button
-                        key={asset.id}
-                        type="button"
-                        onClick={() => handleMediaSelect(asset)}
-                        className="group relative rounded-xl border bg-white/80 shadow-[0_6px_16px_rgba(15,23,42,0.08)] overflow-hidden"
-                      >
-                        <div className="aspect-[4/3] bg-slate-100">
-                          <img
-                            src={asset.url}
-                            alt={asset.originalName || 'media'}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
             {isPalVideoMediaStep && authStep === 'authenticated' && !conversationEnded && (
               <div className="mb-3 rounded-[24px] border border-white bg-white/55 backdrop-blur-xl p-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
                 <div className="flex items-center justify-between mb-2">
