@@ -3025,7 +3025,6 @@ ${currentHtml}
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     setNeutralActionButtons([]);
-    await saveDraftToLab(updatedMessages, 'hearing');
     setInputText("");
     setIsLoading(true);
 
@@ -3091,7 +3090,7 @@ ${currentHtml}
       setPalVideoStandardStep(nextStep);
       setPalVideoStandardAnswers(nextAnswers);
       setMessages(nextMessages);
-      await saveDraftToLab(nextMessages, 'hearing');
+      void saveDraftToLab(nextMessages, 'hearing');
       setIsLoading(false);
       return;
     }
@@ -3153,10 +3152,12 @@ ${currentHtml}
       setPalVideoLiteStep(nextStep);
       setPalVideoLiteAnswers(nextAnswers);
       setMessages(nextMessages);
-      await saveDraftToLab(nextMessages, 'hearing');
+      void saveDraftToLab(nextMessages, 'hearing');
       setIsLoading(false);
       return;
     }
+
+    await saveDraftToLab(updatedMessages, 'hearing');
 
     const systemContext = activeServiceMode === 'pal_studio'
       ? `
@@ -3549,11 +3550,12 @@ ${currentHtml}
 
     const merged = filled.join('\n\n');
     const isStudioFlow = activeServiceMode === 'pal_studio' && studioStep !== 'idle' && studioStep !== 'completed';
+    const isStructuredFlow = isStudioFlow || activeServiceMode === 'pal_video';
     setIsSubmittingMultiPrompt(true);
     try {
       await handleSend(merged);
       setQuickQuestionButtons([]);
-      if (!isStudioFlow) {
+      if (!isStructuredFlow) {
         clearMultiPromptState();
       }
     } finally {
@@ -3566,11 +3568,12 @@ ${currentHtml}
     const answer = String(option || '').trim();
     if (!answer) return;
     const isStudioFlow = activeServiceMode === 'pal_studio' && studioStep !== 'idle' && studioStep !== 'completed';
+    const isStructuredFlow = isStudioFlow || activeServiceMode === 'pal_video';
     setIsSubmittingMultiPrompt(true);
     try {
       await handleSend(answer);
       setQuickQuestionButtons([]);
-      if (!isStudioFlow) {
+      if (!isStructuredFlow) {
         clearMultiPromptState();
       }
     } finally {
