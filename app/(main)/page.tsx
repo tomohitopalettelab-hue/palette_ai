@@ -87,6 +87,7 @@ type StudioStep =
   | 'services'
   | 'servicesOther'
   | 'sections'
+  | 'mediaOptional'
   | 'taste'
   | 'color'
   | 'companyInfoToggle'
@@ -2512,6 +2513,11 @@ ${currentHtml}
         content: '使いたいロゴや画像があれば、下のボタンから操作してください。',
         actionButtons: STUDIO_MEDIA_ACTION_BUTTONS,
       });
+      setStudioStep('mediaOptional');
+      return;
+    }
+
+    if (studioStep === 'mediaOptional') {
       setStudioStep('taste');
       applyStudioPrompt(['テイストを1つ選択してください。'], [STUDIO_TASTE_OPTIONS], ['single']);
       appendAiMessage({ content: 'テイストを1つ選択してください。' });
