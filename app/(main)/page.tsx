@@ -142,6 +142,7 @@ function PaletteDesignInner() {
   const [mediaError, setMediaError] = useState('');
   const [mediaLoading, setMediaLoading] = useState(false);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [selectedMediaUrls, setSelectedMediaUrls] = useState<string[]>([]);
   const [generatedCode, setGeneratedCode] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(templates[0]?.id || '');
   const [showConfirmSave, setShowConfirmSave] = useState(false);
@@ -165,6 +166,14 @@ function PaletteDesignInner() {
   const [activeServiceCard, setActiveServiceCard] = useState<ServiceCard | null>(null);
   const [studioPlanTier, setStudioPlanTier] = useState<StudioPlanTier>('standard');
   const [studioStep, setStudioStep] = useState<StudioStep>('idle');
+  const [palVideoLiteStep, setPalVideoLiteStep] = useState<'purpose' | 'duration' | 'media' | 'color' | 'bgm' | 'done'>('purpose');
+  const [palVideoLiteAnswers, setPalVideoLiteAnswers] = useState<{ purpose: string; duration: string; mediaUrls: string[]; color: string; bgm: string }>({
+    purpose: '',
+    duration: '',
+    mediaUrls: [],
+    color: '',
+    bgm: '',
+  });
   const [studioHtmlGenerationCount, setStudioHtmlGenerationCount] = useState(0);
   const [confirmMode, setConfirmMode] = useState<ConfirmMode>(null);
   const [studioRevisionTarget, setStudioRevisionTarget] = useState<string>('');
@@ -295,10 +304,17 @@ function PaletteDesignInner() {
   const handleMediaSelect = (asset: MediaAsset) => {
     const url = String(asset?.url || '').trim();
     if (!url) return;
-    setInputText((prev) => (prev ? `${prev}\n${url}` : url));
-    if (isMobileViewport) {
-      setActiveTab('chat');
+    if (activeServiceMode === 'pal_video') {
+      setSelectedMediaUrls((prev) => {
+        if (prev.includes(url)) {
+          return prev.filter((item) => item !== url);
+        }
+        return [...prev, url];
+      });
+      return;
     }
+    setInputText((prev) => (prev ? `${prev}\n${url}` : url));
+    if (isMobileViewport) setActiveTab('chat');
   };
 
   const handleMediaDelete = async (assetId: string) => {
@@ -1108,6 +1124,7 @@ function PaletteDesignInner() {
     { key: 'no-media', label: 'なし' },
     { key: 'media-done', label: '完了' },
   ];
+  const PAL_VIDEO_LITE_BGM_OPTIONS = ['ライト/ポップ', 'クール/ミニマル', 'ウォーム/ナチュラル'];
   const PAL_VIDEO_PURPOSE_LABELS: Record<string, string> = {
     instagram_reel: 'Instagramリール',
     instagram_story: 'Instagramストーリーズ',
@@ -1129,11 +1146,11 @@ function PaletteDesignInner() {
 
   const applyPalVideoLitePrompt = (text: string) => {
     const normalized = String(text || '');
-    if (/動画の秒数|秒数は何秒|何秒程度/.test(normalized)) {
+    if (/動画の秒数|秒数は何秒|何秒程度|何秒ぐらい|何秒くらい/.test(normalized)) {
       applyStudioPrompt(['動画の秒数は何秒程度がいいですか？'], [PAL_VIDEO_LITE_DURATION_OPTIONS], ['single']);
       return;
     }
-    if (/使いたい色|色はありますか|色の希望|色を教えて/.test(normalized)) {
+    if (/使いたい色|色はありますか|色の希望|色を教えて|カラー|色味|配色|トーン/.test(normalized)) {
       applyStudioPrompt(['使いたい色を1つ選択してください。'], [STUDIO_COLOR_OPTIONS], ['single']);
     }
   };
@@ -2691,6 +2708,7 @@ ${currentHtml}
     setConversationEnded(false);
     setQuickQuestionButtons([]);
     setNeutralActionButtons([]);
+    setSelectedMediaUrls([]);
     setActiveServiceCard(card);
     setActiveServiceMode(card.key === 'pal_studio'
       ? 'pal_studio'
@@ -2755,6 +2773,32 @@ ${currentHtml}
           ? 'Pal Video ライトのヒアリングを開始します。まず用途を教えてください。(選択肢: Instagramリール, Instagramストーリーズ, Instagramフィード, YouTubeショート, TikTok, X, LINE VOOM, Facebook, プロモーション/広告)'
           : 'Pal Video のヒアリングを開始します。用途・尺・テロップ・色・素材（画像/ロゴ）の希望を教えてください。',
       });
+      if (isLite) {
+        setPalVideoLiteStep('purpose');
+        setPalVideoLiteAnswers({
+          purpose: '',
+          duration: '',
+          mediaUrls: [],
+          color: '',
+          bgm: '',
+        });
+        clearMultiPromptState();
+        applyStudioPrompt(
+          ['用途を教えてください。'],
+          [[
+            'Instagramリール',
+            'Instagramストーリーズ',
+            'Instagramフィード',
+            'YouTubeショート',
+            'TikTok',
+            'X',
+            'LINE VOOM',
+            'Facebook',
+            'プロモーション/広告',
+          ]],
+          ['single'],
+        );
+      }
       return;
     }
 
@@ -2778,6 +2822,14 @@ ${currentHtml}
     }
     if (button.key === 'no-media') {
       void handleSend('なし');
+      return;
+    }
+    if (button.key === 'media-done') {
+      const payload = selectedMediaUrls.length > 0
+        ? `以下の画像/ロゴを使用します。\n${selectedMediaUrls.join('\n')}`
+        : '完了';
+      setSelectedMediaUrls([]);
+      void handleSend(payload);
       return;
     }
     if (button.key === 'contract-services') {
@@ -2974,6 +3026,68 @@ ${currentHtml}
     const palVideoPlanCode = String(activeServiceCard?.planCode || '').toLowerCase();
     const isPalVideoLite = palVideoPlanCode.includes('pal_video_lite');
 
+    if (activeServiceMode === 'pal_video' && isPalVideoLite) {
+      const nextMessages: ChatMessage[] = [...updatedMessages];
+      const nextAnswers = { ...palVideoLiteAnswers };
+      let nextStep = palVideoLiteStep;
+
+      const pushAi = (content: string, actionButtons?: ActionButton[]) => {
+        nextMessages.push({ role: 'ai', content, actionButtons });
+      };
+
+      if (palVideoLiteStep === 'purpose') {
+        nextAnswers.purpose = messageToSend.trim();
+        nextStep = 'duration';
+        pushAi('動画の秒数は何秒程度がいいですか？(選択肢: 15秒, 20秒, 25秒, 30秒)');
+        applyStudioPrompt(['動画の秒数は何秒程度がいいですか？'], [PAL_VIDEO_LITE_DURATION_OPTIONS], ['single']);
+      } else if (palVideoLiteStep === 'duration') {
+        nextAnswers.duration = messageToSend.trim();
+        nextStep = 'media';
+        clearMultiPromptState();
+        pushAi('使いたいロゴや画像はありますか？（あればアップロードやURLで教えてください）', PAL_VIDEO_LITE_MEDIA_BUTTONS);
+      } else if (palVideoLiteStep === 'media') {
+        const urlsFromText = extractUrls(messageToSend);
+        const urls = Array.from(new Set([...selectedMediaUrls, ...urlsFromText]));
+        nextAnswers.mediaUrls = urls;
+        setSelectedMediaUrls([]);
+        nextStep = 'color';
+        pushAi('使いたい色はありますか？（例: #E95464 など）');
+        applyStudioPrompt(['使いたい色を1つ選択してください。'], [STUDIO_COLOR_OPTIONS], ['single']);
+      } else if (palVideoLiteStep === 'color') {
+        nextAnswers.color = messageToSend.trim();
+        nextStep = 'bgm';
+        pushAi('BGMのイメージはありますか？(選択肢: ライト/ポップ, クール/ミニマル, ウォーム/ナチュラル)');
+        applyStudioPrompt(['BGMのイメージはありますか？'], [PAL_VIDEO_LITE_BGM_OPTIONS], ['single']);
+      } else if (palVideoLiteStep === 'bgm') {
+        nextAnswers.bgm = messageToSend.trim();
+        nextStep = 'done';
+        clearMultiPromptState();
+        const payload = buildPalVideoPayload(nextMessages);
+        nextMessages.push({ role: 'ai', content: buildPalVideoCompletionMessage(payload) });
+
+        const fallbackCards = messages
+          .slice()
+          .reverse()
+          .find((msg) => msg.role === 'ai' && Array.isArray(msg.serviceCards) && msg.serviceCards.length > 0)
+          ?.serviceCards || [];
+        const cards = authServiceCards.length ? authServiceCards : fallbackCards;
+        nextMessages.push({
+          role: 'ai',
+          content: 'なにかお手伝いできることはありますか？',
+          serviceCards: cards,
+        });
+        setActiveServiceMode('none');
+        setConversationEnded(false);
+      }
+
+      setPalVideoLiteStep(nextStep);
+      setPalVideoLiteAnswers(nextAnswers);
+      setMessages(nextMessages);
+      await saveDraftToLab(nextMessages, 'hearing');
+      setIsLoading(false);
+      return;
+    }
+
     const systemContext = activeServiceMode === 'pal_studio'
       ? `
 動的補足:
@@ -2998,7 +3112,6 @@ ${currentHtml}
 - ${isPalVideoLite ? '用途の質問は次の形式で出してください: 用途を教えてください。(選択肢: Instagramリール, Instagramストーリーズ, Instagramフィード, YouTubeショート, TikTok, X, LINE VOOM, Facebook, プロモーション/広告)' : 'テロップはメインとサブがあれば分けて確認してください。1つしかない場合はメイン扱いで構いません。'}
 - ${isPalVideoLite ? '秒数の質問は次の形式で出してください: 動画の秒数は何秒程度がいいですか？(選択肢: 15秒, 20秒, 25秒, 30秒)' : '素材の有無を必ず確認し、画像/ロゴURLの提示方法を案内してください。'}
 - ${isPalVideoLite ? '素材の質問は次の形式で出してください: 使いたいロゴや画像はありますか？（あればアップロードやURLで教えてください）' : ''}
-- ${isPalVideoLite ? '色の質問は次の形式で出してください: 使いたい色はありますか？（例: #E95464 など / pal_studioと同じイメージ）' : ''}
 - ${isPalVideoLite ? '色の質問は次の形式で出してください: 使いたい色はありますか？（例: #E95464 など）' : ''}
 - ${isPalVideoLite ? 'BGMの質問は次の形式で出してください: BGMのイメージはありますか？(選択肢: ライト/ポップ, クール/ミニマル, ウォーム/ナチュラル)' : ''}
 - 顧客の呼称は「${displayCustomerName}様」を優先し、顧客ID（例: P1111）で呼ばないでください。
@@ -3834,6 +3947,11 @@ ${currentHtml}
                     <p className="text-[11px] text-slate-400">クリックでURLを入力欄へ追加</p>
                   </div>
                 </div>
+                {activeServiceMode === 'pal_video' && selectedMediaUrls.length > 0 && (
+                  <span className="text-[10px] font-black px-2 py-1 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+                    選択中 {selectedMediaUrls.length}件
+                  </span>
+                )}
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -3856,6 +3974,7 @@ ${currentHtml}
                     ref={mediaInputRef}
                     type="file"
                     accept="image/*,video/*"
+                    multiple
                     onChange={handleMediaFileChange}
                     className="hidden"
                   />
@@ -3889,12 +4008,13 @@ ${currentHtml}
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                     {mediaAssets.map((asset) => {
                       const isVideo = String(asset.mimeType || '').startsWith('video/');
+                      const isSelected = selectedMediaUrls.includes(String(asset.url || ''));
                       return (
-                        <div key={asset.id} className="group relative rounded-xl border border-white bg-white/80 shadow-[0_6px_16px_rgba(15,23,42,0.08)] overflow-hidden">
+                        <div key={asset.id} className={`group relative rounded-xl border bg-white/80 shadow-[0_6px_16px_rgba(15,23,42,0.08)] overflow-hidden ${isSelected ? 'border-indigo-300 ring-2 ring-indigo-200' : 'border-white'}`}>
                           <button
                             type="button"
                             onClick={() => handleMediaSelect(asset)}
-                            className="w-full aspect-[4/3] flex items-center justify-center bg-slate-100/60"
+                            className="relative w-full aspect-[4/3] flex items-center justify-center bg-slate-100/60"
                           >
                             {isVideo ? (
                               <video
@@ -3910,6 +4030,9 @@ ${currentHtml}
                                 alt={asset.originalName || 'media'}
                                 className="w-full h-full object-cover"
                               />
+                            )}
+                            {isSelected && (
+                              <span className="absolute top-2 left-2 text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-600 text-white shadow">選択中</span>
                             )}
                           </button>
                           <div className="px-2 py-1 text-[10px] text-slate-500 flex items-center justify-between">
