@@ -1836,29 +1836,33 @@ ${template.html}
   const buildCreatomateFallbackPlan = (payload: any) => {
     const cuts = Array.isArray(payload?.cuts) ? payload.cuts : [];
     const durationSec = Number(payload?.durationSec || 30);
-    const sceneCount = cuts.length > 0 ? cuts.length : Math.max(1, Math.min(6, Math.round(durationSec / 5)));
-    const baseDuration = Math.max(2, Math.round(durationSec / sceneCount));
+    const sceneCount = cuts.length > 0 ? cuts.length : Math.max(1, Math.min(7, Math.ceil(durationSec / 4)));
+    const baseDuration = 4;
+    const lastDuration = Math.max(1, durationSec - baseDuration * (sceneCount - 1));
+    const templateCandidates = ['pal_video_fixed_v1'];
     const safeCuts = cuts.length > 0
       ? cuts
       : Array.from({ length: sceneCount }).map((_, index) => ({
-          durationSec: baseDuration,
+          durationSec: index === sceneCount - 1 ? lastDuration : baseDuration,
           imageUrl: payload?.imageUrls?.[index] || payload?.imageUrls?.[0] || '',
           textMain: index === 0 ? payload?.telopMain : `ポイント${index + 1}`,
           textSub: index === 0 ? payload?.telopSub : '',
-          textAnimation: 'slide',
-          textTransition: 'fade',
+          templateId: templateCandidates[index % templateCandidates.length],
+          textAnimation: 'none',
+          textTransition: 'none',
         }));
 
     return {
       templateId: 'pal_video_fixed_v1',
-      templateMode: 'fixed',
+      templateMode: 'dynamic',
       scenes: safeCuts.map((cut: any) => ({
         durationSec: Number(cut.durationSec || baseDuration),
         imageUrl: String(cut.imageUrl || ''),
         title: String(cut.textMain || payload?.telopMain || ''),
         subtitle: String(cut.textSub || payload?.telopSub || ''),
-        textAnimation: String(cut.textAnimation || 'slide'),
-        textTransition: String(cut.textTransition || 'fade'),
+        templateId: String(cut.templateId || 'pal_video_fixed_v1'),
+        textAnimation: String(cut.textAnimation || 'none'),
+        textTransition: String(cut.textTransition || 'none'),
       })),
       style: {
         primaryColor: String(payload?.colorPrimary || '#E95464'),
@@ -1866,7 +1870,7 @@ ${template.html}
         font: 'NotoSansJP',
       },
       audio: { bgm: String(payload?.bgm || 'light') },
-      dynamicTemplateCandidates: [],
+      dynamicTemplateCandidates: templateCandidates,
     };
   };
 
@@ -3776,7 +3780,7 @@ ${currentHtml}
                           <button
                             type="button"
                             onClick={() => handleMediaSelect(asset)}
-                            className="w-full h-[88px] flex items-center justify-center bg-slate-100/60"
+                            className="w-full aspect-[4/3] flex items-center justify-center bg-slate-100/60"
                           >
                             {isVideo ? (
                               <video

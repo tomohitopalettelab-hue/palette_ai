@@ -1,7 +1,20 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
 
+const parseTemplateCandidates = () => {
+  const raw = String(
+    process.env.CREATOMATE_TEMPLATE_IDS ||
+    process.env.CREATOMATE_TEMPLATE_ID ||
+    'pal_video_fixed_v1',
+  );
+  return raw
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
 const buildPrompt = (payload: any, hearingMessages: any[]) => {
+  const templateCandidates = parseTemplateCandidates();
   const summary = {
     purpose: payload?.purpose || "instagram_reel",
     durationSec: payload?.durationSec || 30,
@@ -11,6 +24,7 @@ const buildPrompt = (payload: any, hearingMessages: any[]) => {
     colorAccent: payload?.colorAccent || "",
     cuts: Array.isArray(payload?.cuts) ? payload.cuts : [],
     hearingAnswers: Array.isArray(payload?.hearingAnswers) ? payload.hearingAnswers : [],
+    templateCandidates,
   };
 
   const system = `You are a creative director for short-form promo videos.
@@ -18,15 +32,16 @@ Output JSON only. Do not include code fences or extra text.
 Use this schema:
 {
   "templateId": "pal_video_fixed_v1",
-  "templateMode": "fixed",
+  "templateMode": "dynamic",
   "scenes": [
     {
       "durationSec": 4,
       "imageUrl": "https://...",
       "title": "...",
       "subtitle": "...",
-      "textAnimation": "slide|float|pop|none",
-      "textTransition": "fade|none"
+      "templateId": "pal_video_fixed_v1",
+      "textAnimation": "none",
+      "textTransition": "none"
     }
   ],
   "style": { "primaryColor": "#E95464", "accentColor": "#1c9a8b", "font": "NotoSansJP" },
@@ -42,11 +57,15 @@ Conversation:
 ${JSON.stringify(hearingMessages || [], null, 2)}
 
 Rules:
-- templateId is fixed to "pal_video_fixed_v1".
-- Prefer 4-7 scenes depending on duration.
+- templateId is the default template. Use per-scene templateId when templateCandidates are available.
+- Prefer 1 cut per 4 seconds (sceneCount = ceil(durationSec / 4)).
+- Each scene durationSec should be 4, except the last scene which can be shorter if needed.
 - Use short, punchy Japanese text.
 - If cuts are provided, align scenes to cuts.
+- Choose a templateId for each scene from templateCandidates when available.
 - If imageUrl is missing, leave it empty.
+- Keep textAnimation and textTransition as "none".
+- Set dynamicTemplateCandidates to templateCandidates when provided.
 - Keep JSON valid.
 `;
 
