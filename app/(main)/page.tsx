@@ -1771,6 +1771,17 @@ ${template.html}
     return '';
   };
 
+  const PAL_VIDEO_TEMPLATE_MAP: Record<string, string> = {
+    instagram_feed: 'a02095a2-9469-4f52-9bcd-66fc884453a1',
+    promotion: '516cafa1-15cc-44e3-8a39-af5a07862bc0',
+    youtube: '979f7579-5567-4d7b-a615-777d825d9f9d',
+  };
+
+  const resolvePalVideoTemplateCandidates = (purpose: string) => {
+    const mapped = PAL_VIDEO_TEMPLATE_MAP[purpose];
+    return [mapped, 'pal_video_fixed_v1'].filter(Boolean);
+  };
+
   const extractPalVideoDuration = (raw: string): number | null => {
     const text = String(raw || '');
     const match = text.match(/(\d+)\s*(秒|分)/);
@@ -1824,8 +1835,10 @@ ${template.html}
         content: String(msg.content || ''),
       }));
 
+    const resolvedPurpose = purpose || 'instagram_reel';
+
     return {
-      purpose: purpose || 'instagram_reel',
+      purpose: resolvedPurpose,
       durationSec,
       telopMain: telop.main || 'テロップ未設定',
       telopSub: telop.sub || 'サブテロップ未設定',
@@ -1836,6 +1849,7 @@ ${template.html}
       bgm: bgmAnswer || '',
       hearingAnswers: answers,
       hearingMessages,
+      templateCandidates: resolvePalVideoTemplateCandidates(resolvedPurpose),
     };
   };
 
@@ -1845,7 +1859,10 @@ ${template.html}
     const sceneCount = cuts.length > 0 ? cuts.length : Math.max(1, Math.min(7, Math.ceil(durationSec / 4)));
     const baseDuration = 4;
     const lastDuration = Math.max(1, durationSec - baseDuration * (sceneCount - 1));
-    const templateCandidates = ['pal_video_fixed_v1'];
+    const resolvedPurpose = String(payload?.purpose || 'instagram_reel');
+    const templateCandidates = Array.isArray(payload?.templateCandidates) && payload.templateCandidates.length > 0
+      ? payload.templateCandidates
+      : resolvePalVideoTemplateCandidates(resolvedPurpose);
     const safeCuts = cuts.length > 0
       ? cuts
       : Array.from({ length: sceneCount }).map((_, index) => ({

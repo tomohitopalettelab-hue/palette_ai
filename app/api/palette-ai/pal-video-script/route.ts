@@ -1,8 +1,19 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
 
-const parseTemplateCandidates = () => {
+const TEMPLATE_MAP: Record<string, string> = {
+  instagram_feed: 'a02095a2-9469-4f52-9bcd-66fc884453a1',
+  promotion: '516cafa1-15cc-44e3-8a39-af5a07862bc0',
+  youtube: '979f7579-5567-4d7b-a615-777d825d9f9d',
+};
+
+const parseTemplateCandidates = (payload: any) => {
+  const explicit = Array.isArray(payload?.templateCandidates) ? payload.templateCandidates : [];
+  if (explicit.length > 0) return explicit.map((item: string) => String(item).trim()).filter(Boolean);
+  const purpose = String(payload?.purpose || '').trim();
+  const mapped = TEMPLATE_MAP[purpose];
   const raw = String(
+    mapped ||
     process.env.CREATOMATE_TEMPLATE_IDS ||
     process.env.CREATOMATE_TEMPLATE_ID ||
     'pal_video_fixed_v1',
@@ -14,7 +25,7 @@ const parseTemplateCandidates = () => {
 };
 
 const buildPrompt = (payload: any, hearingMessages: any[]) => {
-  const templateCandidates = parseTemplateCandidates();
+  const templateCandidates = parseTemplateCandidates(payload);
   const summary = {
     purpose: payload?.purpose || "instagram_reel",
     durationSec: payload?.durationSec || 30,
