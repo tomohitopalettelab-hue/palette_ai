@@ -2,7 +2,7 @@
 
 import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Send, Layout, MessageSquare, Sparkles, User, Box, PenLine, RefreshCw, BellRing } from 'lucide-react';
+import { Send, Layout, Sparkles, User, Box, PenLine, RefreshCw, BellRing } from 'lucide-react';
 import { templates, Template } from '../admin/templates';
 
 type ServiceCard = {
@@ -166,6 +166,7 @@ function PaletteDesignInner() {
   const [isSubmittingMultiPrompt, setIsSubmittingMultiPrompt] = useState(false);
   const [quickQuestionButtons, setQuickQuestionButtons] = useState<QuickQuestionButton[]>([]);
   const [neutralActionButtons, setNeutralActionButtons] = useState<ActionButton[]>([]);
+  const [showMediaLibraryPanel, setShowMediaLibraryPanel] = useState(false);
   const [activeServiceMode, setActiveServiceMode] = useState<ServiceMode>('none');
   const [activeServiceCard, setActiveServiceCard] = useState<ServiceCard | null>(null);
   const [studioPlanTier, setStudioPlanTier] = useState<StudioPlanTier>('standard');
@@ -2767,6 +2768,7 @@ ${currentHtml}
     setQuickQuestionButtons([]);
     setNeutralActionButtons([]);
     setSelectedMediaUrls([]);
+    setShowMediaLibraryPanel(false);
     setActiveServiceCard(card);
     setActiveServiceMode(card.key === 'pal_studio'
       ? 'pal_studio'
@@ -2901,6 +2903,13 @@ ${currentHtml}
         content: cards.length ? 'ご契約中のサービスです。' : '現在表示できる契約サービスがありません。',
         serviceCards: cards,
       });
+      return;
+    }
+    if (button.key === 'media-library') {
+      setShowMediaLibraryPanel((prev) => !prev);
+      if (!showMediaLibraryPanel) {
+        void loadMediaAssets();
+      }
       return;
     }
     if (button.key === 'news-post') {
@@ -3536,8 +3545,12 @@ ${currentHtml}
     setActiveServiceMode('none');
     setStudioPlanTier('standard');
     setStudioStep('idle');
-    setNeutralActionButtons([{ key: 'contract-services', label: '契約サービス' }]);
+    setNeutralActionButtons([
+      { key: 'contract-services', label: '契約サービス' },
+      { key: 'media-library', label: 'メディア' },
+    ]);
     clearMultiPromptState();
+    setShowMediaLibraryPanel(false);
     setConversationEnded(false);
     setMessages((prev) => [...prev, ...nextMessages]);
   };
@@ -3653,6 +3666,12 @@ ${currentHtml}
     && studioStep !== 'idle'
     && studioStep !== 'completed';
   const imageAssets = mediaAssets.filter((asset) => String(asset.mimeType || '').startsWith('image/'));
+  const mediaButton: ActionButton = { key: 'media-library', label: 'メディア' };
+  const mergedNeutralButtons = authStep === 'authenticated'
+    ? (neutralActionButtons.some((button) => button.key === 'media-library')
+      ? neutralActionButtons
+      : [...neutralActionButtons, mediaButton])
+    : neutralActionButtons;
   return (
     <div className="fixed inset-0 w-full h-[100dvh] flex items-start md:items-center justify-start md:justify-center p-0 md:p-8 overflow-hidden bg-slate-50 touch-auto md:touch-none">
       <div className="fixed top-0 left-0 w-full h-full pointer-events-none -z-10 overflow-hidden">
@@ -3796,6 +3815,111 @@ ${currentHtml}
           </main>
 
           <div className="mt-auto pt-3 pb-2 md:pb-0 shrink-0 sticky bottom-0 z-20 bg-white/35 backdrop-blur-md rounded-t-2xl md:bg-transparent md:backdrop-blur-0 md:rounded-none" style={{ paddingBottom: isMobileViewport ? 'calc(0.5rem + env(safe-area-inset-bottom, 0px))' : undefined }}>
+            {showMediaLibraryPanel && authStep === 'authenticated' && (
+              <div className="mb-3 rounded-[24px] border border-white bg-white/60 backdrop-blur-xl p-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Media Library</div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => loadMediaAssets()}
+                      disabled={!canUseMedia || mediaLoading}
+                      className="px-2.5 py-1 rounded-full text-[10px] font-black border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      更新
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => mediaInputRef.current?.click()}
+                      disabled={!canUseMedia || isUploadingMedia}
+                      className="px-2.5 py-1 rounded-full text-[10px] font-black text-white bg-gradient-to-r from-indigo-500 to-fuchsia-500 shadow-[0_8px_16px_rgba(79,70,229,0.24)] hover:from-indigo-400 hover:to-fuchsia-400 disabled:opacity-50"
+                    >
+                      {isUploadingMedia ? 'アップロード中' : 'アップロード'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowMediaLibraryPanel(false)}
+                      className="px-2.5 py-1 rounded-full text-[10px] font-black border border-slate-200 text-slate-500 bg-white hover:bg-slate-50"
+                    >
+                      閉じる
+                    </button>
+                    <input
+                      ref={mediaInputRef}
+                      type="file"
+                      accept="image/*,video/*"
+                      multiple
+                      onChange={handleMediaFileChange}
+                      className="hidden"
+                    />
+                  </div>
+                </div>
+
+                {!canUseMedia && (
+                  <div className="text-[11px] text-slate-400">顧客ID認証後に利用できます。</div>
+                )}
+
+                {canUseMedia && mediaLoading && (
+                  <div className="text-[11px] text-slate-400">読み込み中...</div>
+                )}
+
+                {canUseMedia && !mediaLoading && mediaError && (
+                  <div className="text-[11px] text-red-500">{mediaError}</div>
+                )}
+
+                {canUseMedia && !mediaLoading && !mediaError && mediaAssets.length === 0 && (
+                  <div className="text-[11px] text-slate-400">まだメディアがありません。画像や動画をアップロードしてください。</div>
+                )}
+
+                {canUseMedia && !mediaLoading && mediaAssets.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {mediaAssets.map((asset) => {
+                      const isVideo = String(asset.mimeType || '').startsWith('video/');
+                      const isSelected = selectedMediaUrls.includes(String(asset.url || ''));
+                      return (
+                        <div key={asset.id} className={`group relative rounded-xl border bg-white/80 shadow-[0_6px_16px_rgba(15,23,42,0.08)] overflow-hidden ${isSelected ? 'border-indigo-300 ring-2 ring-indigo-200' : 'border-white'}`}>
+                          <button
+                            type="button"
+                            onClick={() => handleMediaSelect(asset)}
+                            className="relative w-full aspect-[4/3] flex items-center justify-center bg-slate-100/60"
+                          >
+                            {isVideo ? (
+                              <video
+                                src={asset.url}
+                                className="w-full h-full object-cover"
+                                muted
+                                playsInline
+                                preload="metadata"
+                              />
+                            ) : (
+                              <img
+                                src={asset.url}
+                                alt={asset.originalName || 'media'}
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                            {isSelected && (
+                              <span className="absolute top-2 left-2 text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-600 text-white shadow">選択中</span>
+                            )}
+                          </button>
+                          <div className="px-2 py-1 text-[10px] text-slate-500 flex items-center justify-between">
+                            <span className="truncate">{asset.originalName || asset.fileName}</span>
+                            <span>{formatBytes(Number(asset.sizeBytes || 0))}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleMediaDelete(asset.id)}
+                            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/90 text-slate-500 text-[10px] font-black shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             {isStudioHearingStep && authStep === 'authenticated' && (
               <div className="mb-3 rounded-[24px] border border-white bg-white/55 backdrop-blur-xl p-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
                 <div className="flex items-center justify-between mb-2">
@@ -4122,9 +4246,9 @@ ${currentHtml}
               </div>
             )}
 
-            {neutralActionButtons.length > 0 && authStep === 'authenticated' && !isLoading && activeServiceMode === 'none' && (
+            {mergedNeutralButtons.length > 0 && authStep === 'authenticated' && (
               <div className="mb-2 flex items-center justify-end gap-2 px-1">
-                {neutralActionButtons.map((button) => (
+                {mergedNeutralButtons.map((button) => (
                   <button
                     key={button.key}
                     type="button"
@@ -4219,123 +4343,6 @@ ${currentHtml}
               )}
             </div>
 
-            <section className="rounded-[24px] border border-white/60 bg-white/70 backdrop-blur-xl shadow-[0_10px_24px_rgba(15,23,42,0.08)] p-4 flex flex-col h-[220px] md:h-[240px]">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-white shadow-neu-flat flex items-center justify-center">
-                    <MessageSquare className="w-4 h-4 text-indigo-500" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-black tracking-[0.2em] uppercase text-slate-500">Media Library</p>
-                    <p className="text-[11px] text-slate-400">クリックでURLを入力欄へ追加</p>
-                  </div>
-                </div>
-                {activeServiceMode === 'pal_video' && selectedMediaUrls.length > 0 && (
-                  <span className="text-[10px] font-black px-2 py-1 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
-                    選択中 {selectedMediaUrls.length}件
-                  </span>
-                )}
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => loadMediaAssets()}
-                    disabled={!canUseMedia || mediaLoading}
-                    className="px-3 py-1.5 rounded-full text-[10px] font-black border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    <RefreshCw className="w-3 h-3 inline-block mr-1" />
-                    更新
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => mediaInputRef.current?.click()}
-                    disabled={!canUseMedia || isUploadingMedia}
-                    className="px-3.5 py-1.5 rounded-full text-[10px] font-black text-white bg-gradient-to-r from-indigo-500 to-fuchsia-500 shadow-[0_8px_16px_rgba(79,70,229,0.24)] hover:from-indigo-400 hover:to-fuchsia-400 disabled:opacity-50"
-                  >
-                    {isUploadingMedia ? 'アップロード中...' : 'アップロード'}
-                  </button>
-                  <input
-                    ref={mediaInputRef}
-                    type="file"
-                    accept="image/*,video/*"
-                    multiple
-                    onChange={handleMediaFileChange}
-                    className="hidden"
-                  />
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto custom-scrollbar">
-                {!canUseMedia && (
-                  <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                    顧客ID認証後にメディアを利用できます。
-                  </div>
-                )}
-
-                {canUseMedia && mediaLoading && (
-                  <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                    読み込み中...
-                  </div>
-                )}
-
-                {canUseMedia && !mediaLoading && mediaError && (
-                  <div className="text-xs text-red-500">{mediaError}</div>
-                )}
-
-                {canUseMedia && !mediaLoading && !mediaError && mediaAssets.length === 0 && (
-                  <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                    まだメディアがありません。画像や動画をアップロードしてください。
-                  </div>
-                )}
-
-                {canUseMedia && !mediaLoading && mediaAssets.length > 0 && (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                    {mediaAssets.map((asset) => {
-                      const isVideo = String(asset.mimeType || '').startsWith('video/');
-                      const isSelected = selectedMediaUrls.includes(String(asset.url || ''));
-                      return (
-                        <div key={asset.id} className={`group relative rounded-xl border bg-white/80 shadow-[0_6px_16px_rgba(15,23,42,0.08)] overflow-hidden ${isSelected ? 'border-indigo-300 ring-2 ring-indigo-200' : 'border-white'}`}>
-                          <button
-                            type="button"
-                            onClick={() => handleMediaSelect(asset)}
-                            className="relative w-full aspect-[4/3] flex items-center justify-center bg-slate-100/60"
-                          >
-                            {isVideo ? (
-                              <video
-                                src={asset.url}
-                                className="w-full h-full object-cover"
-                                muted
-                                playsInline
-                                preload="metadata"
-                              />
-                            ) : (
-                              <img
-                                src={asset.url}
-                                alt={asset.originalName || 'media'}
-                                className="w-full h-full object-cover"
-                              />
-                            )}
-                            {isSelected && (
-                              <span className="absolute top-2 left-2 text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-600 text-white shadow">選択中</span>
-                            )}
-                          </button>
-                          <div className="px-2 py-1 text-[10px] text-slate-500 flex items-center justify-between">
-                            <span className="truncate">{asset.originalName || asset.fileName}</span>
-                            <span>{formatBytes(Number(asset.sizeBytes || 0))}</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleMediaDelete(asset.id)}
-                            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/90 text-slate-500 text-[10px] font-black shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </section>
           </div>
 
         </div>
