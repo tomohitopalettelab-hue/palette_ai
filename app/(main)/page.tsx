@@ -3831,14 +3831,6 @@ ${currentHtml}
                     >
                       閉じる
                     </button>
-                    <input
-                      ref={mediaInputRef}
-                      type="file"
-                      accept="image/*,video/*"
-                      multiple
-                      onChange={handleMediaFileChange}
-                      className="hidden"
-                    />
                   </div>
                 </div>
 
@@ -4212,6 +4204,14 @@ ${currentHtml}
                   <Send className="w-4 h-4" />
                 </button>
               </div>
+            <input
+              ref={mediaInputRef}
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              onChange={handleMediaFileChange}
+              className="hidden"
+            />
             </div>
           </div>
         </div>
