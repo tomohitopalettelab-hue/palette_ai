@@ -101,6 +101,34 @@ type StudioStep =
   | 'postOkMessageInput'
   | 'completed';
 
+type BlogStep =
+  | 'idle'
+  | 'askTopic'
+  | 'askKeywords'
+  | 'askTarget'
+  | 'askImage'
+  | 'generating'
+  | 'preview'
+  | 'publishing'
+  | 'done';
+
+type BlogDraft = {
+  topic: string;
+  keywords: string;
+  target: string;
+  imageUrl: string;
+  title: string;
+  bodyHtml: string;
+  slug: string;
+  excerpt: string;
+  tags: string[];
+};
+
+const EMPTY_BLOG_DRAFT: BlogDraft = {
+  topic: '', keywords: '', target: '', imageUrl: '',
+  title: '', bodyHtml: '', slug: '', excerpt: '', tags: [],
+};
+
 type ConfirmMode = 'preview' | 'revision' | null;
 
 type StudioRevisionDraft = {
@@ -168,6 +196,8 @@ function PaletteDesignInner() {
   const [activeServiceCard, setActiveServiceCard] = useState<ServiceCard | null>(null);
   const [studioPlanTier, setStudioPlanTier] = useState<StudioPlanTier>('standard');
   const [studioStep, setStudioStep] = useState<StudioStep>('idle');
+  const [blogStep, setBlogStep] = useState<BlogStep>('idle');
+  const [blogDraft, setBlogDraft] = useState<BlogDraft>(EMPTY_BLOG_DRAFT);
   const [palVideoLiteStep, setPalVideoLiteStep] = useState<'purpose' | 'duration' | 'media' | 'color' | 'bgm' | 'done'>('purpose');
   const [palVideoLiteAnswers, setPalVideoLiteAnswers] = useState<{ purpose: string; duration: string; mediaUrls: string[]; color: string; bgm: string }>({
     purpose: '',
@@ -2431,6 +2461,141 @@ ${currentHtml}
     return Array.from(new Set([...normalized, cleanedFree]));
   };
 
+  // ── Blog Flow ─────────────────────────────────────────────────────────────
+
+  const handleBlogFlowInput = async (rawInput: string) => {
+    const input = rawInput.trim();
+    const userMsg: ChatMessage = { role: 'user', content: input };
+    setMessages((prev) => [...prev, userMsg]);
+    setInputText('');
+
+    if (blogStep === 'askTopic') {
+      setBlogDraft((d) => ({ ...d, topic: input }));
+      setBlogStep('askKeywords');
+      appendAiMessage({ content: 'SEOキーワードを入力してください。\n（例：美容室 渋谷 カット スタイル ヘアケア）' });
+      return;
+    }
+
+    if (blogStep === 'askKeywords') {
+      setBlogDraft((d) => ({ ...d, keywords: input }));
+      setBlogStep('askTarget');
+      appendAiMessage({ content: 'ターゲット読者を教えてください。\n（例：30代女性 ヘアケアに悩んでいる方）' });
+      return;
+    }
+
+    if (blogStep === 'askTarget') {
+      setBlogDraft((d) => ({ ...d, target: input }));
+      setBlogStep('askImage');
+      appendAiMessage({ content: '使用する画像URLがあれば入力してください。\nない場合は「スキップ」と入力してください。' });
+      return;
+    }
+
+    if (blogStep === 'askImage') {
+      const imageUrl = /^https?:\/\//i.test(input) ? input : '';
+      const nextDraft = { ...blogDraft, imageUrl };
+      setBlogDraft(nextDraft);
+      setBlogStep('generating');
+      appendAiMessage({ content: 'ブログを生成中です。少々お待ちください…' });
+
+      try {
+        const res = await fetch('/api/pal-studio-blog/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            topic: nextDraft.topic,
+            keywords: nextDraft.keywords,
+            target: nextDraft.target,
+            imageUrl: nextDraft.imageUrl,
+            shopName: authCustomerName,
+          }),
+        });
+        const data = await res.json() as Record<string, unknown>;
+
+        if (!res.ok || data.success === false) {
+          setBlogStep('askTopic');
+          appendAiMessage({ content: `生成に失敗しました：${String(data.error || '不明なエラー')}\n最初からやり直します。テーマを入力してください。` });
+          return;
+        }
+
+        const generated: BlogDraft = {
+          ...nextDraft,
+          title: String(data.title || ''),
+          slug: String(data.slug || ''),
+          bodyHtml: String(data.bodyHtml || ''),
+          excerpt: String(data.excerpt || ''),
+          tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
+          imageUrl: String(data.imageUrl || nextDraft.imageUrl),
+        };
+        setBlogDraft(generated);
+        setBlogStep('preview');
+
+        const previewText = [
+          `📝 **${generated.title}**`,
+          '',
+          generated.excerpt,
+          '',
+          generated.tags.length > 0 ? `タグ: ${generated.tags.join(' / ')}` : '',
+          generated.imageUrl ? `画像: ${generated.imageUrl}` : '',
+        ].filter(Boolean).join('\n');
+
+        appendAiMessage({
+          content: `ブログのプレビューです。\n\n${previewText}\n\nこの内容でブログを投稿しますか？`,
+          actionButtons: [
+            { key: 'blog-publish-confirm', label: '投稿する' },
+            { key: 'blog-revise', label: 'やり直す' },
+          ],
+        });
+      } catch (err) {
+        setBlogStep('askTopic');
+        appendAiMessage({ content: `エラーが発生しました：${err instanceof Error ? err.message : String(err)}\n最初からやり直します。テーマを入力してください。` });
+      }
+      return;
+    }
+  };
+
+  const handleBlogPublish = async () => {
+    if (blogStep !== 'preview') return;
+    setBlogStep('publishing');
+    appendAiMessage({ content: 'ブログを投稿中です…' });
+
+    try {
+      const res = await fetch('/api/pal-studio-blog/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paletteId: resolvedCustomerId,
+          post: {
+            id: `palai-${Date.now()}`,
+            title: blogDraft.title,
+            slug: blogDraft.slug,
+            bodyHtml: blogDraft.bodyHtml,
+            excerpt: blogDraft.excerpt,
+            status: 'published',
+            postType: 'blog',
+            tags: blogDraft.tags,
+            publishedAt: new Date().toISOString(),
+            imageUrl: blogDraft.imageUrl || undefined,
+          },
+        }),
+      });
+      const data = await res.json() as Record<string, unknown>;
+
+      if (!res.ok || data.success === false) {
+        setBlogStep('preview');
+        appendAiMessage({ content: `投稿に失敗しました：${String(data.error || '不明なエラー')}` });
+        return;
+      }
+
+      setBlogStep('done');
+      appendAiMessage({ content: `✅ ブログを pal_studio に投稿しました！\n\nタイトル：${blogDraft.title}\n\nPal Studio でご確認ください。` });
+    } catch (err) {
+      setBlogStep('preview');
+      appendAiMessage({ content: `投稿中にエラーが発生しました：${err instanceof Error ? err.message : String(err)}` });
+    }
+  };
+
+  // ── Studio Flow ────────────────────────────────────────────────────────────
+
   const handleStudioFlowInput = async (rawInput: string) => {
     const answers = extractStudioAnswers(rawInput);
     const first = String(answers[0] || '').trim();
@@ -2784,7 +2949,7 @@ ${currentHtml}
           content: 'Pal Studio で実行したい操作を選んでください。',
           actionButtons: [
             { key: 'news-post', label: 'ニュース投稿（この先実装）' },
-            { key: 'blog-post', label: 'ブログ投稿（この先実装）' },
+            { key: 'blog-post', label: 'ブログ投稿' },
           ],
         });
         return;
@@ -2905,7 +3070,19 @@ ${currentHtml}
       return;
     }
     if (button.key === 'blog-post') {
-      appendAiMessage({ content: 'ブログ投稿機能はこの先実装予定です。' });
+      setBlogStep('askTopic');
+      setBlogDraft(EMPTY_BLOG_DRAFT);
+      appendAiMessage({ content: 'ブログ投稿を始めます。\nどんなテーマで書きますか？（例：春のヘアスタイル、新メニューのご紹介）' });
+      return;
+    }
+    if (button.key === 'blog-publish-confirm') {
+      void handleBlogPublish();
+      return;
+    }
+    if (button.key === 'blog-revise') {
+      setBlogStep('askTopic');
+      setBlogDraft(EMPTY_BLOG_DRAFT);
+      appendAiMessage({ content: '最初からやり直します。\nどんなテーマで書きますか？' });
       return;
     }
   };
@@ -3036,6 +3213,21 @@ ${currentHtml}
         return;
       }
       appendAiMessage({ content: '下の「OK」または「修正」ボタンから選択してください。' });
+      return;
+    }
+
+    // Blog flow intercept (takes priority, step driven)
+    if (
+      activeServiceMode === 'pal_studio' &&
+      blogStep !== 'idle' && blogStep !== 'generating' &&
+      blogStep !== 'preview' && blogStep !== 'publishing' && blogStep !== 'done'
+    ) {
+      setIsLoading(true);
+      try {
+        await handleBlogFlowInput(messageToSend);
+      } finally {
+        setIsLoading(false);
+      }
       return;
     }
 
@@ -3641,7 +3833,8 @@ ${currentHtml}
   };
 
   const isSelectionOnlyStage = activeServiceMode === 'pal_studio' && (studioStep === 'revisionSelect' || studioStep === 'revisionConfirm' || studioStep === 'postOkMessageToggle');
-  const isMainInputDisabled = conversationEnded || isSelectionOnlyStage;
+  const isBlogWaitingForAction = blogStep === 'preview' || blogStep === 'generating' || blogStep === 'publishing';
+  const isMainInputDisabled = conversationEnded || isSelectionOnlyStage || isBlogWaitingForAction;
   const palVideoPlanCode = String(activeServiceCard?.planCode || '').toLowerCase();
   const isPalVideoLiteMode = activeServiceMode === 'pal_video' && palVideoPlanCode.includes('pal_video_lite');
   const isPalVideoMediaStep = activeServiceMode === 'pal_video' && (
