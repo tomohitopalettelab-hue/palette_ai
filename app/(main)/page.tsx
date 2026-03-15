@@ -199,17 +199,19 @@ function PaletteDesignInner() {
   const [studioStep, setStudioStep] = useState<StudioStep>('idle');
   const [blogStep, setBlogStep] = useState<BlogStep>('idle');
   const [blogDraft, setBlogDraft] = useState<BlogDraft>(EMPTY_BLOG_DRAFT);
-  const [palVideoLiteStep, setPalVideoLiteStep] = useState<'purpose' | 'duration' | 'media' | 'color' | 'bgm' | 'done'>('purpose');
-  const [palVideoLiteAnswers, setPalVideoLiteAnswers] = useState<{ purpose: string; duration: string; mediaUrls: string[]; color: string; bgm: string }>({
+  const [palVideoLiteStep, setPalVideoLiteStep] = useState<'purpose' | 'destination' | 'duration' | 'media' | 'color' | 'bgm' | 'done'>('purpose');
+  const [palVideoLiteAnswers, setPalVideoLiteAnswers] = useState<{ purpose: string; destination: string; duration: string; mediaUrls: string[]; color: string; bgm: string }>({
     purpose: '',
+    destination: '',
     duration: '',
     mediaUrls: [],
     color: '',
     bgm: '',
   });
-  const [palVideoStandardStep, setPalVideoStandardStep] = useState<'purpose' | 'duration' | 'telop' | 'color' | 'media' | 'done'>('purpose');
-  const [palVideoStandardAnswers, setPalVideoStandardAnswers] = useState<{ purpose: string; duration: string; telop: string; color: string; mediaUrls: string[] }>({
+  const [palVideoStandardStep, setPalVideoStandardStep] = useState<'purpose' | 'destination' | 'duration' | 'telop' | 'color' | 'media' | 'done'>('purpose');
+  const [palVideoStandardAnswers, setPalVideoStandardAnswers] = useState<{ purpose: string; destination: string; duration: string; telop: string; color: string; mediaUrls: string[] }>({
     purpose: '',
+    destination: '',
     duration: '',
     telop: '',
     color: '',
@@ -1174,44 +1176,75 @@ function PaletteDesignInner() {
     { key: 'studio-media-none', label: 'なし' },
     { key: 'studio-media-done', label: '完了' },
   ];
-  const PAL_VIDEO_LITE_BGM_OPTIONS = ['ライト/ポップ', 'クール/ミニマル', 'ウォーム/ナチュラル'];
+  const PAL_VIDEO_LITE_BGM_OPTIONS = ['明るい・ポップ', 'クール・ミニマル', '感動・シネマ', 'ナチュラル・ほのぼの'];
+  const PAL_VIDEO_PURPOSE_OPTIONS = ['プロモーション動画', 'SNS投稿用', 'SNS広告', '口コミ紹介', '実績紹介'];
+  const PAL_VIDEO_DESTINATION_OPTIONS = [
+    'Instagram リール', 'Instagram ストーリーズ', 'Instagram フィード',
+    'TikTok', 'YouTube ショート', 'YouTube',
+    'X (Twitter)', 'LINE VOOM', 'Facebook', 'Webバナー動画',
+  ];
   const PAL_VIDEO_PURPOSE_LABELS: Record<string, string> = {
-    instagram_reel: 'Instagramリール',
-    instagram_story: 'Instagramストーリーズ',
-    instagram_feed: 'Instagramフィード',
-    youtube_short: 'YouTubeショート',
-    youtube: 'YouTube',
+    promotion: 'プロモーション動画',
+    sns_post: 'SNS投稿用',
+    sns_ad: 'SNS広告',
+    review: '口コミ紹介',
+    achievement: '実績紹介',
+  };
+  const PAL_VIDEO_DESTINATION_LABELS: Record<string, string> = {
+    instagram_reel: 'Instagram リール',
+    instagram_story: 'Instagram ストーリーズ',
+    instagram_feed: 'Instagram フィード',
     tiktok: 'TikTok',
-    x: 'X',
+    youtube_short: 'YouTube ショート',
+    youtube: 'YouTube',
+    x_twitter: 'X (Twitter)',
     line_voom: 'LINE VOOM',
     facebook: 'Facebook',
-    promotion: 'プロモーション/広告',
+    web_banner: 'Webバナー動画',
   };
   const PAL_VIDEO_BGM_LABELS: Record<string, string> = {
-    light: 'ライト/ポップ',
-    pop: 'ライト/ポップ',
-    cool: 'クール/ミニマル',
-    warm: 'ウォーム/ナチュラル',
+    bright_pop: '明るい・ポップ',
+    cool_minimal: 'クール・ミニマル',
+    cinematic: '感動・シネマ',
+    natural_warm: 'ナチュラル・ほのぼの',
+    light: '明るい・ポップ',
+    pop: '明るい・ポップ',
+    cool: 'クール・ミニマル',
+    warm: 'ナチュラル・ほのぼの',
   };
 
   const applyPalVideoLitePrompt = (text: string) => {
     const normalized = String(text || '');
+    if (/動画の用途|コンテンツの目的|用途を教えて/.test(normalized)) {
+      applyStudioPrompt(['動画の用途（コンテンツの目的）を教えてください。'], [PAL_VIDEO_PURPOSE_OPTIONS], ['single']);
+      return;
+    }
+    if (/投稿先|プラットフォーム|掲載先/.test(normalized)) {
+      applyStudioPrompt(['投稿先を教えてください。'], [PAL_VIDEO_DESTINATION_OPTIONS], ['single']);
+      return;
+    }
     if (/動画の秒数|秒数は何秒|何秒程度|何秒ぐらい|何秒くらい/.test(normalized)) {
       applyStudioPrompt(['動画の秒数は何秒程度がいいですか？'], [PAL_VIDEO_LITE_DURATION_OPTIONS], ['single']);
       return;
     }
     if (/使いたい色|色はありますか|色の希望|色を教えて|カラー|色味|配色|トーン/.test(normalized)) {
       applyStudioPrompt(['使いたい色を1つ選択してください。'], [STUDIO_COLOR_OPTIONS], ['single']);
+      return;
+    }
+    if (/bgmのイメージ|bgmはありますか|音楽のイメージ/.test(normalized)) {
+      applyStudioPrompt(['BGMのイメージはありますか？'], [PAL_VIDEO_LITE_BGM_OPTIONS], ['single']);
     }
   };
 
   const buildPalVideoCompletionMessage = (payload: ReturnType<typeof buildPalVideoPayload>) => {
     const purposeLabel = PAL_VIDEO_PURPOSE_LABELS[payload.purpose] || '動画';
+    const destinationLabel = PAL_VIDEO_DESTINATION_LABELS[payload.destination || ''] || payload.destination || '';
     const duration = Number(payload.durationSec || 0) || 15;
     const colorText = payload.colorNote || payload.colorPrimary || '指定なし';
     const rawBgm = String(payload.bgm || '').trim();
     const bgmLabel = PAL_VIDEO_BGM_LABELS[rawBgm] || rawBgm || 'BGM指定なし';
-    return `ありがとうございました！これで、制作に必要な情報は全て揃いました。${purposeLabel}で、${duration}秒、${colorText}を基調とした${bgmLabel}のBGMの動画を制作します。\n5営業日以内に連絡しますので、楽しみにお待ちください！`;
+    const destText = destinationLabel ? `（${destinationLabel}）` : '';
+    return `ありがとうございました！これで、制作に必要な情報は全て揃いました。${purposeLabel}${destText}で、${duration}秒、${colorText}を基調とした${bgmLabel}のBGMの動画を制作します。\n5営業日以内に連絡しますので、楽しみにお待ちください！`;
   };
 
   const extractStudioAnswers = (raw: string): string[] => {
@@ -1877,29 +1910,31 @@ ${template.html}
 
   const normalizePalVideoPurpose = (raw: string): string => {
     const value = String(raw || '').toLowerCase();
-    if (/ストーリー|ストーリーズ|stories/.test(value)) return 'instagram_story';
-    if (/reel|リール|ショート|short/.test(value)) return 'instagram_reel';
-    if (/フィード|feed/.test(value)) return 'instagram_feed';
-    if (/youtubeショート|youtube\s*short|shorts/.test(value)) return 'youtube_short';
-    if (/youtube|ユーチューブ/.test(value)) return 'youtube';
-    if (/tiktok|ティックトック/.test(value)) return 'tiktok';
-    if (/(^|\s|\b)x(\b|\s)|twitter|ツイッター/.test(value)) return 'x';
-    if (/line|voom|ライン/.test(value)) return 'line_voom';
-    if (/facebook|フェイスブック/.test(value)) return 'facebook';
-    if (/広告|プロモ|promotion|ad/.test(value)) return 'promotion';
-    if (/説明|解説|チュートリアル/.test(value)) return 'promotion';
+    if (/プロモーション|promotion/.test(value)) return 'promotion';
+    if (/sns投稿|sns.*投稿|投稿用|オーガニック/.test(value)) return 'sns_post';
+    if (/sns広告|sns.*広告|有料広告|ads/.test(value)) return 'sns_ad';
+    if (/口コミ|レビュー|review/.test(value)) return 'review';
+    if (/実績|事例|achievement/.test(value)) return 'achievement';
     return '';
   };
 
-  const PAL_VIDEO_TEMPLATE_MAP: Record<string, string> = {
-    instagram_feed: 'a02095a2-9469-4f52-9bcd-66fc884453a1',
-    promotion: '516cafa1-15cc-44e3-8a39-af5a07862bc0',
-    youtube: '979f7579-5567-4d7b-a615-777d825d9f9d',
+  const normalizeDestination = (raw: string): string => {
+    const value = String(raw || '').toLowerCase();
+    if (/ストーリー|ストーリーズ|stories/.test(value)) return 'instagram_story';
+    if (/リール|reel/.test(value)) return 'instagram_reel';
+    if (/フィード|feed/.test(value)) return 'instagram_feed';
+    if (/youtube\s*(ショート|short|shorts)/.test(value)) return 'youtube_short';
+    if (/youtube|ユーチューブ/.test(value)) return 'youtube';
+    if (/tiktok|ティックトック/.test(value)) return 'tiktok';
+    if (/(^|\s|\b)x(\b|\s)|twitter|ツイッター/.test(value)) return 'x_twitter';
+    if (/line|voom|ライン/.test(value)) return 'line_voom';
+    if (/facebook|フェイスブック/.test(value)) return 'facebook';
+    if (/webバナー|web\s*banner|バナー/.test(value)) return 'web_banner';
+    return '';
   };
 
-  const resolvePalVideoTemplateCandidates = (purpose: string) => {
-    const mapped = PAL_VIDEO_TEMPLATE_MAP[purpose];
-    return [mapped, 'pal_video_fixed_v1'].filter(Boolean);
+  const resolvePalVideoTemplateCandidates = (_destination: string) => {
+    return [];
   };
 
   const extractPalVideoDuration = (raw: string): number | null => {
@@ -1932,7 +1967,8 @@ ${template.html}
 
   const buildPalVideoPayload = (currentMessages: any[]) => {
     const answers = buildUserAnswers(currentMessages);
-    const purposeAnswer = answers.find((item) => /(制作目的|用途|媒体|プラットフォーム|instagram|インスタ|youtube|tiktok|x|twitter|line|voom|facebook|広告|プロモ|説明)/i.test(item.q))?.a || '';
+    const purposeAnswer = answers.find((item) => /(制作目的|コンテンツの目的|動画の用途|用途.*目的|目的.*用途|プロモーション|SNS投稿|SNS広告|口コミ|実績)/i.test(item.q))?.a || '';
+    const destinationAnswer = answers.find((item) => /(投稿先|プラットフォーム|掲載先|媒体|instagram|インスタ|youtube|tiktok|x|twitter|line|voom|facebook)/i.test(item.q))?.a || '';
     const durationAnswer = answers.find((item) => /(尺|秒|時間|長さ|動画の長さ)/i.test(item.q))?.a || '';
     const telopAnswer = answers.find((item) => /(テロップ|コピー|キャッチ|キャッチコピー)/i.test(item.q))?.a || '';
     const colorAnswer = answers.find((item) => /(色|カラー|配色|トーン|雰囲気)/i.test(item.q))?.a || '';
@@ -1940,6 +1976,7 @@ ${template.html}
     const bgmAnswer = answers.find((item) => /(bgm|音楽|曲|サウンド)/i.test(item.q))?.a || '';
 
     const purpose = normalizePalVideoPurpose(purposeAnswer) || normalizePalVideoPurpose(answers.map((item) => item.a).join(' '));
+    const destination = normalizeDestination(destinationAnswer) || normalizeDestination(answers.map((item) => item.a).join(' '));
     const durationSec = extractPalVideoDuration(durationAnswer || answers.map((item) => item.a).join(' ')) || 30;
     const telop = splitTelop(telopAnswer || '');
     const colors = extractHexColors(colorAnswer);
@@ -1957,10 +1994,12 @@ ${template.html}
       .filter((msg: any) => !/(顧客id|palette id|パスワード|認証|ログイン|こんにちは！palette ai)/i.test(msg.content))
       .filter((msg: any) => !/•{3,}/.test(msg.content));
 
-    const resolvedPurpose = purpose || 'instagram_reel';
+    const resolvedPurpose = purpose || 'promotion';
+    const resolvedDestination = destination || 'instagram_reel';
 
     return {
       purpose: resolvedPurpose,
+      destination: resolvedDestination,
       durationSec,
       telopMain: telop.main || 'テロップ未設定',
       telopSub: telop.sub || 'サブテロップ未設定',
@@ -1971,7 +2010,7 @@ ${template.html}
       bgm: bgmAnswer || '',
       hearingAnswers: answers,
       hearingMessages,
-      templateCandidates: resolvePalVideoTemplateCandidates(resolvedPurpose),
+      templateCandidates: resolvePalVideoTemplateCandidates(resolvedDestination),
     };
   };
 
@@ -2040,7 +2079,6 @@ ${template.html}
     if (activeServiceMode !== 'pal_video') return;
     const planCode = String(activeServiceCard?.planCode || 'pal_video_lite');
     const payload = buildPalVideoPayload(currentMessages);
-    const creatomatePlan = await generateCreatomatePlan(payload, currentMessages);
     try {
       await fetch('/api/palette-ai/pal-video-job', {
         method: 'POST',
@@ -2048,12 +2086,18 @@ ${template.html}
         body: JSON.stringify({
           paletteId: resolvedCustomerId,
           planCode,
-          status: '編集中',
+          status: 'draft',
           payload: {
-            ...payload,
-            creatomatePlan,
-            creatomateTemplateId: creatomatePlan?.templateId || 'pal_video_fixed_v1',
-            creatomateTemplateMode: creatomatePlan?.templateMode || 'fixed',
+            title: payload.telopMain || '新規動画',
+            purpose: payload.purpose,
+            destination: payload.destination,
+            duration: payload.durationSec,
+            colorPrimary: payload.colorPrimary || '',
+            colorAccent: payload.colorAccent || '',
+            bgm: payload.bgm || '',
+            cuts: [],
+            hearingAnswers: payload.hearingAnswers || [],
+            hearingMessages: payload.hearingMessages || [],
           },
         }),
       });
@@ -2984,35 +3028,36 @@ ${currentHtml}
       const isLite = palVideoPlanCode.includes('pal_video_lite');
       appendAiMessage({
         content: isLite
-          ? 'Pal Video ライトのヒアリングを開始します。まず用途を教えてください。(選択肢: Instagramリール, Instagramストーリーズ, Instagramフィード, YouTubeショート, TikTok, X, LINE VOOM, Facebook, プロモーション/広告)'
-          : 'Pal Video のヒアリングを開始します。用途・尺・テロップ・色・素材（画像/ロゴ）の希望を教えてください。',
+          ? 'Pal Video ライトのヒアリングを開始します。まず動画の用途（コンテンツの目的）を教えてください。'
+          : 'Pal Video のヒアリングを開始します。まず動画の用途（コンテンツの目的）を教えてください。',
       });
       if (isLite) {
         setPalVideoLiteStep('purpose');
         setPalVideoLiteAnswers({
           purpose: '',
+          destination: '',
           duration: '',
           mediaUrls: [],
           color: '',
           bgm: '',
         });
-        clearMultiPromptState();
-        applyStudioPrompt(
-          ['用途を教えてください。'],
-          [[
-            'Instagramリール',
-            'Instagramストーリーズ',
-            'Instagramフィード',
-            'YouTubeショート',
-            'TikTok',
-            'X',
-            'LINE VOOM',
-            'Facebook',
-            'プロモーション/広告',
-          ]],
-          ['single'],
-        );
+      } else {
+        setPalVideoStandardStep('purpose');
+        setPalVideoStandardAnswers({
+          purpose: '',
+          destination: '',
+          duration: '',
+          telop: '',
+          color: '',
+          mediaUrls: [],
+        });
       }
+      clearMultiPromptState();
+      applyStudioPrompt(
+        ['動画の用途（コンテンツの目的）を教えてください。'],
+        [PAL_VIDEO_PURPOSE_OPTIONS],
+        ['single'],
+      );
       return;
     }
 
@@ -3301,6 +3346,11 @@ ${currentHtml}
 
       if (palVideoStandardStep === 'purpose') {
         nextAnswers.purpose = messageToSend.trim();
+        nextStep = 'destination';
+        pushAi('投稿先（プラットフォーム）を教えてください。');
+        applyStudioPrompt(['投稿先を教えてください。'], [PAL_VIDEO_DESTINATION_OPTIONS], ['single']);
+      } else if (palVideoStandardStep === 'destination') {
+        nextAnswers.destination = messageToSend.trim();
         nextStep = 'duration';
         pushAi('動画の秒数は何秒程度がいいですか？(選択肢: 15秒, 20秒, 25秒, 30秒)');
         applyStudioPrompt(['動画の秒数は何秒程度がいいですか？'], [PAL_VIDEO_LITE_DURATION_OPTIONS], ['single']);
@@ -3363,6 +3413,11 @@ ${currentHtml}
 
       if (palVideoLiteStep === 'purpose') {
         nextAnswers.purpose = messageToSend.trim();
+        nextStep = 'destination';
+        pushAi('投稿先（プラットフォーム）を教えてください。');
+        applyStudioPrompt(['投稿先を教えてください。'], [PAL_VIDEO_DESTINATION_OPTIONS], ['single']);
+      } else if (palVideoLiteStep === 'destination') {
+        nextAnswers.destination = messageToSend.trim();
         nextStep = 'duration';
         pushAi('動画の秒数は何秒程度がいいですか？(選択肢: 15秒, 20秒, 25秒, 30秒)');
         applyStudioPrompt(['動画の秒数は何秒程度がいいですか？'], [PAL_VIDEO_LITE_DURATION_OPTIONS], ['single']);
@@ -3382,7 +3437,7 @@ ${currentHtml}
       } else if (palVideoLiteStep === 'color') {
         nextAnswers.color = messageToSend.trim();
         nextStep = 'bgm';
-        pushAi('BGMのイメージはありますか？(選択肢: ライト/ポップ, クール/ミニマル, ウォーム/ナチュラル)');
+        pushAi('BGMのイメージはありますか？(選択肢: 明るい・ポップ, クール・ミニマル, 感動・シネマ, ナチュラル・ほのぼの)');
         applyStudioPrompt(['BGMのイメージはありますか？'], [PAL_VIDEO_LITE_BGM_OPTIONS], ['single']);
       } else if (palVideoLiteStep === 'bgm') {
         nextAnswers.bgm = messageToSend.trim();
@@ -3435,13 +3490,12 @@ ${currentHtml}
 動的補足:
 - 現在は Pal Video 専用モードです。動画制作のヒアリングのみを行ってください。
 - ${isPalVideoLite ? 'ライトプラン向けの質問を固定順で進めてください。' : '標準の質問項目を揃えてください。'}
-- 次の項目が揃うまで、制作完了の宣言はしないでください: ${isPalVideoLite ? '制作目的 / 秒数 / 素材（画像・ロゴ） / 色 / BGM' : '用途 / 尺 / テロップ / 色 / 素材（画像・ロゴ）'}
-- ${isPalVideoLite ? '質問順序は 1)制作目的 2)秒数 3)素材 4)色 5)BGM の順にしてください。' : '用途は Instagramリール/ストーリーズ/フィード・YouTube/YouTubeショート・TikTok・X・LINE VOOM・Facebook・プロモーション のいずれかに分類できるように確認してください。'}
-- ${isPalVideoLite ? '用途の質問は次の形式で出してください: 用途を教えてください。(選択肢: Instagramリール, Instagramストーリーズ, Instagramフィード, YouTubeショート, TikTok, X, LINE VOOM, Facebook, プロモーション/広告)' : 'テロップはメインとサブがあれば分けて確認してください。1つしかない場合はメイン扱いで構いません。'}
-- ${isPalVideoLite ? '秒数の質問は次の形式で出してください: 動画の秒数は何秒程度がいいですか？(選択肢: 15秒, 20秒, 25秒, 30秒)' : '素材の有無を必ず確認し、画像/ロゴURLの提示方法を案内してください。'}
-- ${isPalVideoLite ? '素材の質問は次の形式で出してください: 使いたいロゴや画像はありますか？（あればアップロードやURLで教えてください）' : ''}
-- ${isPalVideoLite ? '色の質問は次の形式で出してください: 使いたい色はありますか？（例: #E95464 など）' : ''}
-- ${isPalVideoLite ? 'BGMの質問は次の形式で出してください: BGMのイメージはありますか？(選択肢: ライト/ポップ, クール/ミニマル, ウォーム/ナチュラル)' : ''}
+- 次の項目が揃うまで、制作完了の宣言はしないでください: ${isPalVideoLite ? '用途 / 投稿先 / 秒数 / 素材（画像・ロゴ） / 色 / BGM' : '用途 / 投稿先 / 尺 / テロップ / 色 / 素材（画像・ロゴ）'}
+- 質問順序: 1)用途（プロモーション/SNS投稿/SNS広告/口コミ紹介/実績紹介） 2)投稿先（プラットフォーム） ${isPalVideoLite ? '3)秒数 4)素材 5)色 6)BGM' : '3)秒数 4)テロップ 5)色 6)素材'}
+- 用途の質問形式: 動画の用途（コンテンツの目的）を教えてください。(選択肢: プロモーション動画, SNS投稿用, SNS広告, 口コミ紹介, 実績紹介)
+- 投稿先の質問形式: 投稿先（プラットフォーム）を教えてください。(選択肢: Instagram リール, Instagram ストーリーズ, Instagram フィード, TikTok, YouTube ショート, YouTube, X (Twitter), LINE VOOM, Facebook, Webバナー動画)
+- 秒数の質問形式: 動画の秒数は何秒程度がいいですか？(選択肢: 15秒, 20秒, 25秒, 30秒)
+${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか？(選択肢: 明るい・ポップ, クール・ミニマル, 感動・シネマ, ナチュラル・ほのぼの)' : '- テロップはメインとサブがあれば分けて確認してください。'}
 - 顧客の呼称は「${displayCustomerName}様」を優先し、顧客ID（例: P1111）で呼ばないでください。
 `
       : `
@@ -3461,8 +3515,8 @@ ${currentHtml}
     const isPalVideoMode = activeServiceMode === 'pal_video';
     const fieldOrder = isPalVideoMode
       ? (isPalVideoLite
-        ? ['制作目的', '秒数', '素材', '色', 'BGM']
-        : ['用途', '尺', 'テロップ', '色', '素材'])
+        ? ['用途', '投稿先', '秒数', '素材', '色', 'BGM']
+        : ['用途', '投稿先', '尺', 'テロップ', '色', '素材'])
       : [
           '屋号名・会社名',
           '業種・サービス',
@@ -3478,14 +3532,16 @@ ${currentHtml}
     const fieldPatterns: { label: string; pattern: RegExp }[] = isPalVideoMode
       ? (isPalVideoLite
         ? [
-            { label: '制作目的', pattern: /(制作目的|用途|広告動画|sns|プロモーション|説明動画|instagram|インスタ|youtube|tiktok|x|twitter|line|voom|facebook|リール|ストーリー|ショート)/i },
+            { label: '用途', pattern: /(用途|コンテンツの目的|プロモーション|sns投稿|sns広告|口コミ|実績)/i },
+            { label: '投稿先', pattern: /(投稿先|プラットフォーム|掲載先|instagram|インスタ|youtube|tiktok|x|twitter|line|voom|facebook|バナー)/i },
             { label: '秒数', pattern: /(尺|秒|時間|長さ|動画の長さ)/i },
             { label: '素材', pattern: /(素材|画像|写真|ロゴ|動画素材|アップロード)/i },
             { label: '色', pattern: /(色|カラー|配色|トーン|雰囲気)/i },
-            { label: 'BGM', pattern: /(bgm|音楽|曲|サウンド|ミニマル|ポップ|ナチュラル)/i },
+            { label: 'BGM', pattern: /(bgm|音楽|曲|サウンド|ミニマル|ポップ|ナチュラル|シネマ)/i },
           ]
         : [
-            { label: '用途', pattern: /(用途|媒体|プラットフォーム|instagram|インスタ|youtube|tiktok|x|twitter|line|voom|facebook|リール|ストーリー|ショート|広告|プロモ)/i },
+            { label: '用途', pattern: /(用途|コンテンツの目的|プロモーション|sns投稿|sns広告|口コミ|実績)/i },
+            { label: '投稿先', pattern: /(投稿先|プラットフォーム|掲載先|instagram|インスタ|youtube|tiktok|x|twitter|line|voom|facebook|バナー)/i },
             { label: '尺', pattern: /(尺|秒|時間|長さ|動画の長さ)/i },
             { label: 'テロップ', pattern: /(テロップ|コピー|キャッチ|キャッチコピー)/i },
             { label: '色', pattern: /(色|カラー|配色|トーン|雰囲気)/i },
