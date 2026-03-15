@@ -164,6 +164,7 @@ function PaletteDesignInner() {
   const [authStep, setAuthStep] = useState<'askId' | 'askPassword' | 'authenticated'>('askId');
   const [authPaletteId, setAuthPaletteId] = useState('');
   const [authCustomerName, setAuthCustomerName] = useState('');
+  const [authIndustry, setAuthIndustry] = useState('');
   const [authServiceSummary, setAuthServiceSummary] = useState('');
   const [authServiceCards, setAuthServiceCards] = useState<ServiceCard[]>([]);
   const [authContractCards, setAuthContractCards] = useState<ContractInfoCard[]>([]);
@@ -2255,6 +2256,12 @@ ${template.html}
         borderColor: '#F9C11C55',
       };
     }
+    if (serviceKey === 'pal_opt') {
+      return {
+        backgroundColor: '#A6218322',
+        borderColor: '#A6218355',
+      };
+    }
     return {
       backgroundColor: '#FFFFFF99',
       borderColor: '#CBD5E1',
@@ -2605,12 +2612,21 @@ ${currentHtml}
     setInputText('');
 
     if (studioStep === 'shopName') {
-      setStudioProfile((prev) => ({ ...prev, shopName: first }));
-      setStudioStep('industry');
-      applyStudioPrompt(['業種を選択してください（該当がなければ自由入力へ切り替え可）。'], [[
-        '飲食', '美容・サロン', '士業', '工務店・建築', '不動産', '医療・クリニック', '教育', 'その他（自由入力）',
-      ]], ['single']);
-      appendAiMessage({ content: '続いて、業種を教えてください。' });
+      const shopNameVal = first;
+      // pal_db に業種が登録済みならスキップ
+      if (authIndustry) {
+        setStudioProfile((prev) => ({ ...prev, shopName: shopNameVal, industry: authIndustry }));
+        setStudioStep('services');
+        applyStudioPrompt(['具体的なサービス内容を選択してください（複数選択可）。'], [getServiceCandidatesByIndustry(authIndustry)], ['multi']);
+        appendAiMessage({ content: `業種は「${authIndustry}」で登録されています。続いて、具体的なサービス内容を教えてください。` });
+      } else {
+        setStudioProfile((prev) => ({ ...prev, shopName: shopNameVal }));
+        setStudioStep('industry');
+        applyStudioPrompt(['業種を選択してください（該当がなければ自由入力へ切り替え可）。'], [[
+          '飲食', '美容・サロン', '士業', '工務店・建築', '不動産', '医療・クリニック', '教育', 'その他（自由入力）',
+        ]], ['single']);
+        appendAiMessage({ content: '続いて、業種を教えてください。' });
+      }
       return;
     }
 
@@ -3177,11 +3193,13 @@ ${currentHtml}
         setAuthContractCards(buildContractInfoCards(verifyData?.summary || {}));
         const customerName = normalizeCustomerName(String(verifyData?.accountName || verifyData?.customerName || ''));
         setAuthCustomerName(customerName || '');
+        const industry = String(verifyData?.summary?.account?.industry || '');
+        setAuthIndustry(industry);
         setMessages([
           ...updatedMessages,
           {
             role: 'ai',
-            content: `ありがとうございます！${customerName || 'お客様'}様ですね！\n認証が完了しました。ヒアリングを始めます。`,
+            content: `${customerName || 'お客様'}様ですね！ 認証が完了しました。\nなにをお手伝いしますか？`,
             serviceCards: Array.isArray(verifyData?.serviceCards) ? verifyData.serviceCards : [],
           },
         ]);

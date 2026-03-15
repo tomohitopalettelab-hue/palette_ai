@@ -1,14 +1,7 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
+import OpenAI from 'openai';
 
-const MODELS = (
-  process.env.GENERATE_MODEL_LIST ||
-  process.env.CHAT_MODEL_LIST ||
-  'gemini-2.5-flash,gemini-2.5-flash-lite'
-)
-  .split(',')
-  .map((m) => m.trim())
-  .filter(Boolean);
+const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
 export async function POST(req: Request) {
   try {
@@ -23,12 +16,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'topic は必須です。' }, { status: 400 });
     }
 
-    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    const apiKey = process.env.OPENAI_KEY_API || process.env.OPENAI_API_KEY || '';
     if (!apiKey) {
-      return NextResponse.json({ error: 'GOOGLE_GENERATIVE_AI_API_KEY が未設定です。' }, { status: 500 });
+      return NextResponse.json({ error: 'OpenAI APIキーが設定されていません。' }, { status: 500 });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const openai = new OpenAI({ apiKey });
 
     const prompt = `あなたはSEO対策に精通したブログライターです。
 以下の情報をもとに、読者に価値を提供するブログ記事を生成してください。
@@ -49,27 +42,13 @@ export async function POST(req: Request) {
 
 bodyHtmlはHTMLコードとして出力してください。マークダウン・コードブロック不可。`;
 
-    let result: { text: string } | null = null;
+    const completion = await openai.chat.completions.create({
+      model: MODEL,
+      response_format: { type: 'json_object' },
+      messages: [{ role: 'user', content: prompt }],
+    });
 
-    for (const model of MODELS) {
-      try {
-        const res = await ai.models.generateContent({
-          model,
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          config: { responseMimeType: 'application/json' },
-        });
-        result = res as unknown as { text: string };
-        break;
-      } catch (err) {
-        console.warn(`[pal-studio-blog/generate] model ${model} failed:`, err);
-      }
-    }
-
-    if (!result) {
-      return NextResponse.json({ error: 'コンテンツ生成に失敗しました。' }, { status: 500 });
-    }
-
-    const raw = String((result as unknown as { text: string }).text || '');
+    const raw = completion.choices[0]?.message?.content || '';
     const cleaned = raw
       .replace(/^```json\s*/i, '')
       .replace(/^```\s*/i, '')

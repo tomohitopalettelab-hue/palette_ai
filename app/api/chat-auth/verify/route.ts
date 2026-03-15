@@ -62,11 +62,17 @@ const isPalVideoPlanCode = (code: string): boolean => {
     || normalized === 'pal_video_pro';
 };
 
+const isPalOptPlanCode = (code: string): boolean => {
+  const normalized = String(code || '').trim().toLowerCase().replace(/-/g, '_');
+  return normalized === 'pal_opt_lite' || normalized === 'pal_opt_standard';
+};
+
 const resolveServiceKey = (plan: any): string => {
   const code = String(plan?.code || '').toLowerCase();
   const normalized = code.replace(/-/g, '_');
   if (isPalStudioPlanCode(normalized)) return 'pal_studio';
   if (isPalVideoPlanCode(normalized)) return 'pal_video';
+  if (isPalOptPlanCode(normalized)) return 'pal_opt';
   if (normalized.includes('palette_ai') || normalized === 'ai' || normalized.startsWith('ai_')) return 'palette_ai';
   if (normalized.includes('pal_trust') || normalized === 'trust' || normalized.startsWith('trust_')) return 'pal_trust';
   return 'other';
@@ -84,6 +90,9 @@ const getServiceMeta = (serviceKey: string) => {
   }
   if (serviceKey === 'pal_trust') {
     return { title: 'Pal Trust', description: '口コミシステム' };
+  }
+  if (serviceKey === 'pal_opt') {
+    return { title: 'Pal Opt', description: '投稿代行サービス' };
   }
   return { title: 'Other Service', description: '契約サービス' };
 };
