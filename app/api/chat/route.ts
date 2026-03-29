@@ -6,6 +6,8 @@ const PALETTE_ID_PATTERN = /\b([A-Za-z][0-9]{4})\b/;
 const SERVICE_QUERY_PATTERN = /(顧客ID|paletteid|サービス|契約|プラン|内容|案内|確認|照会|教えて)/i;
 const UNSUPPORTED_FEATURE_PATTERN = /(ブログ投稿|ブログ機能|投稿機能|ニュース投稿|予約機能|予約フォーム|会員機能|マイページ|EC機能|決済機能|チャットボット実装|LINE連携|在庫管理)/i;
 const UNSUPPORTED_FEATURE_MESSAGE = 'ブログとか投稿系とか予約機能とか、いま提示した条件いがいのことは、現在のプランでは実装できないので、プランアップするか、Palette Labへお問い合わせください。';
+const CONCIERGE_PATTERN = /(やるべきこと|やったほうがいい|おすすめ|提案して|改善|状況を?確認|ステータス|チェックして|何(か|を)した(ら|ほうが)|どうすれば|何すれば|進捗|どこまで|進んでる|いま何|状態を?教えて)/i;
+const MARKETING_ADVISOR_PATTERN = /(運用相談|マーケティング|集客|売上.*上げ|アクセス.*増|SNS.*運用|広告.*出し|口コミ.*増|リピーター|ブランディング|認知.*上げ|WEB戦略|販促|プロモーション)/i;
 
 const formatDate = (raw?: string | null): string => {
   if (!raw) return '未設定';
@@ -82,6 +84,16 @@ export async function POST(req: Request) {
     const serviceSummary = await tryFetchServiceSummary(String(message || ''));
     if (serviceSummary) {
       return NextResponse.json({ text: serviceSummary });
+    }
+
+    // Marketing advisor trigger
+    if (MARKETING_ADVISOR_PATTERN.test(String(message || ''))) {
+      return NextResponse.json({ text: '__MARKETING_ADVISOR__', originalMessage: String(message || '') });
+    }
+
+    // Concierge trigger — tell the client to invoke /api/concierge instead
+    if (CONCIERGE_PATTERN.test(String(message || ''))) {
+      return NextResponse.json({ text: '__CONCIERGE__' });
     }
 
     const baseSystem = system && String(system).trim().length > 0

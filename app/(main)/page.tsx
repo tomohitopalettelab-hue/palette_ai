@@ -1,8 +1,8 @@
 "use client";
 
-import React, { Suspense, useState, useEffect, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Send, Layout, Sparkles, User, Box, PenLine, RefreshCw, BellRing } from 'lucide-react';
+import { Send, Layout, Sparkles, User, Box, PenLine, RefreshCw, BellRing, History, Plus, Trash2, Zap, AlertTriangle, Info, Upload } from 'lucide-react';
 import { templates, Template } from '../admin/templates';
 
 type ServiceCard = {
@@ -51,10 +51,36 @@ type ChatMessage = {
   serviceCards?: ServiceCard[];
   contractCards?: ContractInfoCard[];
   actionButtons?: ActionButton[];
+  conciergeActions?: ConciergeAction[];
+  progressCards?: ProgressCard[];
+};
+
+type ChatSessionSummary = {
+  id: string;
+  paletteId: string;
+  title: string;
+  serviceMode: string;
+  updatedAt: string;
+};
+
+type ConciergeAction = {
+  priority: 'high' | 'medium' | 'low';
+  service: string;
+  title: string;
+  description: string;
+};
+
+type ProgressCard = {
+  service: string;
+  label: string;
+  status: string;
+  health: string;
+  detail: string;
+  lastActivity: string;
 };
 
 type PromptSelectionKind = 'single' | 'multi';
-type ServiceMode = 'none' | 'pal_studio' | 'pal_video' | 'palette_ai' | 'pal_trust' | 'other';
+type ServiceMode = 'none' | 'pal_studio' | 'pal_video' | 'palette_ai' | 'pal_trust' | 'marketing_advisor' | 'other';
 type StudioPlanTier = 'lite' | 'standard' | 'pro';
 
 type HearingSummary = {
@@ -128,6 +154,12 @@ const EMPTY_BLOG_DRAFT: BlogDraft = {
   topic: '', keywords: '', target: '', imageUrl: '',
   title: '', bodyHtml: '', slug: '', excerpt: '', tags: [],
 };
+
+const UPLOAD_MAX_BYTES = 12 * 1024 * 1024; // 12MB
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif',
+  'video/mp4', 'video/quicktime',
+]);
 
 type ConfirmMode = 'preview' | 'revision' | null;
 
@@ -241,6 +273,13 @@ function PaletteDesignInner() {
   const resolvedCustomerId = String(authPaletteId || queryCid || sessionCustomerId || '').trim().toUpperCase();
   const canUseMedia = authStep === 'authenticated' && PALETTE_ID_REGEX.test(resolvedCustomerId);
 
+  // --- Chat session persistence ---
+  const [chatSessionId, setChatSessionId] = useState<string>(() => `cs-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  const [chatSessions, setChatSessions] = useState<ChatSessionSummary[]>([]);
+  const [showSessionList, setShowSessionList] = useState(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedJsonRef = useRef<string>('');
+
   const normalizeCustomerName = (raw: string): string => {
     const value = String(raw || '').trim();
     if (!value) return '';
@@ -278,6 +317,201 @@ function PaletteDesignInner() {
     scrollEndRef.current?.scrollIntoView({ behavior, block: 'end' });
   };
 
+  // --- Session persistence helpers ---
+  const saveChatSession = useCallback(async (
+    msgs: ChatMessage[],
+    sessionId: string,
+    paletteId: string,
+    svcMode: string,
+  ) => {
+    if (!paletteId || !/^[A-Z][0-9]{4}$/.test(paletteId)) return;
+    // Skip save if nothing changed
+    const json = JSON.stringify(msgs);
+    if (json === lastSavedJsonRef.current) return;
+
+    try {
+      const firstUserMsg = msgs.find((m) => m.role === 'user');
+      const title = firstUserMsg
+        ? String(firstUserMsg.content).slice(0, 30)
+        : 'New conversation';
+
+      await fetch('/api/chat-sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: sessionId,
+          paletteId,
+          title,
+          serviceMode: svcMode,
+          messages: msgs,
+        }),
+      });
+      lastSavedJsonRef.current = json;
+    } catch (err) {
+      console.warn('chat session save failed', err);
+    }
+  }, []);
+
+  const debouncedSave = useCallback((
+    msgs: ChatMessage[],
+    sessionId: string,
+    paletteId: string,
+    svcMode: string,
+  ) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      void saveChatSession(msgs, sessionId, paletteId, svcMode);
+    }, 2000);
+  }, [saveChatSession]);
+
+  const loadChatSessions = useCallback(async (paletteId: string) => {
+    if (!paletteId || !/^[A-Z][0-9]{4}$/.test(paletteId)) return;
+    try {
+      const res = await fetch(`/api/chat-sessions?paletteId=${encodeURIComponent(paletteId)}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(data?.sessions)) {
+        setChatSessions(data.sessions);
+      }
+    } catch (err) {
+      console.warn('chat sessions load failed', err);
+    }
+  }, []);
+
+  const handleLoadSession = useCallback(async (sessionId: string) => {
+    try {
+      const res = await fetch(`/api/chat-sessions/${encodeURIComponent(sessionId)}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.session) {
+        const session = data.session;
+        setChatSessionId(session.id);
+        setMessages(Array.isArray(session.messages) ? session.messages : []);
+        setActiveServiceMode((session.serviceMode || 'none') as ServiceMode);
+        lastSavedJsonRef.current = JSON.stringify(session.messages || []);
+        setShowSessionList(false);
+      }
+    } catch (err) {
+      console.warn('chat session load failed', err);
+    }
+  }, []);
+
+  const handleNewSession = useCallback(() => {
+    const newId = `cs-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    setChatSessionId(newId);
+    lastSavedJsonRef.current = '';
+    setMessages([
+      { role: 'ai', content: `${normalizeCustomerName(authCustomerName) || 'お客様'}様、なにをお手伝いしますか？`, serviceCards: authServiceCards.length ? authServiceCards : [] },
+    ]);
+    setActiveServiceMode('none');
+    setConversationEnded(false);
+    setShowConfirmSave(false);
+    setGeneratedCode('');
+    setShowSessionList(false);
+  }, [authCustomerName, authServiceCards]);
+
+  const handleDeleteSession = useCallback(async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await fetch(`/api/chat-sessions?id=${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
+      setChatSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      if (sessionId === chatSessionId) {
+        handleNewSession();
+      }
+    } catch (err) {
+      console.warn('chat session delete failed', err);
+    }
+  }, [chatSessionId, handleNewSession]);
+
+  // --- Concierge ---
+  const [isConciergeLoading, setIsConciergeLoading] = useState(false);
+
+  const handleConcierge = useCallback(async () => {
+    if (!resolvedCustomerId || isConciergeLoading) return;
+    setIsConciergeLoading(true);
+
+    const userMsg: ChatMessage = { role: 'user', content: 'サービスの状況を確認したい' };
+    setMessages((prev) => [...prev, userMsg]);
+
+    try {
+      const res = await fetch('/api/concierge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paletteId: resolvedCustomerId }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data?.success) {
+        const aiMsg: ChatMessage = {
+          role: 'ai',
+          content: data.summary || 'サービスの状況を確認しました。',
+          conciergeActions: Array.isArray(data.actions) ? data.actions : [],
+          progressCards: Array.isArray(data.progress) ? data.progress : [],
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          { role: 'ai', content: data?.error || 'サービス状況の取得に失敗しました。' },
+        ]);
+      }
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'ai', content: 'サービス状況の確認中にエラーが発生しました。' },
+      ]);
+    } finally {
+      setIsConciergeLoading(false);
+    }
+  }, [resolvedCustomerId, isConciergeLoading]);
+
+  // Load sessions after authentication
+  useEffect(() => {
+    if (authStep === 'authenticated' && resolvedCustomerId) {
+      void loadChatSessions(resolvedCustomerId);
+    }
+  }, [authStep, resolvedCustomerId, loadChatSessions]);
+
+  // Auto-save on message change (after auth)
+  useEffect(() => {
+    if (authStep === 'authenticated' && messages.length > 1) {
+      debouncedSave(messages, chatSessionId, resolvedCustomerId, activeServiceMode);
+    }
+  }, [messages, authStep, chatSessionId, resolvedCustomerId, activeServiceMode, debouncedSave]);
+
+  // Save on page unload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (authStep === 'authenticated' && messages.length > 1) {
+        const firstUserMsg = messages.find((m) => m.role === 'user');
+        const title = firstUserMsg ? String(firstUserMsg.content).slice(0, 30) : 'New conversation';
+        const body = JSON.stringify({
+          id: chatSessionId,
+          paletteId: resolvedCustomerId,
+          title,
+          serviceMode: activeServiceMode,
+          messages,
+        });
+        navigator.sendBeacon('/api/chat-sessions', new Blob([body], { type: 'application/json' }));
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [authStep, messages, chatSessionId, resolvedCustomerId, activeServiceMode]);
+
+  // Cleanup save timer
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
+
+  // Close session list on outside click
+  useEffect(() => {
+    if (!showSessionList) return;
+    const handleClick = () => setShowSessionList(false);
+    const timer = setTimeout(() => document.addEventListener('click', handleClick), 0);
+    return () => { clearTimeout(timer); document.removeEventListener('click', handleClick); };
+  }, [showSessionList]);
+
   const formatBytes = (value: number): string => {
     if (!Number.isFinite(value) || value <= 0) return '0 KB';
     if (value < 1024) return `${value} B`;
@@ -308,20 +542,55 @@ function PaletteDesignInner() {
     }
   };
 
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const validateFile = (file: File): string | null => {
+    if (file.size > UPLOAD_MAX_BYTES) {
+      return `${file.name} は12MBを超えています（${formatBytes(file.size)}）。`;
+    }
+    const mime = file.type || '';
+    if (!ALLOWED_MIME_TYPES.has(mime) && !mime.startsWith('image/') && !mime.startsWith('video/')) {
+      return `${file.name} は対応していないファイル形式です（${mime || '不明'}）。`;
+    }
+    return null;
+  };
+
   const handleMediaUpload = async (file: File) => {
     if (!canUseMedia) return;
+
+    const validationError = validateFile(file);
+    if (validationError) {
+      setMediaError(validationError);
+      return;
+    }
+
     try {
       const formData = new FormData();
       formData.set('paletteId', resolvedCustomerId);
       formData.set('file', file, file.name || 'upload');
-      const response = await fetch('/api/media/upload', {
-        method: 'POST',
-        body: formData,
+
+      // Use XMLHttpRequest for progress tracking
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/media/upload');
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            setUploadProgress(Math.round((e.loaded / e.total) * 100));
+          }
+        });
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            const data = JSON.parse(xhr.responseText || '{}');
+            reject(new Error(data?.error || `アップロードに失敗しました (${xhr.status})`));
+          }
+        });
+        xhr.addEventListener('error', () => reject(new Error('アップロード中にネットワークエラーが発生しました。')));
+        xhr.send(formData);
       });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data?.success === false) {
-        throw new Error(data?.error || `アップロードに失敗しました (${response.status})`);
-      }
+
       await loadMediaAssets();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'アップロードに失敗しました。';
@@ -334,13 +603,73 @@ function PaletteDesignInner() {
     if (!files.length) return;
     setIsUploadingMedia(true);
     setMediaError('');
+    setUploadProgress(0);
+
+    // Validate all first
+    const errors: string[] = [];
+    const validFiles: File[] = [];
+    for (const file of files) {
+      const err = validateFile(file);
+      if (err) errors.push(err);
+      else validFiles.push(file);
+    }
+    if (errors.length) setMediaError(errors.join('\n'));
+
     try {
-      for (const file of files) {
-        await handleMediaUpload(file);
+      // Upload up to 3 files in parallel
+      const chunks: File[][] = [];
+      for (let i = 0; i < validFiles.length; i += 3) {
+        chunks.push(validFiles.slice(i, i + 3));
+      }
+      for (const chunk of chunks) {
+        await Promise.all(chunk.map((file) => handleMediaUpload(file)));
       }
     } finally {
       setIsUploadingMedia(false);
+      setUploadProgress(0);
       event.target.value = '';
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (canUseMedia) setIsDragOver(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    if (!canUseMedia) return;
+    const files = Array.from(e.dataTransfer.files);
+    if (!files.length) return;
+    setIsUploadingMedia(true);
+    setMediaError('');
+    setUploadProgress(0);
+    const errors: string[] = [];
+    const validFiles: File[] = [];
+    for (const file of files) {
+      const err = validateFile(file);
+      if (err) errors.push(err);
+      else validFiles.push(file);
+    }
+    if (errors.length) setMediaError(errors.join('\n'));
+    try {
+      const chunks: File[][] = [];
+      for (let i = 0; i < validFiles.length; i += 3) {
+        chunks.push(validFiles.slice(i, i + 3));
+      }
+      for (const chunk of chunks) {
+        await Promise.all(chunk.map((file) => handleMediaUpload(file)));
+      }
+    } finally {
+      setIsUploadingMedia(false);
+      setUploadProgress(0);
     }
   };
 
@@ -3091,6 +3420,19 @@ ${currentHtml}
       void handleSend(payload);
       return;
     }
+    if (button.key === 'concierge') {
+      void handleConcierge();
+      return;
+    }
+    if (button.key === 'marketing-advisor') {
+      setActiveServiceMode('marketing_advisor');
+      const aiMsg: ChatMessage = {
+        role: 'ai',
+        content: `${displayCustomerName}様、WEBマーケティングの相談ですね！\n集客・SNS運用・口コミ対策・広告など、なんでもご相談ください。お店の状況に合わせてアドバイスしますね。`,
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+      return;
+    }
     if (button.key === 'contract-services') {
       const fallbackCards = messages
         .slice()
@@ -3298,6 +3640,41 @@ ${currentHtml}
       setIsLoading(true);
       try {
         await handleStudioFlowInput(messageToSend);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Marketing advisor mode: intercept and call dedicated API
+    if (activeServiceMode === 'marketing_advisor') {
+      const userMessage: ChatMessage = { role: 'user', content: messageToSend };
+      const updatedMsgs = [...messages, userMessage];
+      setMessages(updatedMsgs);
+      setInputText('');
+      setIsLoading(true);
+      try {
+        const advisorHistory = updatedMsgs
+          .filter((m) => m.role === 'user' || m.role === 'ai')
+          .slice(-6)
+          .map((m) => ({ role: m.role, content: String(m.content).slice(0, 500) }));
+        const res = await fetch('/api/marketing-advisor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            paletteId: resolvedCustomerId,
+            message: messageToSend,
+            history: advisorHistory,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data?.success) {
+          setMessages((prev) => [...prev, { role: 'ai', content: data.text || 'アドバイスを生成できませんでした。' }]);
+        } else {
+          setMessages((prev) => [...prev, { role: 'ai', content: data?.error || '相談中にエラーが発生しました。' }]);
+        }
+      } catch {
+        setMessages((prev) => [...prev, { role: 'ai', content: '接続エラーです。' }]);
       } finally {
         setIsLoading(false);
       }
@@ -3646,6 +4023,42 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
       
       const data = await response.json();
       if (response.ok) {
+        // Marketing advisor trigger from chat API
+        if (String(data.text || '') === '__MARKETING_ADVISOR__') {
+          setActiveServiceMode('marketing_advisor');
+          // Re-send the original message through the advisor API
+          try {
+            const advisorHistory = updatedMessages
+              .slice(-6)
+              .map((m: any) => ({ role: m.role, content: String(m.content).slice(0, 500) }));
+            const advisorRes = await fetch('/api/marketing-advisor', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                paletteId: resolvedCustomerId,
+                message: messageToSend,
+                history: advisorHistory,
+              }),
+            });
+            const advisorData = await advisorRes.json().catch(() => ({}));
+            if (advisorRes.ok && advisorData?.success) {
+              setMessages((prev) => [...prev, { role: 'ai', content: advisorData.text || 'アドバイスを生成できませんでした。' }]);
+            } else {
+              setMessages((prev) => [...prev, { role: 'ai', content: advisorData?.error || '相談中にエラーが発生しました。' }]);
+            }
+          } catch {
+            setMessages((prev) => [...prev, { role: 'ai', content: '接続エラーです。' }]);
+          } finally {
+            setIsLoading(false);
+          }
+          return;
+        }
+        // Concierge trigger from chat API
+        if (String(data.text || '') === '__CONCIERGE__') {
+          setIsLoading(false);
+          void handleConcierge();
+          return;
+        }
         const aiRawText = trimSecurityRefusalMessage(String(data.text || ''));
         const aiText = normalizeAssistantOutput(aiRawText);
         const isPalVideoLiteMode = activeServiceMode === 'pal_video' && isPalVideoLite;
@@ -3922,10 +4335,12 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
     && studioStep !== 'completed';
   const imageAssets = mediaAssets.filter((asset) => String(asset.mimeType || '').startsWith('image/'));
   const mediaButton: ActionButton = { key: 'media-library', label: 'メディア' };
+  const conciergeButton: ActionButton = { key: 'concierge', label: '状況チェック' };
+  const advisorButton: ActionButton = { key: 'marketing-advisor', label: '運用相談' };
   const mergedNeutralButtons = authStep === 'authenticated'
     ? (neutralActionButtons.some((button) => button.key === 'media-library')
       ? neutralActionButtons
-      : [...neutralActionButtons, mediaButton])
+      : [...neutralActionButtons, conciergeButton, advisorButton, mediaButton])
     : neutralActionButtons;
   return (
     <div className="fixed inset-0 w-full h-[100dvh] flex items-start md:items-center justify-start md:justify-center p-0 md:p-8 overflow-hidden bg-slate-50 touch-auto md:touch-none">
@@ -3936,7 +4351,19 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
 
       <div className="w-full max-w-[1300px] h-full md:h-[90vh] bg-white/40 md:backdrop-blur-[30px] md:rounded-[60px] shadow-neu-flat flex flex-col md:flex-row border-none md:border md:border-white/60 overflow-hidden relative">
         <div className="absolute top-2 left-2 right-2 md:hidden flex items-center justify-between bg-white/45 backdrop-blur-sm px-2 py-1 rounded-full border border-white/60 z-50">
-          <span className="text-[11px] font-black text-slate-500 px-2">P</span>
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] font-black text-slate-500 px-2">P</span>
+            {authStep === 'authenticated' && (
+              <>
+                <button onClick={handleNewSession} className="w-6 h-6 rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-500">
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => { setShowSessionList((v) => !v); void loadChatSessions(resolvedCustomerId); }} className="w-6 h-6 rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-500">
+                  <History className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
+          </div>
           <div className="flex items-center gap-1">
             <button onClick={() => setActiveTab('chat')} className={`px-4 py-1 rounded-full text-[10px] font-black transition-all ${activeTab === 'chat' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500'}`}>CHAT</button>
             <button onClick={() => setActiveTab('preview')} className={`px-4 py-1 rounded-full text-[10px] font-black transition-all ${activeTab === 'preview' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500'}`}>VIEW</button>
@@ -3949,6 +4376,59 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
               <h1 className="text-2xl font-black tracking-tighter italic">Palette AI</h1>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">prototype</span>
             </div>
+            {authStep === 'authenticated' && (
+              <div className="relative flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleNewSession}
+                  title="新しい会話"
+                  className="w-8 h-8 rounded-xl bg-white/80 border border-white shadow-neu-flat flex items-center justify-center text-slate-400 hover:text-indigo-500 hover:-translate-y-0.5 transition-all duration-300"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowSessionList((v) => !v); void loadChatSessions(resolvedCustomerId); }}
+                  title="会話履歴"
+                  className="w-8 h-8 rounded-xl bg-white/80 border border-white shadow-neu-flat flex items-center justify-center text-slate-400 hover:text-indigo-500 hover:-translate-y-0.5 transition-all duration-300"
+                >
+                  <History className="w-4 h-4" />
+                </button>
+                {showSessionList && (
+                  <div className="absolute right-0 top-10 w-72 max-h-80 overflow-y-auto bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-white/60 z-50 p-2">
+                    <div className="px-2 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">会話履歴</div>
+                    {chatSessions.length === 0 && (
+                      <div className="px-3 py-4 text-xs text-slate-400 text-center">履歴はありません</div>
+                    )}
+                    {chatSessions.map((session) => (
+                      <button
+                        key={session.id}
+                        type="button"
+                        onClick={() => handleLoadSession(session.id)}
+                        className={`w-full text-left px-3 py-2.5 rounded-xl text-xs hover:bg-indigo-50 transition-colors group flex items-start justify-between gap-2 ${session.id === chatSessionId ? 'bg-indigo-50/60 ring-1 ring-indigo-200' : ''}`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-slate-700 truncate">{session.title || '(無題)'}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">
+                            {new Date(session.updatedAt).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            {session.serviceMode !== 'none' && (
+                              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-slate-100 text-[9px] font-bold">{session.serviceMode.replace('pal_', '')}</span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteSession(session.id, e)}
+                          className="opacity-0 group-hover:opacity-100 w-6 h-6 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-400 hover:bg-red-50 transition-all shrink-0"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </header>
 
           <main className="flex-1 overflow-y-auto pr-1 space-y-6 custom-scrollbar flex flex-col pb-32 md:pb-4 pt-9 md:pt-0 touch-auto" style={{ paddingBottom: isMobileViewport ? 'calc(8rem + env(safe-area-inset-bottom, 0px))' : undefined }}>
@@ -4054,6 +4534,64 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
                           ))}
                         </div>
                       )}
+                      {msg.role === 'ai' && Array.isArray(msg.conciergeActions) && msg.conciergeActions.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {msg.conciergeActions.map((action, ai) => {
+                            const colorMap = {
+                              high: { bg: 'bg-red-50/80', border: 'border-red-200', text: 'text-red-700', badge: 'bg-red-100 text-red-600', icon: <AlertTriangle className="w-3.5 h-3.5 text-red-500" /> },
+                              medium: { bg: 'bg-amber-50/80', border: 'border-amber-200', text: 'text-amber-700', badge: 'bg-amber-100 text-amber-600', icon: <Zap className="w-3.5 h-3.5 text-amber-500" /> },
+                              low: { bg: 'bg-blue-50/80', border: 'border-blue-200', text: 'text-blue-700', badge: 'bg-blue-100 text-blue-600', icon: <Info className="w-3.5 h-3.5 text-blue-500" /> },
+                            };
+                            const colors = colorMap[action.priority] || colorMap.low;
+                            return (
+                              <div
+                                key={`concierge-${ai}`}
+                                className={`p-3 rounded-2xl border ${colors.bg} ${colors.border} transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md`}
+                              >
+                                <div className="flex items-start gap-2.5">
+                                  <div className="mt-0.5 shrink-0">{colors.icon}</div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`text-[12px] font-bold ${colors.text}`}>{action.title}</span>
+                                      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${colors.badge}`}>{action.service.replace('pal_', '')}</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">{action.description}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {msg.role === 'ai' && Array.isArray(msg.progressCards) && msg.progressCards.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">サービス進捗</div>
+                          {msg.progressCards.map((card, pi) => {
+                            const healthColor = card.health === 'red'
+                              ? 'bg-red-400'
+                              : card.health === 'yellow'
+                                ? 'bg-amber-400'
+                                : 'bg-emerald-400';
+                            return (
+                              <div
+                                key={`progress-${pi}`}
+                                className="p-3 rounded-2xl border border-white bg-white/50 shadow-[0_4px_12px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 transition-all duration-300"
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <div className={`w-2 h-2 rounded-full ${healthColor} shrink-0`} />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[12px] font-bold text-slate-700">{card.label}</span>
+                                      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500">{card.status}</span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 mt-0.5">{card.detail}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -4071,7 +4609,12 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
 
           <div className="mt-auto pt-3 pb-2 md:pb-0 shrink-0 sticky bottom-0 z-20 bg-white/35 backdrop-blur-md rounded-t-2xl md:bg-transparent md:backdrop-blur-0 md:rounded-none" style={{ paddingBottom: isMobileViewport ? 'calc(0.5rem + env(safe-area-inset-bottom, 0px))' : undefined }}>
             {showMediaLibraryPanel && authStep === 'authenticated' && (
-              <div className="mb-3 rounded-[24px] border border-white bg-white/60 backdrop-blur-xl p-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+              <div
+                className={`mb-3 rounded-[24px] border bg-white/60 backdrop-blur-xl p-3 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-colors ${isDragOver ? 'border-indigo-300 bg-indigo-50/40' : 'border-white'}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Media Library</div>
                   <div className="flex items-center gap-2">
@@ -4101,6 +4644,25 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
                   </div>
                 </div>
 
+                {isUploadingMedia && (
+                  <div className="mb-2">
+                    <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1">{uploadProgress}% アップロード中...</div>
+                  </div>
+                )}
+
+                {isDragOver && (
+                  <div className="mb-2 py-6 rounded-2xl border-2 border-dashed border-indigo-300 bg-indigo-50/30 flex flex-col items-center justify-center gap-1">
+                    <Upload className="w-6 h-6 text-indigo-400" />
+                    <div className="text-[11px] font-bold text-indigo-500">ここにドロップしてアップロード</div>
+                  </div>
+                )}
+
                 {!canUseMedia && (
                   <div className="text-[11px] text-slate-400">顧客ID認証後に利用できます。</div>
                 )}
@@ -4110,11 +4672,14 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
                 )}
 
                 {canUseMedia && !mediaLoading && mediaError && (
-                  <div className="text-[11px] text-red-500">{mediaError}</div>
+                  <div className="text-[11px] text-red-500 whitespace-pre-line">{mediaError}</div>
                 )}
 
-                {canUseMedia && !mediaLoading && !mediaError && mediaAssets.length === 0 && (
-                  <div className="text-[11px] text-slate-400">まだメディアがありません。画像や動画をアップロードしてください。</div>
+                {canUseMedia && !mediaLoading && !mediaError && mediaAssets.length === 0 && !isDragOver && (
+                  <div className="py-4 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-1">
+                    <Upload className="w-5 h-5 text-slate-300" />
+                    <div className="text-[11px] text-slate-400">画像や動画をドラッグ&ドロップ、またはアップロードボタンで追加</div>
+                  </div>
                 )}
 
                 {canUseMedia && !mediaLoading && mediaAssets.length > 0 && (
