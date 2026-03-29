@@ -189,8 +189,13 @@ export async function POST(req: Request) {
     }
 
     // 1. Get customer info + contracted services
-    const summaryRes = await palDbGet(`/api/palette-summary?paletteId=${encodeURIComponent(paletteId)}`);
-    const summaryData = await summaryRes.json().catch(() => ({}));
+    let summaryData: any = {};
+    try {
+      const summaryRes = await palDbGet(`/api/palette-summary?paletteId=${encodeURIComponent(paletteId)}`);
+      summaryData = await summaryRes.json().catch(() => ({}));
+    } catch (err: any) {
+      console.error('marketing-advisor: palette-summary fetch failed:', err?.message);
+    }
     const customerName = summaryData?.account?.name || 'お客様';
     const industry = summaryData?.account?.industry || '';
 
@@ -264,12 +269,17 @@ export async function POST(req: Request) {
       kpiSummaries, message,
     );
 
-    // Build conversation contents
+    // Build conversation contents — ensure first message is 'user' (Gemini requirement)
+    const rawHistory = history.slice(-6).map((m: any) => ({
+      role: m.role === 'ai' ? 'model' : 'user',
+      parts: [{ text: String(m.content).slice(0, 500) }],
+    }));
+    // Drop leading 'model' messages (Gemini requires first turn to be 'user')
+    while (rawHistory.length > 0 && rawHistory[0].role === 'model') {
+      rawHistory.shift();
+    }
     const contents: any[] = [
-      ...(history.slice(-6).map((m: any) => ({
-        role: m.role === 'ai' ? 'model' : 'user',
-        parts: [{ text: String(m.content).slice(0, 500) }],
-      }))),
+      ...rawHistory,
       { role: 'user', parts: [{ text: message }] },
     ];
 
@@ -291,9 +301,11 @@ export async function POST(req: Request) {
     }
 
     if (lastError || !response) {
+      const errMsg = lastError?.message || 'Unknown error';
+      console.error('marketing-advisor AI generation failed:', errMsg);
       return NextResponse.json({
         success: false,
-        error: 'AI応答の生成に失敗しました。',
+        error: `AI応答の生成に失敗しました。(${errMsg.slice(0, 100)})`,
       }, { status: 500 });
     }
 
