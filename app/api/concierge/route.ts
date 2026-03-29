@@ -1,7 +1,7 @@
-import { GoogleGenAI } from '@google/genai';
 import { NextResponse } from 'next/server';
 import { palDbGet } from '../_lib/pal-db-client';
 import { SERVICE_URLS } from '../_lib/service-ports';
+import { getOpenAI, CHAT_MODEL } from '../_lib/openai-client';
 
 type ConciergeAction = {
   priority: 'high' | 'medium' | 'low';
@@ -238,47 +238,41 @@ export async function POST(req: Request) {
     const progress = buildProgressCards(kpiResults);
 
     // 3. Generate AI recommendations
-    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    if (!apiKey) {
-      // Fallback: return raw KPI data without AI summary
+    const prompt = buildAiPrompt(customerName, kpiResults);
+
+    try {
+      const openai = getOpenAI();
+      const completion = await openai.chat.completions.create({
+        model: CHAT_MODEL,
+        messages: [{ role: 'user', content: prompt }],
+      });
+
+      const rawText = String(completion.choices?.[0]?.message?.content || '').trim();
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return NextResponse.json({
+          success: true,
+          summary: rawText.slice(0, 200),
+          actions: [],
+          progress,
+          kpis: Object.fromEntries(kpiResults.map((r) => [r.service, r.data])),
+        });
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      const actions: ConciergeAction[] = Array.isArray(parsed.actions)
+        ? parsed.actions.slice(0, 6)
+        : [];
+
       return NextResponse.json({
         success: true,
-        summary: 'AIキーが未設定のため、KPIデータのみ返します。',
-        actions: [],
+        summary: String(parsed.summary || ''),
+        actions,
         progress,
         kpis: Object.fromEntries(kpiResults.map((r) => [r.service, r.data])),
       });
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
-    const models = (
-      process.env.CHAT_MODEL_LIST ||
-      process.env.CHAT_MODEL ||
-      'gemini-2.5-flash-lite'
-    )
-      .split(',')
-      .map((m) => m.trim())
-      .filter(Boolean);
-
-    const prompt = buildAiPrompt(customerName, kpiResults);
-    let aiResponse: any = null;
-    let lastError: any = null;
-
-    for (const mdl of models) {
-      try {
-        aiResponse = await ai.models.generateContent({
-          model: mdl,
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        });
-        lastError = null;
-        break;
-      } catch (err: any) {
-        lastError = err;
-        console.warn(`concierge model ${mdl} failed`, err?.message || err);
-      }
-    }
-
-    if (lastError || !aiResponse) {
+    } catch (aiError: any) {
+      console.warn('concierge AI failed:', aiError?.message);
       return NextResponse.json({
         success: true,
         summary: 'AI分析に失敗しました。KPIデータを確認してください。',
@@ -287,32 +281,6 @@ export async function POST(req: Request) {
         kpis: Object.fromEntries(kpiResults.map((r) => [r.service, r.data])),
       });
     }
-
-    const rawText = String((aiResponse as any).text || '').trim();
-    // Extract JSON from response (handle markdown code blocks)
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return NextResponse.json({
-        success: true,
-        summary: rawText.slice(0, 200),
-        actions: [],
-        progress,
-        kpis: Object.fromEntries(kpiResults.map((r) => [r.service, r.data])),
-      });
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]);
-    const actions: ConciergeAction[] = Array.isArray(parsed.actions)
-      ? parsed.actions.slice(0, 6)
-      : [];
-
-    return NextResponse.json({
-      success: true,
-      summary: String(parsed.summary || ''),
-      actions,
-      progress,
-      kpis: Object.fromEntries(kpiResults.map((r) => [r.service, r.data])),
-    });
   } catch (error: any) {
     console.error('concierge error:', error);
     return NextResponse.json(

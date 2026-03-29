@@ -1,6 +1,6 @@
-import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from 'next/server';
 import { palDbGet } from '../_lib/pal-db-client';
+import { getOpenAI, CHAT_MODEL } from '../_lib/openai-client';
 
 const PALETTE_ID_PATTERN = /\b([A-Za-z][0-9]{4})\b/;
 const SERVICE_QUERY_PATTERN = /(顧客ID|paletteid|サービス|契約|プラン|内容|案内|確認|照会|教えて)/i;
@@ -67,13 +67,6 @@ const tryFetchServiceSummary = async (message: string): Promise<string | null> =
 
 export async function POST(req: Request) {
   try {
-    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-
-    if (!apiKey) {
-      return NextResponse.json({ text: 'APIキーが設定されていません。' }, { status: 500 });
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
     const body = await req.json();
     const { message, history, system } = body;
 
@@ -91,7 +84,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ text: '__MARKETING_ADVISOR__', originalMessage: String(message || '') });
     }
 
-    // Concierge trigger — tell the client to invoke /api/concierge instead
+    // Concierge trigger
     if (CONCIERGE_PATTERN.test(String(message || ''))) {
       return NextResponse.json({ text: '__CONCIERGE__' });
     }
@@ -108,54 +101,28 @@ export async function POST(req: Request) {
 - 回答完了メッセージ（ありがとうございました等）で会話を終了しない。
 - 顧客IDで呼ばず「お客様」または確定した屋号名で呼ぶ。`;
 
-    const models = (
-      process.env.CHAT_MODEL_LIST ||
-      process.env.CHAT_MODEL ||
-      'gemini-2.5-flash-lite'
-    )
-      .split(',')
-      .map((m) => m.trim())
-      .filter(Boolean);
-
-    let response: any = null;
-    let lastError: any = null;
-
-    const contentsBase: any[] = [
+    const messages: any[] = [
+      { role: 'system', content: systemInstruction },
       ...(history || []).map((m: any) => ({
-        role: m.role === 'ai' ? 'model' : 'user',
-        parts: [{ text: String(m.content) }],
+        role: m.role === 'ai' ? 'assistant' : 'user',
+        content: String(m.content),
       })),
-      { role: 'user', parts: [{ text: String(message || '') }] },
+      { role: 'user', content: String(message || '') },
     ];
 
-    for (const mdl of models) {
-      try {
-        response = await ai.models.generateContent({
-          model: mdl,
-          config: {
-            systemInstruction,
-          },
-          contents: contentsBase,
-        });
-        lastError = null;
-        break;
-      } catch (err: any) {
-        lastError = err;
-        console.warn(`chat generate model ${mdl} failed`, err?.message || err);
-      }
-    }
+    const openai = getOpenAI();
+    const completion = await openai.chat.completions.create({
+      model: CHAT_MODEL,
+      messages,
+    });
 
-    if (lastError || !response) {
-      throw lastError || new Error('Unable to generate response from any model');
-    }
-
-    const text = String((response as any).text || '')
+    const text = String(completion.choices?.[0]?.message?.content || '')
       .replace(/[（(]\s*(?:2択|二択|単一選択)\s*[）)]/gi, '')
       .replace(/\b[A-Z][0-9]{4}\s*様/g, 'お客様');
 
     return NextResponse.json({ text });
   } catch (error: any) {
-    console.error('--- Gemini API 実行エラー ---');
+    console.error('--- OpenAI chat error ---', error?.message || error);
     return NextResponse.json({ text: '現在AIが混み合っています。少し時間をおいてもう一度お試しください。' }, { status: 200 });
   }
 }

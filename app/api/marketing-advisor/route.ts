@@ -1,7 +1,7 @@
-import { GoogleGenAI } from '@google/genai';
 import { NextResponse } from 'next/server';
 import { palDbGet } from '../_lib/pal-db-client';
 import { SERVICE_URLS } from '../_lib/service-ports';
+import { getOpenAI, CHAT_MODEL } from '../_lib/openai-client';
 
 /**
  * WEBマーケティング相談API
@@ -253,63 +253,28 @@ export async function POST(req: Request) {
     });
 
     // 3. Generate AI response
-    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ success: false, error: 'APIキーが設定されていません。' }, { status: 500 });
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
-    const models = (
-      process.env.CHAT_MODEL_LIST || process.env.CHAT_MODEL || 'gemini-2.5-flash-lite'
-    ).split(',').map((m) => m.trim()).filter(Boolean);
-
     const systemPrompt = buildSystemPrompt(
       customerName, industry,
       contractedServices, uncontractedServices,
       kpiSummaries, message,
     );
 
-    // Build conversation contents — ensure first message is 'user' (Gemini requirement)
-    const rawHistory = history.slice(-6).map((m: any) => ({
-      role: m.role === 'ai' ? 'model' : 'user',
-      parts: [{ text: String(m.content).slice(0, 500) }],
-    }));
-    // Drop leading 'model' messages (Gemini requires first turn to be 'user')
-    while (rawHistory.length > 0 && rawHistory[0].role === 'model') {
-      rawHistory.shift();
-    }
-    const contents: any[] = [
-      ...rawHistory,
-      { role: 'user', parts: [{ text: message }] },
+    const chatMessages: any[] = [
+      { role: 'system', content: systemPrompt },
+      ...(history.slice(-6).map((m: any) => ({
+        role: m.role === 'ai' ? 'assistant' : 'user',
+        content: String(m.content).slice(0, 500),
+      }))),
+      { role: 'user', content: message },
     ];
 
-    let response: any = null;
-    let lastError: any = null;
-    for (const mdl of models) {
-      try {
-        response = await ai.models.generateContent({
-          model: mdl,
-          config: { systemInstruction: systemPrompt },
-          contents,
-        });
-        lastError = null;
-        break;
-      } catch (err: any) {
-        lastError = err;
-        console.warn(`marketing-advisor model ${mdl} failed`, err?.message || err);
-      }
-    }
+    const openai = getOpenAI();
+    const completion = await openai.chat.completions.create({
+      model: CHAT_MODEL,
+      messages: chatMessages,
+    });
 
-    if (lastError || !response) {
-      const errMsg = lastError?.message || 'Unknown error';
-      console.error('marketing-advisor AI generation failed:', errMsg);
-      return NextResponse.json({
-        success: false,
-        error: `AI応答の生成に失敗しました。(${errMsg.slice(0, 100)})`,
-      }, { status: 500 });
-    }
-
-    const text = String((response as any).text || '')
+    const text = String(completion.choices?.[0]?.message?.content || '')
       .replace(/\b[A-Z][0-9]{4}\s*様/g, `${customerName}様`)
       .trim();
 
