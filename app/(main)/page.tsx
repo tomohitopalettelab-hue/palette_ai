@@ -3430,7 +3430,7 @@ ${currentHtml}
     { key: 'loginId', label: 'ログインID（半角英数字）', required: true, type: 'text' as const },
     { key: 'loginPassword', label: 'ログインパスワード', required: true, type: 'text' as const },
     { key: 'googleMapUrl', label: 'Google Map URL', required: false, type: 'text' as const },
-    { key: 'adminGoogleMapUrl', label: 'Googleビジネスプロフィール URL', required: false, type: 'text' as const },
+    { key: 'adminGoogleMapUrl', label: 'Googleビジネスプロフィール URL', required: true, type: 'text' as const },
     { key: 'surveyQuestions', label: 'アンケートで聞きたい質問（改行区切り）', required: false, type: 'textarea' as const },
     { key: 'minStarsForGoogle', label: 'Google口コミに誘導する最低星数', required: false, type: 'select' as const, options: ['3', '4', '5'] },
     { key: 'aiReviewTaste', label: '口コミの文体', required: false, type: 'select' as const, options: ['親しみやすい', '丁寧', '元気', '感動的', 'シンプル', 'おまかせ'] },
@@ -3448,8 +3448,8 @@ ${currentHtml}
 
   const submitPalTrustOrder = async () => {
     const a = palTrustOrderAnswers;
-    if (!a.shopName || !a.industry || !a.loginId || !a.loginPassword) {
-      appendAiMessage({ content: '店舗名、業種、ログインID、パスワードは必須です。' });
+    if (!a.shopName || !a.industry || !a.loginId || !a.loginPassword || !a.adminGoogleMapUrl) {
+      appendAiMessage({ content: '店舗名、業種、ログインID、パスワード、Googleビジネスプロフィール URLは必須です。' });
       return;
     }
     setPalTrustOrderStep('submitting');

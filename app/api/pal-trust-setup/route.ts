@@ -20,8 +20,8 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json()) as SetupRequest;
 
-    if (!body.shopName || !body.industry || !body.loginId || !body.loginPassword) {
-      return NextResponse.json({ success: false, error: '店舗名、業種、ログインID、パスワードは必須です' }, { status: 400 });
+    if (!body.shopName || !body.industry || !body.loginId || !body.loginPassword || !body.adminGoogleMapUrl) {
+      return NextResponse.json({ success: false, error: '店舗名、業種、ログインID、パスワード、Googleビジネスプロフィール URLは必須です' }, { status: 400 });
     }
 
     // --- 1. pal_db: 新規顧客アカウント作成 ---
