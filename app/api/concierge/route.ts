@@ -28,6 +28,14 @@ const SERVICE_LABELS: Record<string, string> = {
   pal_ad: '広告運用',
 };
 
+const STUDIO_STATUS_MAP: Record<string, string> = {
+  hearing: 'ヒアリング中',
+  reviewing: 'レビュー中',
+  completed: '制作完了',
+  published: '公開済み',
+  '未作成': '未作成',
+};
+
 const buildProgressCards = (
   kpiResults: Array<{ service: string; data: any }>,
 ): ProgressCard[] => {
@@ -41,43 +49,82 @@ const buildProgressCards = (
     let detail = '';
 
     if (service === 'pal_studio') {
-      status = kpi.siteStatus || '未作成';
+      const rawStatus = String(kpi.siteStatus || '未作成');
+      status = STUDIO_STATUS_MAP[rawStatus] || rawStatus;
       const parts: string[] = [];
-      if (kpi.blogPosts) parts.push(`ブログ${kpi.blogPosts}件`);
-      if (kpi.newsPosts) parts.push(`ニュース${kpi.newsPosts}件`);
-      if (kpi.totalPages) parts.push(`${kpi.totalPages}ページ`);
-      detail = parts.join(' / ') || 'データなし';
+      const pages = Number(kpi.totalPages || 0);
+      if (pages > 0) parts.push(`${pages}ページ`);
+      const blogs = Number(kpi.blogPosts || 0);
+      if (blogs > 0) parts.push(`ブログ${blogs}件`);
+      const news = Number(kpi.newsPosts || 0);
+      if (news > 0) parts.push(`ニュース${news}件`);
+      if (!parts.length) {
+        detail = status === '未作成' ? 'サイト未作成' : 'コンテンツ準備中';
+      } else {
+        detail = parts.join(' / ');
+      }
     } else if (service === 'pal_video') {
       const total = Number(kpi.totalVideos || 0);
       const completed = Number(kpi.completed || 0);
       const rendering = Number(kpi.rendering || 0);
-      if (total === 0) { status = '未制作'; }
-      else if (rendering > 0) { status = '制作中'; }
-      else { status = `${completed}本完了`; }
-      detail = total > 0
-        ? `全${total}本 / 完了${completed} / 制作中${rendering}`
-        : 'まだ動画がありません';
+      const draft = Number(kpi.draft || 0);
+      const failed = Number(kpi.failed || 0);
+      if (total === 0) {
+        status = '未制作';
+        detail = 'まだ動画がありません';
+      } else {
+        const statusParts: string[] = [];
+        if (completed > 0) statusParts.push(`${completed}本完了`);
+        if (rendering > 0) statusParts.push(`${rendering}本制作中`);
+        if (draft > 0) statusParts.push(`${draft}本下書き`);
+        status = statusParts.join(' / ') || `全${total}本`;
+        const detailParts: string[] = [`全${total}本`];
+        if (failed > 0) detailParts.push(`エラー${failed}本`);
+        const ytCount = Number(kpi.youtubePublished || 0);
+        if (ytCount > 0) detailParts.push(`YouTube公開${ytCount}本`);
+        detail = detailParts.join(' / ');
+      }
     } else if (service === 'pal_trust') {
       const total = Number(kpi.totalResponses || 0);
       const avg = Number(kpi.avgScore || 0);
-      status = total > 0 ? `レビュー${total}件` : 'レビューなし';
-      detail = avg > 0 ? `平均評価 ${avg.toFixed(1)}点` : 'データなし';
+      const low = Number(kpi.lowScoreCount || 0);
+      status = total > 0 ? `${total}件の回答` : 'レビューなし';
+      const parts: string[] = [];
+      if (avg > 0) parts.push(`平均 ${avg.toFixed(1)}点`);
+      if (low > 0) parts.push(`低評価${low}件`);
+      const latest = Number(kpi.latestRating || 0);
+      if (latest > 0) parts.push(`最新${latest}点`);
+      detail = parts.join(' / ') || 'データなし';
     } else if (service === 'pal_opt') {
       const total = Number(kpi.totalPosts || 0);
       const published = Number(kpi.published || 0);
       const draft = Number(kpi.draft || 0);
-      status = total > 0 ? `${published}件投稿済` : '未投稿';
-      const parts: string[] = [];
-      if (draft) parts.push(`下書き${draft}件`);
-      if (kpi.instagramPosts) parts.push(`Instagram${kpi.instagramPosts}件`);
-      if (kpi.blogPostsOpt) parts.push(`ブログ${kpi.blogPostsOpt}件`);
-      detail = parts.join(' / ') || (total > 0 ? `全${total}件` : 'データなし');
+      const ig = Number(kpi.instagramPosts || 0);
+      const blog = Number(kpi.blogPostsOpt || 0);
+      const gbp = Number(kpi.gbpPosts || 0);
+      if (total === 0) {
+        status = '未投稿';
+        detail = 'まだ投稿がありません';
+      } else {
+        status = `全${total}件`;
+        const parts: string[] = [];
+        if (published > 0) parts.push(`公開${published}件`);
+        if (draft > 0) parts.push(`下書き${draft}件`);
+        if (ig > 0) parts.push(`Instagram${ig}件`);
+        if (blog > 0) parts.push(`ブログ${blog}件`);
+        if (gbp > 0) parts.push(`GBP${gbp}件`);
+        detail = parts.join(' / ') || `全${total}件`;
+      }
     } else if (service === 'pal_base') {
-      status = kpi.status || 'active';
+      const tier = kpi.planTier || '';
+      status = tier ? `${tier}プラン` : (kpi.status || '利用中');
       const items: string[] = [];
-      if (kpi.bannerCreated && kpi.bannerCreated !== '-') items.push('バナー作成済');
-      if (kpi.couponGenerated && kpi.couponGenerated !== '-') items.push('クーポン作成済');
-      detail = items.length ? items.join(' / ') : '素材未作成';
+      if (kpi.bannerCreated && kpi.bannerCreated !== '-') items.push(`バナー: ${kpi.bannerCreated}`);
+      else items.push('バナー: 未作成');
+      if (kpi.couponGenerated && kpi.couponGenerated !== '-') items.push(`クーポン: ${kpi.couponGenerated}`);
+      else items.push('クーポン: 未作成');
+      if (kpi.richMenuCreated && kpi.richMenuCreated !== '-') items.push(`リッチメニュー: ${kpi.richMenuCreated}`);
+      detail = items.join(' / ');
     }
 
     if (lastActivity) {
