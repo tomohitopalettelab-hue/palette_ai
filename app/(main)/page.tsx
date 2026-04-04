@@ -3447,7 +3447,7 @@ ${currentHtml}
     setPalTrustOrderStep('hearing');
     setPalTrustOrderAnswers({ minStarsForGoogle: '4', aiReviewTaste: '親しみやすい', themeName: 'スタンダード' });
     appendAiMessage({
-      content: 'Pal Trust の発注ヒアリングを開始します。\n右側のフォームに入力して「発注する」を押してください。',
+      content: 'Pal Trust の発注ヒアリングを開始します。\nVIEWに表示されたフォームから入力して「発注する」を押してください。',
     });
   };
 
