@@ -8,6 +8,11 @@ type SetupRequest = {
   industry: string;
   loginId: string;
   loginPassword: string;
+  priceInitial?: string;
+  priceYen?: string;
+  term?: string;
+  dateContract?: string;
+  dateDelivery?: string;
   googleMapUrl?: string;
   adminGoogleMapUrl?: string;
   surveyQuestions?: string;
@@ -41,12 +46,37 @@ export async function POST(req: Request) {
     const newAccountId = accountData.account.id;
 
     // --- 2. pal_db: サービスサブスクリプション登録 (pal_trust) ---
+    const today = new Date().toISOString().split('T')[0];
     await palDbPost('/api/service-subscriptions', {
       accountId: newAccountId,
       serviceKey: 'pal_trust',
       status: 'active',
-      startDate: new Date().toISOString().split('T')[0],
+      startDate: today,
     });
+
+    // --- 2b. pal_db: 契約(contract)作成 ---
+    // まずpal_trustのプランIDを取得
+    const plansRes = await palDbGet('/api/plans');
+    const plansData = await plansRes.json().catch(() => ({ plans: [] }));
+    const plans = Array.isArray(plansData?.plans) ? plansData.plans : Array.isArray(plansData) ? plansData : [];
+    const palTrustPlan = plans.find((p: any) =>
+      String(p.code || '').toLowerCase().replace(/-/g, '_').includes('pal_trust')
+    );
+
+    if (palTrustPlan) {
+      await palDbPost('/api/contracts', {
+        accountId: newAccountId,
+        planId: palTrustPlan.id,
+        phase: 'active',
+        status: 'active',
+        priceInitial: body.priceInitial ? Number(body.priceInitial) : 0,
+        priceYen: body.priceYen ? Number(body.priceYen) : 0,
+        term: body.term || '',
+        dateContract: body.dateContract || today,
+        dateDelivery: body.dateDelivery || '',
+        startDate: body.dateContract || today,
+      });
+    }
 
     // --- 3. pal_trust: 設定を反映 ---
     const palTrustUrl = getServiceUrl('pal_trust');
