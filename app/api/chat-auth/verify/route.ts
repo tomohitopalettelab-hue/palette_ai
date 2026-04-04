@@ -67,6 +67,11 @@ const isPalOptPlanCode = (code: string): boolean => {
   return normalized === 'pal_opt_lite' || normalized === 'pal_opt_standard';
 };
 
+const isAgencyPlanCode = (code: string): boolean => {
+  const normalized = String(code || '').trim().toLowerCase().replace(/-/g, '_');
+  return normalized === 'agency' || normalized.startsWith('agency_');
+};
+
 const resolveServiceKey = (plan: any): string => {
   const code = String(plan?.code || '').toLowerCase();
   const normalized = code.replace(/-/g, '_');
@@ -75,6 +80,7 @@ const resolveServiceKey = (plan: any): string => {
   if (isPalOptPlanCode(normalized)) return 'pal_opt';
   if (normalized.includes('palette_ai') || normalized === 'ai' || normalized.startsWith('ai_')) return 'palette_ai';
   if (normalized.includes('pal_trust') || normalized === 'trust' || normalized.startsWith('trust_')) return 'pal_trust';
+  if (isAgencyPlanCode(normalized)) return 'agency';
   return 'other';
 };
 
@@ -164,12 +170,16 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const serviceCards = extractServiceCards(summary);
+    const hasAgency = serviceCards.some((card) => card.key === 'agency');
+
     return NextResponse.json({
       success: true,
       paletteId,
       accountName: summary?.account?.name || verifyData?.accountName || null,
       summaryText: buildServiceSummaryText(summary, paletteId),
-      serviceCards: extractServiceCards(summary),
+      serviceCards: serviceCards.filter((card) => card.key !== 'agency'),
+      hasAgency,
       summary,
     });
   } catch (error) {

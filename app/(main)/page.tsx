@@ -53,6 +53,7 @@ type ChatMessage = {
   actionButtons?: ActionButton[];
   conciergeActions?: ConciergeAction[];
   progressCards?: ProgressCard[];
+  showOrderButton?: boolean;
 };
 
 type ChatSessionSummary = {
@@ -249,6 +250,9 @@ function PaletteDesignInner() {
     color: '',
     mediaUrls: [],
   });
+  const [hasAgency, setHasAgency] = useState(false);
+  const [palTrustOrderStep, setPalTrustOrderStep] = useState<'idle' | 'hearing' | 'submitting' | 'done'>('idle');
+  const [palTrustOrderAnswers, setPalTrustOrderAnswers] = useState<Record<string, string>>({});
   const [studioHtmlGenerationCount, setStudioHtmlGenerationCount] = useState(0);
   const [confirmMode, setConfirmMode] = useState<ConfirmMode>(null);
   const [studioRevisionTarget, setStudioRevisionTarget] = useState<string>('');
@@ -3403,6 +3407,58 @@ ${currentHtml}
     });
   };
 
+  // --- 発注フロー: サービス選択 → ヒアリング開始 ---
+  const ORDER_SERVICES = [
+    { key: 'pal_trust', label: 'Pal Trust', description: '口コミ管理システム' },
+    { key: 'pal_studio', label: 'Pal Studio', description: 'HP/LP制作（準備中）', disabled: true },
+  ];
+
+  const handleOrderButtonClick = () => {
+    appendAiMessage({
+      content: '発注するサービスを選択してください。',
+      actionButtons: ORDER_SERVICES.map((s) => ({
+        key: `order_${s.key}`,
+        label: `${s.label}${s.disabled ? '（準備中）' : ''}`,
+      })),
+    });
+  };
+
+  const startPalTrustOrderHearing = () => {
+    setPalTrustOrderStep('hearing');
+    setPalTrustOrderAnswers({});
+    appendAiMessage({
+      content: 'Pal Trust の発注ヒアリングを開始します。\n各項目を入力してください。任意の項目は空欄のまま送信でスキップできます。',
+    });
+    applyStudioPrompt(
+      [
+        '店舗名・会社名（必須）',
+        '業種（必須）例: 美容院、飲食店、整体院',
+        'ログインID（必須）半角英数字',
+        'ログインパスワード（必須）',
+        'Google Map URL（任意）',
+        'Googleビジネスプロフィール URL（任意）',
+        'アンケートで聞きたい質問（任意）複数ある場合は改行で区切ってください',
+        'Google口コミに誘導する最低星数',
+        '口コミの文体',
+        'デザインテーマ',
+      ],
+      [
+        [], // 店舗名 → テキスト
+        [], // 業種 → テキスト
+        [], // ログインID → テキスト
+        [], // パスワード → テキスト
+        [], // Google Map URL → テキスト
+        [], // GBP URL → テキスト
+        [], // アンケート質問 → テキスト
+        ['3', '4', '5'], // 最低星数
+        ['親しみやすい', '丁寧', '元気', '感動的', 'シンプル', 'おまかせ'], // 文体
+        ['スタンダード', 'ミニマル', 'フェミニン', 'ダーク', 'ポップ'], // テーマ
+      ],
+      ['single', 'single', 'single', 'single', 'single', 'single', 'single', 'single', 'single', 'single'],
+      ['text', 'text', 'text', 'text', 'text', 'text', 'text', 'select', 'select', 'select'],
+    );
+  };
+
   const handleActionButtonClick = (button: ActionButton) => {
     if (button.key === 'upload-media') {
       mediaInputRef.current?.click();
@@ -3431,6 +3487,14 @@ ${currentHtml}
         content: `${displayCustomerName}様、WEBマーケティングの相談ですね！\n集客・SNS運用・口コミ対策・広告など、なんでもご相談ください。お店の状況に合わせてアドバイスしますね。`,
       };
       setMessages((prev) => [...prev, aiMsg]);
+      return;
+    }
+    if (button.key === 'order_pal_trust') {
+      startPalTrustOrderHearing();
+      return;
+    }
+    if (button.key?.startsWith('order_') && button.key !== 'order_pal_trust') {
+      appendAiMessage({ content: 'このサービスの発注はまだ準備中です。' });
       return;
     }
     if (button.key === 'contract-services') {
@@ -3578,6 +3642,8 @@ ${currentHtml}
         setAuthServiceSummary(String(verifyData?.summaryText || ''));
         setAuthServiceCards(Array.isArray(verifyData?.serviceCards) ? verifyData.serviceCards : []);
         setAuthContractCards(buildContractInfoCards(verifyData?.summary || {}));
+        const agencyFlag = verifyData?.hasAgency === true;
+        setHasAgency(agencyFlag);
         const customerName = normalizeCustomerName(String(verifyData?.accountName || verifyData?.customerName || ''));
         setAuthCustomerName(customerName || '');
         const industry = String(verifyData?.summary?.account?.industry || '');
@@ -3588,6 +3654,7 @@ ${currentHtml}
             role: 'ai',
             content: `${customerName || 'お客様'}様ですね！ 認証が完了しました。\nなにをお手伝いしますか？`,
             serviceCards: Array.isArray(verifyData?.serviceCards) ? verifyData.serviceCards : [],
+            showOrderButton: agencyFlag,
           },
         ]);
         return;
@@ -4260,17 +4327,85 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
   const handleSubmitMultiPrompt = async () => {
     if (!multiPromptItems.length || isSubmittingMultiPrompt) return;
 
-    const filled = multiPromptItems
-      .map((item, index) => {
-        const mode = multiPromptModes[index] || 'text';
-        const selectionKind = multiPromptSelectionKinds[index] || 'single';
-        const answer = mode === 'select'
-          ? (selectionKind === 'multi'
-            ? (multiPromptSelectedMulti[index] || []).join('、').trim()
-            : String(multiPromptSelected[index] || '').trim())
-          : String(multiPromptAnswers[index] || '').trim();
+    // 各項目の回答を取得
+    const answers = multiPromptItems.map((item, index) => {
+      const mode = multiPromptModes[index] || 'text';
+      const selectionKind = multiPromptSelectionKinds[index] || 'single';
+      return mode === 'select'
+        ? (selectionKind === 'multi'
+          ? (multiPromptSelectedMulti[index] || []).join('、').trim()
+          : String(multiPromptSelected[index] || '').trim())
+        : String(multiPromptAnswers[index] || '').trim();
+    });
+
+    // --- Pal Trust 発注フロー ---
+    if (palTrustOrderStep === 'hearing') {
+      const shopName = answers[0] || '';
+      const industry = answers[1] || '';
+      const loginId = answers[2] || '';
+      const loginPassword = answers[3] || '';
+
+      if (!shopName || !industry || !loginId || !loginPassword) {
+        appendAiMessage({ content: '店舗名、業種、ログインID、ログインパスワードは必須です。入力してから再度送信してください。' });
+        return;
+      }
+
+      setIsSubmittingMultiPrompt(true);
+      setPalTrustOrderStep('submitting');
+
+      // テーマ名マッピング
+      const themeMap: Record<string, string> = {
+        'スタンダード': 'standard', 'ミニマル': 'minimal', 'フェミニン': 'feminine', 'ダーク': 'dark', 'ポップ': 'pop',
+      };
+      // 文体マッピング
+      const tasteMap: Record<string, string> = {
+        '親しみやすい': 'friendly', '丁寧': 'polite', '元気': 'energetic', '感動的': 'emotional', 'シンプル': 'minimal', 'おまかせ': 'random',
+      };
+
+      const payload = {
+        agencyPaletteId: authPaletteId,
+        shopName,
+        industry,
+        loginId,
+        loginPassword,
+        googleMapUrl: answers[4] || '',
+        adminGoogleMapUrl: answers[5] || '',
+        surveyQuestions: answers[6] || '',
+        minStarsForGoogle: answers[7] || '4',
+        aiReviewTaste: tasteMap[answers[8]] || 'friendly',
+        themeName: themeMap[answers[9]] || 'standard',
+      };
+
+      try {
+        const res = await fetch('/api/pal-trust-setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          appendAiMessage({
+            content: `Pal Trust の発注が完了しました！\n\n顧客ID: ${data.paletteId}\nログインID: ${loginId}\n店舗名: ${shopName}\n\nお客様への案内をお願いします。`,
+          });
+          setPalTrustOrderStep('done');
+        } else {
+          appendAiMessage({ content: `発注処理に失敗しました: ${data.error || '不明なエラー'}` });
+          setPalTrustOrderStep('hearing');
+        }
+      } catch {
+        appendAiMessage({ content: '発注処理中にエラーが発生しました。再度お試しください。' });
+        setPalTrustOrderStep('hearing');
+      } finally {
+        setIsSubmittingMultiPrompt(false);
+        clearMultiPromptState();
+      }
+      return;
+    }
+
+    const filled = answers
+      .map((answer, index) => {
         if (!answer) return '';
-        return `${index + 1}. ${item}\n→ ${answer}`;
+        return `${index + 1}. ${multiPromptItems[index]}\n→ ${answer}`;
       })
       .filter(Boolean);
 
@@ -4494,6 +4629,23 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
                               </div>
                             </button>
                           ))}
+                        </div>
+                      )}
+                      {msg.role === 'ai' && msg.showOrderButton && (
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            onClick={handleOrderButtonClick}
+                            className="group relative w-full text-left p-4 rounded-[24px] border-2 border-dashed border-indigo-300 bg-indigo-50/40 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(79,70,229,0.15)] hover:bg-indigo-50/80 hover:border-indigo-400 hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                          >
+                            <div className="relative z-10 flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-2xl bg-indigo-100 flex items-center justify-center text-lg">+</div>
+                              <div>
+                                <div className="text-[13px] font-bold text-indigo-700 tracking-tight">新規発注</div>
+                                <div className="text-[11px] font-medium text-indigo-400 mt-0.5">お客様のサービスを新しく発注します</div>
+                              </div>
+                            </div>
+                          </button>
                         </div>
                       )}
                       {msg.role === 'ai' && Array.isArray(msg.contractCards) && msg.contractCards.length > 0 && (
