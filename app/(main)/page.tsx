@@ -3424,41 +3424,73 @@ ${currentHtml}
     });
   };
 
+  const PAL_TRUST_HEARING_FIELDS = [
+    { key: 'shopName', label: '店舗名・会社名', required: true, type: 'text' as const },
+    { key: 'industry', label: '業種（例: 美容院、飲食店、整体院）', required: true, type: 'text' as const },
+    { key: 'loginId', label: 'ログインID（半角英数字）', required: true, type: 'text' as const },
+    { key: 'loginPassword', label: 'ログインパスワード', required: true, type: 'text' as const },
+    { key: 'googleMapUrl', label: 'Google Map URL', required: false, type: 'text' as const },
+    { key: 'adminGoogleMapUrl', label: 'Googleビジネスプロフィール URL', required: false, type: 'text' as const },
+    { key: 'surveyQuestions', label: 'アンケートで聞きたい質問（改行区切り）', required: false, type: 'textarea' as const },
+    { key: 'minStarsForGoogle', label: 'Google口コミに誘導する最低星数', required: false, type: 'select' as const, options: ['3', '4', '5'] },
+    { key: 'aiReviewTaste', label: '口コミの文体', required: false, type: 'select' as const, options: ['親しみやすい', '丁寧', '元気', '感動的', 'シンプル', 'おまかせ'] },
+    { key: 'themeName', label: 'デザインテーマ', required: false, type: 'select' as const, options: ['スタンダード', 'ミニマル', 'フェミニン', 'ダーク', 'ポップ'] },
+  ];
+
   const startPalTrustOrderHearing = () => {
     setConversationEnded(false);
     setPalTrustOrderStep('hearing');
-    setPalTrustOrderAnswers({});
+    setPalTrustOrderAnswers({ minStarsForGoogle: '4', aiReviewTaste: '親しみやすい', themeName: 'スタンダード' });
     appendAiMessage({
-      content: 'Pal Trust の発注ヒアリングを開始します。\n各項目を入力してください。任意の項目は空欄のまま送信でスキップできます。',
+      content: 'Pal Trust の発注ヒアリングを開始します。\n右側のフォームに入力して「発注する」を押してください。',
     });
-    applyStudioPrompt(
-      [
-        '店舗名・会社名（必須）',
-        '業種（必須）例: 美容院、飲食店、整体院',
-        'ログインID（必須）半角英数字',
-        'ログインパスワード（必須）',
-        'Google Map URL（任意）',
-        'Googleビジネスプロフィール URL（任意）',
-        'アンケートで聞きたい質問（任意）複数ある場合は改行で区切ってください',
-        'Google口コミに誘導する最低星数',
-        '口コミの文体',
-        'デザインテーマ',
-      ],
-      [
-        [], // 店舗名 → テキスト
-        [], // 業種 → テキスト
-        [], // ログインID → テキスト
-        [], // パスワード → テキスト
-        [], // Google Map URL → テキスト
-        [], // GBP URL → テキスト
-        [], // アンケート質問 → テキスト
-        ['3', '4', '5'], // 最低星数
-        ['親しみやすい', '丁寧', '元気', '感動的', 'シンプル', 'おまかせ'], // 文体
-        ['スタンダード', 'ミニマル', 'フェミニン', 'ダーク', 'ポップ'], // テーマ
-      ],
-      ['single', 'single', 'single', 'single', 'single', 'single', 'single', 'single', 'single', 'single'],
-      ['text', 'text', 'text', 'text', 'text', 'text', 'text', 'select', 'select', 'select'],
-    );
+  };
+
+  const submitPalTrustOrder = async () => {
+    const a = palTrustOrderAnswers;
+    if (!a.shopName || !a.industry || !a.loginId || !a.loginPassword) {
+      appendAiMessage({ content: '店舗名、業種、ログインID、パスワードは必須です。' });
+      return;
+    }
+    setPalTrustOrderStep('submitting');
+    const themeMap: Record<string, string> = {
+      'スタンダード': 'standard', 'ミニマル': 'minimal', 'フェミニン': 'feminine', 'ダーク': 'dark', 'ポップ': 'pop',
+    };
+    const tasteMap: Record<string, string> = {
+      '親しみやすい': 'friendly', '丁寧': 'polite', '元気': 'energetic', '感動的': 'emotional', 'シンプル': 'minimal', 'おまかせ': 'random',
+    };
+    try {
+      const res = await fetch('/api/pal-trust-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agencyPaletteId: authPaletteId,
+          shopName: a.shopName,
+          industry: a.industry,
+          loginId: a.loginId,
+          loginPassword: a.loginPassword,
+          googleMapUrl: a.googleMapUrl || '',
+          adminGoogleMapUrl: a.adminGoogleMapUrl || '',
+          surveyQuestions: a.surveyQuestions || '',
+          minStarsForGoogle: a.minStarsForGoogle || '4',
+          aiReviewTaste: tasteMap[a.aiReviewTaste || ''] || 'friendly',
+          themeName: themeMap[a.themeName || ''] || 'standard',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        appendAiMessage({
+          content: `Pal Trust の発注が完了しました！\n\n顧客ID: ${data.paletteId}\nログインID: ${a.loginId}\n店舗名: ${a.shopName}\n\nお客様への案内をお願いします。`,
+        });
+        setPalTrustOrderStep('done');
+      } else {
+        appendAiMessage({ content: `発注処理に失敗しました: ${data.error || '不明なエラー'}` });
+        setPalTrustOrderStep('hearing');
+      }
+    } catch {
+      appendAiMessage({ content: '発注処理中にエラーが発生しました。再度お試しください。' });
+      setPalTrustOrderStep('hearing');
+    }
   };
 
   const handleActionButtonClick = (button: ActionButton) => {
@@ -4340,70 +4372,6 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
         : String(multiPromptAnswers[index] || '').trim();
     });
 
-    // --- Pal Trust 発注フロー ---
-    if (palTrustOrderStep === 'hearing') {
-      const shopName = answers[0] || '';
-      const industry = answers[1] || '';
-      const loginId = answers[2] || '';
-      const loginPassword = answers[3] || '';
-
-      if (!shopName || !industry || !loginId || !loginPassword) {
-        appendAiMessage({ content: '店舗名、業種、ログインID、ログインパスワードは必須です。入力してから再度送信してください。' });
-        return;
-      }
-
-      setIsSubmittingMultiPrompt(true);
-      setPalTrustOrderStep('submitting');
-
-      // テーマ名マッピング
-      const themeMap: Record<string, string> = {
-        'スタンダード': 'standard', 'ミニマル': 'minimal', 'フェミニン': 'feminine', 'ダーク': 'dark', 'ポップ': 'pop',
-      };
-      // 文体マッピング
-      const tasteMap: Record<string, string> = {
-        '親しみやすい': 'friendly', '丁寧': 'polite', '元気': 'energetic', '感動的': 'emotional', 'シンプル': 'minimal', 'おまかせ': 'random',
-      };
-
-      const payload = {
-        agencyPaletteId: authPaletteId,
-        shopName,
-        industry,
-        loginId,
-        loginPassword,
-        googleMapUrl: answers[4] || '',
-        adminGoogleMapUrl: answers[5] || '',
-        surveyQuestions: answers[6] || '',
-        minStarsForGoogle: answers[7] || '4',
-        aiReviewTaste: tasteMap[answers[8]] || 'friendly',
-        themeName: themeMap[answers[9]] || 'standard',
-      };
-
-      try {
-        const res = await fetch('/api/pal-trust-setup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          appendAiMessage({
-            content: `Pal Trust の発注が完了しました！\n\n顧客ID: ${data.paletteId}\nログインID: ${loginId}\n店舗名: ${shopName}\n\nお客様への案内をお願いします。`,
-          });
-          setPalTrustOrderStep('done');
-        } else {
-          appendAiMessage({ content: `発注処理に失敗しました: ${data.error || '不明なエラー'}` });
-          setPalTrustOrderStep('hearing');
-        }
-      } catch {
-        appendAiMessage({ content: '発注処理中にエラーが発生しました。再度お試しください。' });
-        setPalTrustOrderStep('hearing');
-      } finally {
-        setIsSubmittingMultiPrompt(false);
-        clearMultiPromptState();
-      }
-      return;
-    }
-
     const filled = answers
       .map((answer, index) => {
         if (!answer) return '';
@@ -5248,51 +5216,63 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
                 )
               ) : palTrustOrderStep === 'hearing' || palTrustOrderStep === 'submitting' ? (
                 <div className="h-full overflow-y-auto p-6">
-                  <div className="mb-4">
+                  <div className="mb-5">
                     <h3 className="text-sm font-black text-slate-700 tracking-tight">Pal Trust 発注ヒアリング</h3>
-                    <p className="text-[10px] text-slate-400 mt-1">入力内容がリアルタイムで反映されます</p>
+                    <p className="text-[10px] text-slate-400 mt-1">各項目を入力して「発注する」を押してください</p>
                   </div>
-                  <div className="space-y-3">
-                    {[
-                      { label: '店舗名', idx: 0, required: true },
-                      { label: '業種', idx: 1, required: true },
-                      { label: 'ログインID', idx: 2, required: true },
-                      { label: 'パスワード', idx: 3, required: true },
-                      { label: 'Google Map URL', idx: 4 },
-                      { label: 'GBP URL', idx: 5 },
-                      { label: 'アンケート質問', idx: 6 },
-                      { label: '最低星数', idx: 7 },
-                      { label: '口コミ文体', idx: 8 },
-                      { label: 'デザインテーマ', idx: 9 },
-                    ].map(({ label, idx, required }) => {
-                      const mode = multiPromptModes[idx] || 'text';
-                      const selectionKind = multiPromptSelectionKinds[idx] || 'single';
-                      const value = mode === 'select'
-                        ? (selectionKind === 'multi'
-                          ? (multiPromptSelectedMulti[idx] || []).join('、')
-                          : multiPromptSelected[idx] || '')
-                        : multiPromptAnswers[idx] || '';
-                      return (
-                        <div key={label} className="flex items-start gap-2">
-                          <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ backgroundColor: value ? '#6366f1' : '#e2e8f0' }} />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[10px] font-bold text-slate-400">
-                              {label}{required && <span className="text-red-400 ml-0.5">*</span>}
-                            </div>
-                            <div className={`text-[12px] font-bold mt-0.5 break-all ${value ? 'text-slate-800' : 'text-slate-300'}`}>
-                              {value || '未入力'}
-                            </div>
+                  <div className="space-y-4">
+                    {PAL_TRUST_HEARING_FIELDS.map((field) => (
+                      <div key={field.key}>
+                        <label className="block text-[11px] font-bold text-slate-500 mb-1">
+                          {field.label}{field.required && <span className="text-red-400 ml-0.5">*</span>}
+                        </label>
+                        {field.type === 'select' && field.options ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {field.options.map((opt) => (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => setPalTrustOrderAnswers((prev) => ({ ...prev, [field.key]: opt }))}
+                                className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all ${
+                                  palTrustOrderAnswers[field.key] === opt
+                                    ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-sm'
+                                    : 'bg-white/80 border-slate-200 text-slate-500 hover:bg-white'
+                                }`}
+                              >
+                                {opt}
+                              </button>
+                            ))}
                           </div>
-                        </div>
-                      );
-                    })}
+                        ) : field.type === 'textarea' ? (
+                          <textarea
+                            value={palTrustOrderAnswers[field.key] || ''}
+                            onChange={(e) => setPalTrustOrderAnswers((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                            placeholder={field.required ? '必須' : '任意（スキップ可）'}
+                            rows={3}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white/90 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-200 resize-none"
+                          />
+                        ) : (
+                          <input
+                            type="text"
+                            value={palTrustOrderAnswers[field.key] || ''}
+                            onChange={(e) => setPalTrustOrderAnswers((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                            placeholder={field.required ? '必須' : '任意（スキップ可）'}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white/90 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-200"
+                          />
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  {palTrustOrderStep === 'submitting' && (
-                    <div className="mt-6 flex items-center justify-center gap-2 text-indigo-500">
-                      <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                      <span className="text-[11px] font-bold">発注処理中...</span>
-                    </div>
-                  )}
+                  <div className="mt-6 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={submitPalTrustOrder}
+                      disabled={palTrustOrderStep === 'submitting'}
+                      className="px-8 py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-cyan-500 text-white text-sm font-black shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-60"
+                    >
+                      {palTrustOrderStep === 'submitting' ? '発注処理中...' : '発注する'}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-slate-300 space-y-4">
