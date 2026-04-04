@@ -3414,6 +3414,7 @@ ${currentHtml}
   ];
 
   const handleOrderButtonClick = () => {
+    setConversationEnded(false);
     appendAiMessage({
       content: '発注するサービスを選択してください。',
       actionButtons: ORDER_SERVICES.map((s) => ({
@@ -3424,6 +3425,7 @@ ${currentHtml}
   };
 
   const startPalTrustOrderHearing = () => {
+    setConversationEnded(false);
     setPalTrustOrderStep('hearing');
     setPalTrustOrderAnswers({});
     appendAiMessage({
