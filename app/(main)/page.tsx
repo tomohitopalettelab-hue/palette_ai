@@ -5246,6 +5246,54 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
                     className="w-full h-full border-none"
                   />
                 )
+              ) : palTrustOrderStep === 'hearing' || palTrustOrderStep === 'submitting' ? (
+                <div className="h-full overflow-y-auto p-6">
+                  <div className="mb-4">
+                    <h3 className="text-sm font-black text-slate-700 tracking-tight">Pal Trust 発注ヒアリング</h3>
+                    <p className="text-[10px] text-slate-400 mt-1">入力内容がリアルタイムで反映されます</p>
+                  </div>
+                  <div className="space-y-3">
+                    {[
+                      { label: '店舗名', idx: 0, required: true },
+                      { label: '業種', idx: 1, required: true },
+                      { label: 'ログインID', idx: 2, required: true },
+                      { label: 'パスワード', idx: 3, required: true },
+                      { label: 'Google Map URL', idx: 4 },
+                      { label: 'GBP URL', idx: 5 },
+                      { label: 'アンケート質問', idx: 6 },
+                      { label: '最低星数', idx: 7 },
+                      { label: '口コミ文体', idx: 8 },
+                      { label: 'デザインテーマ', idx: 9 },
+                    ].map(({ label, idx, required }) => {
+                      const mode = multiPromptModes[idx] || 'text';
+                      const selectionKind = multiPromptSelectionKinds[idx] || 'single';
+                      const value = mode === 'select'
+                        ? (selectionKind === 'multi'
+                          ? (multiPromptSelectedMulti[idx] || []).join('、')
+                          : multiPromptSelected[idx] || '')
+                        : multiPromptAnswers[idx] || '';
+                      return (
+                        <div key={label} className="flex items-start gap-2">
+                          <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ backgroundColor: value ? '#6366f1' : '#e2e8f0' }} />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[10px] font-bold text-slate-400">
+                              {label}{required && <span className="text-red-400 ml-0.5">*</span>}
+                            </div>
+                            <div className={`text-[12px] font-bold mt-0.5 break-all ${value ? 'text-slate-800' : 'text-slate-300'}`}>
+                              {value || '未入力'}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {palTrustOrderStep === 'submitting' && (
+                    <div className="mt-6 flex items-center justify-center gap-2 text-indigo-500">
+                      <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-[11px] font-bold">発注処理中...</span>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-slate-300 space-y-4">
                   <Box className="w-16 h-16 opacity-10" />
