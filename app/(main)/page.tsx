@@ -548,6 +548,8 @@ function PaletteDesignInner() {
 
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [studioGenerateProgress, setStudioGenerateProgress] = useState(0);
+  const studioGenerateTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const validateFile = (file: File): string | null => {
     if (file.size > UPLOAD_MAX_BYTES) {
@@ -2674,25 +2676,17 @@ ${template.html}
 `;
   };
 
-  const generateStudioDraft = async (profile: StudioProfile): Promise<{ html: string; template: Template }> => {
+  const generateStudioDraft = (profile: StudioProfile): { html: string; template: Template } => {
     const selected = chooseTemplateByTaste(profile.taste);
-    const prompt = buildStudioDraftPrompt(selected, profile);
-    try {
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system: prompt, history: [] }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(String(data?.text || `draft generate failed (${response.status})`));
-      }
-      const extracted = extractHtmlCandidate(String(data?.text || ''));
-      return { html: extracted?.html?.trim() || selected.html, template: selected };
-    } catch (error) {
-      console.error('studio draft generation error:', error);
-      return { html: selected.html, template: selected };
+    // テンプレートHTMLをそのまま使用（API呼び出し不要で即時表示）
+    let html = selected.html;
+    // 屋号名を反映
+    if (profile.shopName) {
+      html = html.replace(/Company\s*<span[^>]*>Name<\/span>/gi, `${profile.shopName}`);
+      html = html.replace(/Company Name/g, profile.shopName);
+      html = html.replace(/Studio<span[^>]*>\.<\/span>/g, `${profile.shopName}`);
     }
+    return { html, template: selected };
   };
 
   const generateStudioRevision = async (currentHtml: string, instruction: string, profile: StudioProfile): Promise<string> => {
@@ -2771,7 +2765,7 @@ ${currentHtml}
     appendAiMessage({ content: '修正したい項目を選択してください。' });
   };
 
-  const prepareStudioPreview = async (profile: StudioProfile, conversation: ChatMessage[]) => {
+  const prepareStudioPreview = (profile: StudioProfile, conversation: ChatMessage[]) => {
     if (studioHtmlGenerationCount >= 3) {
       setShowConfirmSave(false);
       setConversationEnded(true);
@@ -2779,21 +2773,43 @@ ${currentHtml}
       return;
     }
 
-    appendAiMessage({ content: 'いまからモデルページを制作します。少々お待ちください！' });
-    const draft = await generateStudioDraft(profile);
-    setStudioHtmlGenerationCount((count) => count + 1);
-    setSelectedTemplateId(draft.template.id);
-    setGeneratedCode(draft.html);
-    setConfirmMessages(conversation);
-    setAiExplanation(`下書き生成: ${draft.template.id}`);
-    setShowConfirmSave(true);
-    setConfirmMode('preview');
-    setStudioStep('completed');
-    setPreviewRenderMode('desktop');
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      setTimeout(() => setActiveTab('preview'), 250);
-    }
-    appendAiMessage({ content: `下書きを表示しました。内容を確認して「OK」または「修正」を選んでください。（HTML生成 ${Math.min(studioHtmlGenerationCount + 1, 3)}/3）` });
+    const draft = generateStudioDraft(profile);
+
+    // 15秒の擬似ローディング演出
+    setStudioGenerateProgress(0);
+    appendAiMessage({ content: 'モデルページを制作中です...' });
+
+    if (studioGenerateTimerRef.current) clearInterval(studioGenerateTimerRef.current);
+    const totalMs = 15000;
+    const intervalMs = 200;
+    const steps = totalMs / intervalMs;
+    let step = 0;
+
+    studioGenerateTimerRef.current = setInterval(() => {
+      step++;
+      const progress = Math.min(Math.round((step / steps) * 100), 100);
+      setStudioGenerateProgress(progress);
+
+      if (progress >= 100) {
+        if (studioGenerateTimerRef.current) clearInterval(studioGenerateTimerRef.current);
+        studioGenerateTimerRef.current = null;
+
+        setStudioHtmlGenerationCount((count) => count + 1);
+        setSelectedTemplateId(draft.template.id);
+        setGeneratedCode(draft.html);
+        setConfirmMessages(conversation);
+        setAiExplanation(`下書き生成: ${draft.template.id}`);
+        setShowConfirmSave(true);
+        setConfirmMode('preview');
+        setStudioStep('completed');
+        setPreviewRenderMode('desktop');
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+          setTimeout(() => setActiveTab('preview'), 250);
+        }
+        setStudioGenerateProgress(0);
+        appendAiMessage({ content: `モデルページが完成しました！内容を確認して「OK」または「修正」を選んでください。（HTML生成 ${Math.min(studioHtmlGenerationCount + 1, 3)}/3）` });
+      }
+    }, intervalMs);
   };
 
   const mergeServiceSelections = (baseServices: string[], freeText: string): string[] => {
@@ -3112,7 +3128,7 @@ ${currentHtml}
       setStudioProfile(nextProfile);
       setStudioStep('completed');
       clearMultiPromptState();
-      await prepareStudioPreview(nextProfile, updatedMessages);
+      prepareStudioPreview(nextProfile, updatedMessages);
       return;
     }
 
@@ -3232,7 +3248,7 @@ ${currentHtml}
 
       const isTasteRevision = studioRevisionDraft.field === 'テイスト';
       const revised = isTasteRevision
-        ? (await generateStudioDraft(studioProfile)).html
+        ? generateStudioDraft(studioProfile).html
         : await generateStudioRevision(String(generatedCode || ''), studioRevisionDraft.instruction, studioProfile);
       const nextCount = studioHtmlGenerationCount + 1;
       setStudioHtmlGenerationCount(nextCount);
@@ -4702,6 +4718,21 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
                 <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" />
                 <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.2s]" />
                 <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.4s]" />
+              </div>
+            )}
+            {studioGenerateProgress > 0 && (
+              <div className="px-6 py-3">
+                <div className="flex items-center gap-3 mb-2">
+                  <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
+                  <span className="text-xs font-bold text-slate-500">モデルページ制作中...</span>
+                  <span className="text-xs font-black text-indigo-600 ml-auto">{studioGenerateProgress}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 transition-all duration-200"
+                    style={{ width: `${studioGenerateProgress}%` }}
+                  />
+                </div>
               </div>
             )}
             <div ref={scrollEndRef} />
