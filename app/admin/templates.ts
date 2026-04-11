@@ -8,1622 +8,2455 @@ export type Template = {
 
 export const templates: Template[] = [
   {
-    id: 'template-modern',
-    name: 'Modern: シンプル & クリーン',
-    tags: ['simple', 'clean', 'business', 'startup'],
-    description: '汎用性の高いモダンでクリーンなデザイン。セクション固定構成に対応。',
-    html: `
-<div class="template-root" style="--main-color: #000000; --main-dark: #1a1a1a; --accent-color: #6366f1; --text-color: #0a0a0a; --text-light: #666666; --bg-color: #ffffff; --section-gap: 10rem;">
-  <div class="min-h-screen font-sans text-[var(--text-color)] bg-[var(--bg-color)] selection:bg-[var(--accent-color)] selection:text-white antialiased">
-    
-    <header class="fixed w-full z-[100] transition-all duration-500">
-      <div class="max-w-[1400px] mx-auto px-8 h-24 flex items-center justify-between">
-        <div class="flex items-center gap-3 group cursor-pointer">
-          <div class="w-10 h-10 bg-[var(--main-color)] rounded-full flex items-center justify-center text-white font-bold transition-transform group-hover:rotate-180 duration-500">M</div>
-          <h1 class="text-2xl font-black tracking-tighter uppercase">Studio<span class="text-[var(--accent-color)]">.</span></h1>
-        </div>
-        <nav class="hidden md:flex items-center gap-12 text-[11px] font-bold uppercase tracking-[0.3em] text-[var(--text-color)]">
-          <a href="#concept" class="hover:text-[var(--accent-color)] transition-all">Concept</a>
-          <a href="#features" class="hover:text-[var(--accent-color)] transition-all">Features</a>
-          <a href="#service" class="hover:text-[var(--accent-color)] transition-all">Service</a>
-          <a href="#works" class="hover:text-[var(--accent-color)] transition-all">Works</a>
-          <a href="#contact" class="px-8 py-3 bg-[var(--main-color)] text-white rounded-full hover:bg-[var(--accent-color)] transition-all shadow-lg hover:shadow-[var(--accent-color)]/20">Get in touch</a>
-        </nav>
-      </div>
-    </header>
-
-    <main>
-      <section id="top" class="section-hero relative min-h-screen flex items-center justify-center px-8 overflow-hidden bg-[#fafafa]">
-        <div class="absolute inset-0 z-0">
-          <div class="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-[var(--accent-color)]/5 rounded-full blur-[120px]"></div>
-          <div class="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] bg-blue-400/5 rounded-full blur-[100px]"></div>
-        </div>
-        
-        <div class="relative z-10 max-w-7xl mx-auto text-center">
-          <p class="inline-block mb-8 text-[12px] font-bold tracking-[0.5em] text-[var(--accent-color)] uppercase animate-fade-in">Established 2026</p>
-          <h2 class="text-[clamp(3rem,10vw,8rem)] font-black tracking-tighter leading-[0.85] mb-12 uppercase">
-            Define the <br/><span class="text-transparent bg-clip-text bg-gradient-to-r from-[var(--main-color)] via-[var(--accent-color)] to-[var(--main-color)]">New Era.</span>
-          </h2>
-          <div class="flex flex-col items-center">
-            <p class="text-xl md:text-2xl text-[var(--text-light)] mb-12 max-w-2xl font-medium leading-relaxed">
-              私たちは、既成概念を壊し、<br/>デザインでビジネスに「鼓動」を宿します。
-            </p>
-            <div class="w-[1px] h-24 bg-gradient-to-b from-[var(--main-color)] to-transparent opacity-20"></div>
-          </div>
-        </div>
-      </section>
-
-      <section id="concept" class="section-concept py-[var(--section-gap)] px-8">
-        <div class="max-w-7xl mx-auto">
-          <div class="grid lg:grid-cols-12 gap-16 items-start">
-            <div class="lg:col-span-5">
-              <h3 class="text-[12px] font-bold tracking-[0.4em] text-[var(--accent-color)] uppercase mb-6">Philosophy</h3>
-              <h4 class="text-5xl font-bold leading-tight tracking-tight">「意味」を<br/>デザインする。</h4>
-            </div>
-            <div class="lg:col-span-7">
-              <p class="text-2xl leading-relaxed text-[var(--text-light)] font-light">
-                単なる見た目の美しさを超え、ブランドの根底にあるストーリーを形にします。情報は整理されるだけでなく、感情を揺さぶる体験へと昇華されるべきです。私たちはその「問い」から始めます。
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="features" class="section-features py-[var(--section-gap)] px-8 bg-[#0a0a0a] text-white overflow-hidden">
-        <div class="max-w-7xl mx-auto">
-          <div class="grid md:grid-cols-3 gap-1">
-            <div class="group p-12 border border-white/10 hover:bg-white/5 transition-all duration-700">
-              <span class="text-[var(--accent-color)] font-mono text-lg mb-8 block">/ 01</span>
-              <h4 class="text-3xl font-bold mb-6 italic tracking-tight">Avant-Garde</h4>
-              <p class="text-white/50 leading-relaxed font-light">最先端のテクノロジーと芸術性を融合。他社が決して真似できない、独自のブランドプレゼンスを構築します。</p>
-            </div>
-            <div class="group p-12 border border-white/10 hover:bg-white/5 transition-all duration-700 md:translate-y-12">
-              <span class="text-[var(--accent-color)] font-mono text-lg mb-8 block">/ 02</span>
-              <h4 class="text-3xl font-bold mb-6 italic tracking-tight">Precision</h4>
-              <p class="text-white/50 leading-relaxed font-light">1ピクセルの妥協も許さない、圧倒的な品質管理。細部へのこだわりが、顧客への信頼へと直結します。</p>
-            </div>
-            <div class="group p-12 border border-white/10 hover:bg-white/5 transition-all duration-700">
-              <span class="text-[var(--accent-color)] font-mono text-lg mb-8 block">/ 03</span>
-              <h4 class="text-3xl font-bold mb-6 italic tracking-tight">Evolution</h4>
-              <p class="text-white/50 leading-relaxed font-light">納品はスタートに過ぎません。データに基づいた持続的なアップデートで、ビジネスの成長を加速させます。</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="service" class="section-service py-[var(--section-gap)] px-8">
-        <div class="max-w-5xl mx-auto">
-          <div class="text-center mb-24">
-            <h3 class="text-4xl font-bold tracking-tighter mb-4">Service Package</h3>
-            <div class="w-12 h-1 bg-[var(--accent-color)] mx-auto"></div>
-          </div>
-          <div class="space-y-6">
-            <div class="group bg-[#f8f9fa] p-10 rounded-[40px] flex flex-col md:flex-row justify-between items-center transition-all duration-500 hover:scale-[1.02] hover:bg-white hover:shadow-2xl">
-              <div class="text-center md:text-left mb-8 md:mb-0">
-                <span class="text-[10px] font-black uppercase tracking-widest text-[var(--accent-color)]">High-End Solution</span>
-                <h4 class="text-3xl font-bold mt-2">Executive Brand Package</h4>
-                <p class="text-[var(--text-light)] mt-4">ブランディングからフルカスタマイズサイト制作まで</p>
-              </div>
-              <div class="text-right flex flex-col items-center md:items-end">
-                <span class="text-5xl font-black tracking-tighter italic">¥800,000<span class="text-lg not-italic text-slate-400">~</span></span>
-                <button class="mt-6 px-8 py-3 bg-[var(--main-color)] text-white text-xs font-bold uppercase tracking-widest rounded-full group-hover:bg-[var(--accent-color)] transition-colors">Select Plan</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="works" class="section-works py-[var(--section-gap)] px-8 bg-white">
-        <div class="max-w-[1600px] mx-auto">
-          <div class="flex justify-between items-end mb-16 px-4">
-            <h3 class="text-6xl font-black tracking-tighter uppercase leading-none">Selected<br/><span class="text-outline text-transparent" style="-webkit-text-stroke: 1px var(--text-color);">Archive</span></h3>
-            <p class="text-[var(--text-light)] font-bold tracking-widest uppercase text-xs">View all cases (12)</p>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-            <div class="group cursor-pointer">
-              <div class="aspect-[4/5] bg-slate-100 overflow-hidden relative mb-6">
-                <div class="absolute inset-0 bg-[var(--main-color)] translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-out"></div>
-                <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10">
-                  <span class="text-white font-bold tracking-[0.5em] uppercase text-sm">View Project</span>
-                </div>
-              </div>
-              <h5 class="text-xl font-bold">Aether Dynamic</h5>
-              <p class="text-sm text-[var(--text-light)] mt-2 font-medium uppercase tracking-wider">Visual Identity / Web Design</p>
-            </div>
-            <div class="group cursor-pointer md:mt-24">
-              <div class="aspect-[4/5] bg-slate-100 overflow-hidden relative mb-6">
-                 <div class="absolute inset-0 bg-[var(--accent-color)] translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-out"></div>
-                 <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10">
-                  <span class="text-white font-bold tracking-[0.5em] uppercase text-sm">View Project</span>
-                </div>
-              </div>
-              <h5 class="text-xl font-bold">Neo Genesis</h5>
-              <p class="text-sm text-[var(--text-light)] mt-2 font-medium uppercase tracking-wider">UI/UX Strategy</p>
-            </div>
-            <div class="group cursor-pointer">
-              <div class="aspect-[4/5] bg-slate-100 overflow-hidden relative mb-6">
-                 <div class="absolute inset-0 bg-[var(--main-color)] translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-out"></div>
-                 <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10">
-                  <span class="text-white font-bold tracking-[0.5em] uppercase text-sm">View Project</span>
-                </div>
-              </div>
-              <h5 class="text-xl font-bold">Lumina Systems</h5>
-              <p class="text-sm text-[var(--text-light)] mt-2 font-medium uppercase tracking-wider">E-Commerce Solution</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="company" class="section-company py-[var(--section-gap)] px-8 border-t border-slate-100">
-        <div class="max-w-4xl mx-auto">
-          <h3 class="text-center text-xs font-black tracking-[0.6em] uppercase mb-20 text-[var(--text-light)]">Corporate Profile</h3>
-          <div class="space-y-0 border-y border-[var(--text-color)]">
-            <div class="grid grid-cols-1 md:grid-cols-4 py-12 group hover:bg-[var(--main-color)] hover:text-white transition-all px-8">
-              <dt class="font-bold text-[10px] uppercase tracking-[0.3em] self-center mb-2 md:mb-0">Name</dt>
-              <dd class="md:col-span-3 text-2xl font-bold tracking-tight">MODERN DESIGN STUDIO INC.</dd>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-4 py-12 group hover:bg-[var(--main-color)] hover:text-white transition-all px-8">
-              <dt class="font-bold text-[10px] uppercase tracking-[0.3em] self-center mb-2 md:mb-0">Office</dt>
-              <dd class="md:col-span-3 text-2xl font-bold tracking-tight">SHIBUYA, TOKYO / ONLINE ANYWHERE</dd>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="py-20 bg-[var(--main-color)] text-white px-8">
-      <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-end gap-12">
-        <div>
-          <h2 class="text-7xl font-black tracking-tighter mb-8 italic">Let's talk.</h2>
-          <p class="text-white/40 text-xs font-bold tracking-[0.4em] uppercase">© 2026 Studio Modern. Built for Excellence.</p>
-        </div>
-        <div class="flex gap-12 text-xs font-bold uppercase tracking-widest">
-          <a href="#" class="hover:text-[var(--accent-color)] transition-colors">Instagram</a>
-          <a href="#" class="hover:text-[var(--accent-color)] transition-colors">Twitter (X)</a>
-          <a href="#" class="hover:text-[var(--accent-color)] transition-colors">LinkedIn</a>
-        </div>
-      </div>
-    </footer>
-  </div>
-</div>`
-  },
-  {
-    id: 'template-elegant',
-    name: 'Elegant: ラグジュアリー',
-    tags: ['luxury', 'beauty', 'hotel', 'serif'],
-    description: '余白を活かした高級感のある構成。全セクション対応。',
-    html: `
-<div class="template-root" style="--main-color: #1a1a1a; --sub-color: #8c764b; --accent-color: #fdfbf7; --text-color: #2d2d2d; --text-light: #7a7a7a; --bg-color: #fdfbf7; --section-padding: 12rem;">
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Noto+Serif+JP:wght@200;400&display=swap" rel="stylesheet">
-  
-  <div class="min-h-screen font-serif text-[var(--text-color)] bg-[var(--bg-color)] selection:bg-[#c4b393] selection:text-white antialiased leading-relaxed" style="font-family: 'Cormorant Garamond', 'Noto Serif JP', serif;">
-    
-    <header class="fixed top-0 w-full z-50 transition-all duration-700">
-      <div class="max-w-[1600px] mx-auto px-10 h-28 flex justify-between items-center border-b border-black/[0.03] bg-[var(--bg-color)]/80 backdrop-blur-sm">
-        <nav class="hidden md:flex gap-12 text-[10px] uppercase tracking-[0.4em] font-light">
-          <a href="#concept" class="hover:text-[var(--sub-color)] transition-all">Philosophy</a>
-          <a href="#works" class="hover:text-[var(--sub-color)] transition-all">Collection</a>
-        </nav>
-        <div class="text-3xl tracking-[0.6em] uppercase font-light text-[var(--main-color)] absolute left-1/2 -translate-x-1/2">
-          The <span class="font-normal italic">Luxury</span>
-        </div>
-        <div class="hidden md:block">
-          <a href="#contact" class="group relative text-[10px] uppercase tracking-[0.4em] pb-2">
-            Reservation
-            <span class="absolute bottom-0 left-0 w-full h-[1px] bg-[var(--sub-color)] origin-right scale-x-0 group-hover:scale-x-100 group-hover:origin-left transition-transform duration-500"></span>
-          </a>
-        </div>
-      </div>
-    </header>
-
-    <main>
-      <section id="top" class="section-hero relative min-h-screen flex items-center justify-center px-6 overflow-hidden pt-28">
-        <div class="relative z-10 text-center">
-          <p class="text-[11px] tracking-[0.8em] mb-16 uppercase text-[var(--sub-color)] font-medium opacity-0 animate-fade-in" style="animation: fadeIn 2s forwards 0.5s">Est. 2026 — Ginza, Tokyo</p>
-          <h2 class="text-7xl md:text-[10rem] font-extralight tracking-tighter mb-16 leading-[0.85] text-[var(--main-color)]">
-            <span class="italic block mb-4" style="font-family: 'Cormorant Garamond'">Elegant</span>
-            <span class="ml-12 md:ml-32 block">Experience</span>
-          </h2>
-          <div class="flex flex-col items-center gap-8">
-            <div class="w-px h-32 bg-gradient-to-b from-[var(--sub-color)] to-transparent opacity-30"></div>
-            <p class="text-[10px] uppercase tracking-[0.5em] text-[var(--text-light)]">Scroll to Explore</p>
-          </div>
-        </div>
-      </section>
-
-      <section id="concept" class="section-concept py-[var(--section-padding)] px-6 bg-white/30">
-        <div class="max-w-5xl mx-auto text-center">
-          <h3 class="text-[11px] tracking-[0.6em] mb-20 text-[var(--sub-color)] uppercase italic">Our Philosophy</h3>
-          <p class="text-3xl md:text-5xl font-extralight leading-[1.8] text-[var(--text-color)] tracking-tight">
-            「静寂」と「美しさ」の調和を追求し、<br/>
-            日常を彩る至高のひとときを創造します。<br/>
-            <span class="italic text-[var(--sub-color)] mt-4 block">Time becomes art.</span>
-          </p>
-        </div>
-      </section>
-
-      <section id="features" class="section-features py-[var(--section-padding)] px-10 max-w-7xl mx-auto">
-        <div class="grid md:grid-cols-3 gap-24">
-          <div class="group">
-            <span class="text-[var(--sub-color)] text-xs mb-10 block font-light italic">/ 01</span>
-            <h4 class="text-3xl mb-8 italic font-light tracking-wide">Material</h4>
-            <div class="w-16 h-px bg-black/10 mb-8 group-hover:w-full transition-all duration-1000"></div>
-            <p class="text-sm leading-loose text-[var(--text-light)] font-light">世界各地から厳選された、触れるたびに溜息が漏れるような最高級の素材。その本質を活かす最適解を選び抜きます。</p>
-          </div>
-          <div class="group md:mt-16">
-            <span class="text-[var(--sub-color)] text-xs mb-10 block font-light italic">/ 02</span>
-            <h4 class="text-3xl mb-8 italic font-light tracking-wide">Craftsmanship</h4>
-            <div class="w-16 h-px bg-black/10 mb-8 group-hover:w-full transition-all duration-1000"></div>
-            <p class="text-sm leading-loose text-[var(--text-light)] font-light">数十年もの歳月をかけて培われた熟練の職人技。機械では決して到達できない、細部への祈りにも似たこだわりを宿します。</p>
-          </div>
-          <div class="group">
-            <span class="text-[var(--sub-color)] text-xs mb-10 block font-light italic">/ 03</span>
-            <h4 class="text-3xl mb-8 italic font-light tracking-wide">Concierge</h4>
-            <div class="w-16 h-px bg-black/10 mb-8 group-hover:w-full transition-all duration-1000"></div>
-            <p class="text-sm leading-loose text-[var(--text-light)] font-light">言葉にされない願いを形に。お客様一人ひとりのライフスタイルに深く寄り添い、パーソナライズされた体験をご提案します。</p>
-          </div>
-        </div>
-      </section>
-
-      <section id="service" class="section-service py-[var(--section-padding)] px-6 bg-[#1a1a1a] text-white overflow-hidden relative">
-        <div class="absolute inset-0 opacity-10 pointer-events-none">
-          <div class="absolute top-0 right-0 w-[600px] h-[600px] bg-[var(--sub-color)] blur-[200px] -translate-y-1/2 translate-x-1/2"></div>
-        </div>
-        <div class="relative max-w-4xl mx-auto text-center border border-white/5 py-24 px-12 backdrop-blur-md">
-          <h3 class="text-[10px] tracking-[0.8em] mb-16 text-white/30 uppercase italic">Premium Membership</h3>
-          <p class="text-5xl md:text-7xl font-extralight italic tracking-tighter mb-10 leading-none">Art of <br/>Living Suite</p>
-          <div class="h-px w-20 bg-[var(--sub-color)] mx-auto mb-12 opacity-50"></div>
-          <div class="flex flex-col items-center gap-4">
-            <p class="text-4xl font-thin tracking-widest text-[var(--sub-color)]">¥1,000,000</p>
-            <p class="text-[9px] text-white/40 tracking-[0.3em] uppercase">Initial annual dues</p>
-          </div>
-          <button class="mt-20 group relative px-16 py-6 border border-white/10 text-[9px] tracking-[0.5em] uppercase overflow-hidden transition-all duration-700 hover:border-white/40">
-            <span class="relative z-10 group-hover:text-white transition-colors duration-500">Apply for Invitation</span>
-            <div class="absolute inset-0 bg-white/5 -translate-x-full group-hover:translate-x-0 transition-transform duration-700"></div>
-          </button>
-        </div>
-      </section>
-
-      <section id="works" class="section-works py-[var(--section-padding)] px-6 bg-white/10">
-        <div class="max-w-[1500px] mx-auto">
-          <div class="flex justify-between items-baseline mb-24 px-4">
-            <h3 class="text-5xl font-extralight italic tracking-tighter">Collection</h3>
-            <p class="text-[10px] tracking-[0.4em] uppercase text-[var(--text-light)]">Autumn / Winter 2026</p>
-          </div>
-          <div class="grid md:grid-cols-12 gap-12 items-end">
-            <div class="md:col-span-7 aspect-[16/11] bg-stone-100 group overflow-hidden relative shadow-2xl">
-               <div class="absolute inset-0 bg-[var(--sub-color)]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
-               <div class="absolute bottom-8 left-8 opacity-0 group-hover:opacity-100 transition-all duration-700 translate-y-4 group-hover:translate-y-0">
-                  <p class="text-[10px] tracking-[0.3em] uppercase text-[var(--main-color)]">Private Villa Project</p>
-               </div>
-            </div>
-            <div class="md:col-span-5 aspect-[4/5] bg-stone-200 group overflow-hidden relative shadow-xl md:-mb-32">
-               <div class="absolute inset-0 bg-[var(--sub-color)]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
-            </div>
-          </div>
-          <div class="grid md:grid-cols-12 gap-12 mt-40 items-start">
-             <div class="md:col-span-4 aspect-[3/4] bg-stone-100 group overflow-hidden relative shadow-lg"></div>
-             <div class="md:col-span-8 aspect-[16/9] bg-stone-200 group overflow-hidden relative shadow-2xl md:mt-24"></div>
-          </div>
-        </div>
-      </section>
-
-      <section id="company" class="section-company py-[var(--section-padding)] px-10 max-w-6xl mx-auto">
-        <div class="grid md:grid-cols-2 gap-32">
-          <div>
-            <h3 class="text-4xl font-extralight italic mb-12 tracking-tight">Inquiry</h3>
-            <p class="text-md text-[var(--text-light)] leading-loose font-light">私たちは常に、あなたのための扉を開けてお待ちしております。特別なリクエストや、より深い体験へのご相談は、コンシェルジュまでお気軽にお寄せください。</p>
-          </div>
-          <div class="divide-y divide-black/[0.05]">
-            <div class="py-10">
-              <p class="text-[9px] tracking-[0.4em] uppercase text-[var(--sub-color)] mb-6 font-bold">Main Boutique</p>
-              <p class="text-2xl font-extralight tracking-tight leading-relaxed">7-chome, Ginza, Chuo-ku,<br/>Tokyo 104-0061, Japan</p>
-            </div>
-            <div class="py-10">
-              <p class="text-[9px] tracking-[0.4em] uppercase text-[var(--sub-color)] mb-6 font-bold">Inquiry</p>
-              <p class="text-2xl font-extralight tracking-tight hover:text-[var(--sub-color)] transition-colors cursor-pointer">concierge@theluxury.jp</p>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="py-32 bg-[var(--main-color)] text-white/50 text-center">
-      <div class="text-[14px] tracking-[1em] uppercase text-white mb-10 font-light">The Luxury</div>
-      <div class="w-12 h-px bg-white/10 mx-auto mb-10"></div>
-      <p class="text-[8px] tracking-[0.4em] uppercase font-light">&copy; 2026 THE LUXURY BRAND. PRESERVING TRADITION & ELEGANCE.</p>
-    </footer>
-  </div>
-  
+    id: 'template-warm',
+    name: 'Warm: 温かみと信頼感',
+    tags: ['warm', 'gold', 'corporate', 'construction', 'beige', '温かい', '信頼', '柔らかい'],
+    description: '暖色系の背景にゴールドアクセント。建設・不動産・専門サービス業に最適な、信頼感と温もりのあるデザイン。',
+    html: `<div class="template-root" style="--main-color: #c59500; --main-dark: #9a7500; --accent-color: #FDFBF7; --text-color: #333333; --text-light: #6b7280; --bg-color: #ffffff; --section-gap: 0; --section-padding: 4rem 0;">
   <style>
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .animate-fade-in { animation: fadeIn 1.5s ease-out forwards; }
-    .text-outline { -webkit-text-stroke: 1px currentColor; }
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Quicksand:wght@600;700&display=swap');
+    .template-root { font-family: 'Noto Sans JP', sans-serif; }
+    .template-root .font-en { font-family: 'Quicksand', sans-serif; }
+    .template-root .bubble-field { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+    .template-root .bubble { position: absolute; border-radius: 9999px; background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(255,255,255,0)); opacity: 0.5; filter: blur(0.5px); animation: warmFloat 16s ease-in-out infinite; }
+    .template-root .bubble-warm { background: radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--main-color) 25%, transparent), transparent); }
+    @keyframes warmFloat { 0% { transform: translateY(0px); } 50% { transform: translateY(-18px); } 100% { transform: translateY(0px); } }
   </style>
-</div>`
-  }
-  ,
-  {
-  id: 'template-corporate',
-  name: 'Corporate: 信頼と実績',
-  tags: ['business', 'trust', 'blue', 'firm'],
-  description: '企業情報、事業内容を整理して見せる、信頼感重視の堅実なデザイン。',
-  html: `<div class="template-root" style="--main-color: #1e40af; --main-dark: #1e3a8a; --accent-color: #f8fafc; --text-color: #1e293b; --text-light: #64748b; --bg-color: #ffffff;">
-  <div class="min-h-screen font-sans text-[var(--text-color)] bg-[var(--bg-color)]">
-    
-    <header class="bg-white border-b-2 border-[var(--main-color)] sticky top-0 z-50 shadow-sm">
-      <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+  <div class="min-h-screen text-[var(--text-color)] bg-[var(--bg-color)]">
+
+    <header class="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-6 md:px-10 h-20 flex justify-between items-center">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-[var(--main-color)] flex items-center justify-center text-white font-bold rounded-sm">CI</div>
-          <div class="font-black text-2xl tracking-tighter text-[var(--main-dark)] uppercase">Corporate <span class="text-[var(--main-color)] font-light">Inc.</span></div>
+          <div class="w-10 h-10 bg-[var(--main-color)] flex items-center justify-center text-white font-black rounded-full text-sm">W</div>
+          <div class="font-black text-xl tracking-tight">Company <span class="text-[var(--main-color)] font-bold">Name</span></div>
         </div>
-        <nav class="hidden md:flex items-center gap-10">
-          <a href="#concept" class="text-[15px] font-bold text-[var(--text-color)] hover:text-[var(--main-color)] transition-colors">Philosophy</a>
-          <a href="#features" class="text-[15px] font-bold text-[var(--text-color)] hover:text-[var(--main-color)] transition-colors">Strengths</a>
-          <a href="#service" class="text-[15px] font-bold text-[var(--text-color)] hover:text-[var(--main-color)] transition-colors">Solutions</a>
-          <a href="#contact" class="px-6 py-2.5 bg-[var(--main-color)] text-white text-sm font-bold rounded hover:bg-[var(--main-dark)] transition-all">お問い合わせ</a>
+        <nav data-sync="site-pages" class="hidden md:flex items-center gap-6 text-sm font-black tracking-widest">
+          <a href="#concept" class="hover:text-[var(--main-color)] transition-colors">コンセプト</a>
+          <a href="#features" class="hover:text-[var(--main-color)] transition-colors">強み</a>
+          <a href="#service" class="hover:text-[var(--main-color)] transition-colors">事業内容</a>
+          <a href="#company" class="bg-[var(--main-color)] text-white px-5 py-2 rounded-full hover:opacity-80 transition-all">お問い合わせ</a>
         </nav>
       </div>
     </header>
 
     <main>
-      <section id="top" class="relative bg-[var(--main-dark)] text-white py-32 px-6 overflow-hidden">
-        <div class="absolute inset-0 opacity-10">
-          <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0 100 L100 0 L100 100 Z" fill="white"/></svg>
+      <!-- top: ヒーロー -->
+      <section id="top" class="relative h-[80vh] min-h-[500px] flex items-center justify-center overflow-hidden bg-gray-900">
+        <div class="absolute inset-0 z-0">
+          <img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=2000" class="w-full h-full object-cover opacity-30" alt="Hero">
         </div>
-        <div class="relative max-w-5xl mx-auto">
-          <div class="inline-block px-4 py-1 bg-white/10 border-l-4 border-white mb-6 text-sm font-bold tracking-widest uppercase">Since 1990</div>
-          <h2 class="text-5xl md:text-7xl font-black leading-tight mb-8">信頼を未来へつなぐ、<br/><span class="text-blue-400 font-light italic">Solution Partner.</span></h2>
-          <p class="text-xl opacity-80 max-w-2xl leading-relaxed mb-12">確かな技術と豊富な実績に基づき、複雑化する社会課題に対して、最適かつ持続可能な価値を共創します。</p>
-          <div class="flex gap-4">
-            <div class="h-1 w-24 bg-blue-400 mt-4"></div>
-            <p class="font-bold text-sm tracking-[0.2em] pt-1 uppercase">Reliability and Progress</p>
-          </div>
+        <div class="relative z-10 text-center px-6">
+          <h1 class="text-5xl md:text-7xl font-black leading-tight mb-8 text-white">
+            お客様の未来を<br><span class="text-[var(--main-color)]">共創</span>する。
+          </h1>
+          <p class="text-lg md:text-xl font-bold tracking-widest text-white/80">プロフェッショナルな技術と確かな実績で</p>
         </div>
       </section>
 
-      <section id="concept" class="py-28 px-6 max-w-6xl mx-auto">
-        <div class="grid md:grid-cols-2 gap-20 items-center">
-          <div class="relative h-[400px] bg-slate-100 rounded-lg overflow-hidden border-8 border-white shadow-2xl">
-            <div class="absolute inset-0 bg-gradient-to-tr from-[var(--main-color)]/20 to-transparent"></div>
-            </div>
+      <!-- 数字セクション -->
+      <section class="py-14 bg-[var(--accent-color)]">
+        <div class="max-w-6xl mx-auto px-6 grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
           <div>
-            <span class="text-[var(--main-color)] font-black text-sm tracking-[0.3em] uppercase mb-4 block">Concept</span>
-            <h3 class="text-4xl font-bold mb-8 text-[var(--main-dark)]">誠実さとスピードで、<br/>一歩先の価値を。</h3>
-            <p class="text-lg leading-loose text-[var(--text-light)] mb-6">1990年の創業以来、私たちは一貫してお客様の課題解決に向き合ってきました。変化の激しい現代において、変わらない誠実さと、止まらない技術革新で、お客様の期待を超える最高のパートナーであり続けます。</p>
-            <div class="flex items-center gap-4 py-4 border-t border-slate-100">
-               <span class="text-3xl font-black text-[var(--main-color)]">35</span>
-               <p class="text-sm font-bold text-[var(--text-light)] tracking-tighter leading-tight">Years of<br/>Experience</p>
+            <span class="block font-en text-5xl font-bold text-[var(--main-color)] mb-2">500<span class="text-lg">+</span></span>
+            <p class="font-bold text-sm">年間実績数</p>
+          </div>
+          <div>
+            <span class="block font-en text-5xl font-bold text-[var(--main-color)] mb-2">98<span class="text-lg">%</span></span>
+            <p class="font-bold text-sm">クライアント継続率</p>
+          </div>
+          <div>
+            <span class="block font-en text-5xl font-bold text-[var(--main-color)] mb-2">50<span class="text-lg">名</span></span>
+            <p class="font-bold text-sm">在籍スタッフ</p>
+          </div>
+          <div>
+            <span class="block font-en text-5xl font-bold text-[var(--main-color)] mb-2">15<span class="text-lg">年</span></span>
+            <p class="font-bold text-sm">業界での信頼実績</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- concept: ミッション・理念 -->
+      <section id="concept" class="py-20 bg-[#F4F7F9] overflow-hidden">
+        <div class="max-w-6xl mx-auto px-6">
+          <div class="grid lg:grid-cols-2 gap-14 items-center">
+            <div class="relative">
+              <div class="rounded-[60px] rounded-tr-[20px] overflow-hidden aspect-[4/5] shadow-2xl">
+                <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1000" class="w-full h-full object-cover" alt="Office">
+              </div>
+            </div>
+            <div class="relative">
+              <div class="bubble-field">
+                <span class="bubble bubble-warm" style="width:120px;height:120px;left:8%;top:12%;animation-delay:0.6s;"></span>
+                <span class="bubble bubble-warm" style="width:90px;height:90px;left:60%;top:8%;animation-delay:1.4s;"></span>
+              </div>
+              <div class="relative z-10">
+                <h2 class="font-en font-bold tracking-widest text-[var(--main-color)] mb-6 text-sm">OUR MISSION</h2>
+                <h3 class="text-3xl md:text-4xl font-black mb-6 leading-tight">
+                  技術の先に、<br>確かな<span class="text-[var(--main-color)]">安心</span>を届ける。
+                </h3>
+                <p class="text-[var(--text-light)] leading-loose mb-8">
+                  私たちはお客様の課題解決に真摯に向き合い、確かな技術と豊富な実績をもとに、最適なソリューションを提供します。変化の激しい現代において、変わらない誠実さと最先端の技術を融合させ、お客様の期待を超えるパートナーであり続けます。
+                </p>
+                <div class="grid grid-cols-2 gap-6 border-t border-gray-200 pt-8">
+                  <div>
+                    <span class="block text-2xl font-en font-black">Quality First</span>
+                    <p class="text-xs font-bold text-[var(--text-light)] mt-2">徹底した品質管理体制</p>
+                  </div>
+                  <div>
+                    <span class="block text-2xl font-en font-black">Global Team</span>
+                    <p class="text-xs font-bold text-[var(--text-light)] mt-2">多様な視点による最適解</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="features" class="py-28 px-6 bg-[var(--accent-color)] border-y border-slate-200">
-        <div class="max-w-7xl mx-auto">
+      <!-- features: 強み -->
+      <section id="features" class="py-20 bg-white relative overflow-hidden">
+        <div class="max-w-6xl mx-auto px-6">
           <div class="text-center mb-16">
-            <h3 class="text-3xl font-bold text-[var(--main-dark)] mb-4">私たちの3つの強み</h3>
-            <div class="w-16 h-1 bg-[var(--main-color)] mx-auto"></div>
+            <h2 class="font-en font-bold tracking-widest text-[var(--main-color)] mb-2 text-sm">STRENGTHS</h2>
+            <h3 class="text-3xl font-black">私たちの3つの強み</h3>
+            <div class="mt-6 w-16 h-1 bg-[var(--main-color)] mx-auto rounded-full"></div>
           </div>
           <div class="grid md:grid-cols-3 gap-8">
-            <div class="bg-white p-10 shadow-sm border-b-4 border-[var(--main-color)] group hover:shadow-xl transition-all">
-              <div class="text-5xl font-black text-slate-100 mb-6 transition-colors group-hover:text-[var(--main-color)]/10">01</div>
-              <h4 class="text-xl font-bold mb-4">確かな実績</h4>
-              <p class="text-sm text-[var(--text-light)] leading-relaxed">年間1,000件以上のプロジェクトを完遂。多様な業界で培った知見が、確実な成果を支えます。</p>
+            <div class="bg-[var(--accent-color)] p-10 rounded-[40px] shadow-sm group hover:shadow-xl transition-all text-center">
+              <div class="w-20 h-20 bg-[var(--main-color)] rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-[var(--main-color)]/20">
+                <span class="text-white font-en font-bold text-xl">01</span>
+              </div>
+              <h4 class="text-xl font-black mb-4">確かな実績</h4>
+              <p class="text-sm text-[var(--text-light)] leading-relaxed">年間500件以上のプロジェクトを完遂。多様な業界で培った知見が、確実な成果を支えます。</p>
             </div>
-            <div class="bg-white p-10 shadow-sm border-b-4 border-[var(--main-color)] group hover:shadow-xl transition-all">
-              <div class="text-5xl font-black text-slate-100 mb-6 transition-colors group-hover:text-[var(--main-color)]/10">02</div>
-              <h4 class="text-xl font-bold mb-4">専門家集団</h4>
-              <p class="text-sm text-[var(--text-light)] leading-relaxed">有資格者や各分野のスペシャリストがチームを構成。専門性の高い課題にも、多角的な視点で解決策を提示します。</p>
+            <div class="bg-[var(--accent-color)] p-10 rounded-[40px] shadow-sm group hover:shadow-xl transition-all text-center">
+              <div class="w-20 h-20 bg-[var(--main-color)] rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-[var(--main-color)]/20">
+                <span class="text-white font-en font-bold text-xl">02</span>
+              </div>
+              <h4 class="text-xl font-black mb-4">専門家集団</h4>
+              <p class="text-sm text-[var(--text-light)] leading-relaxed">各分野のスペシャリストがチームを構成。専門性の高い課題にも多角的な視点で解決策を提示します。</p>
             </div>
-            <div class="bg-white p-10 shadow-sm border-b-4 border-[var(--main-color)] group hover:shadow-xl transition-all">
-              <div class="text-5xl font-black text-slate-100 mb-6 transition-colors group-hover:text-[var(--main-color)]/10">03</div>
-              <h4 class="text-xl font-bold mb-4">徹底した管理</h4>
-              <p class="text-sm text-[var(--text-light)] leading-relaxed">ISO取得済みの厳格な品質・情報管理体制を構築。安定した品質と高いセキュリティをお約束します。</p>
+            <div class="bg-[var(--accent-color)] p-10 rounded-[40px] shadow-sm group hover:shadow-xl transition-all text-center">
+              <div class="w-20 h-20 bg-[var(--main-color)] rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-[var(--main-color)]/20">
+                <span class="text-white font-en font-bold text-xl">03</span>
+              </div>
+              <h4 class="text-xl font-black mb-4">徹底した管理</h4>
+              <p class="text-sm text-[var(--text-light)] leading-relaxed">厳格な品質・情報管理体制を構築。安定した品質と高いセキュリティをお約束します。</p>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="service" class="py-28 px-6 max-w-5xl mx-auto">
-        <div class="text-center mb-16">
-          <h3 class="text-3xl font-bold text-[var(--main-dark)] mb-4">事業内容</h3>
-          <p class="text-[var(--text-light)]">多岐にわたる専門技術でビジネスを加速させます</p>
-        </div>
-        <div class="grid md:grid-cols-2 gap-6">
-          <div class="flex items-center p-8 bg-white border border-slate-200 rounded hover:border-[var(--main-color)] transition-all group">
-            <div class="w-12 h-12 bg-slate-50 rounded flex items-center justify-center mr-6 group-hover:bg-[var(--main-color)] group-hover:text-white transition-colors italic font-bold">C</div>
-            <div class="font-bold text-lg">コンサルティング事業</div>
+      <!-- service: 事業内容 -->
+      <section id="service" class="py-20 bg-[var(--accent-color)] relative overflow-hidden">
+        <div class="max-w-6xl mx-auto px-6">
+          <div class="bubble-field">
+            <span class="bubble" style="width:110px;height:110px;left:8%;top:12%;animation-delay:0.7s;"></span>
+            <span class="bubble" style="width:100px;height:100px;left:86%;top:72%;animation-delay:2.1s;"></span>
           </div>
-          <div class="flex items-center p-8 bg-white border border-slate-200 rounded hover:border-[var(--main-color)] transition-all group">
-            <div class="w-12 h-12 bg-slate-50 rounded flex items-center justify-center mr-6 group-hover:bg-[var(--main-color)] group-hover:text-white transition-colors italic font-bold">S</div>
-            <div class="font-bold text-lg">システム開発受託事業</div>
+          <div class="mb-12">
+            <h2 class="font-en font-bold tracking-widest text-[var(--main-color)] mb-2 text-sm">SERVICES</h2>
+            <h3 class="text-3xl font-black">事業内容</h3>
           </div>
-          <div class="flex items-center p-8 bg-white border border-slate-200 rounded hover:border-[var(--main-color)] transition-all group">
-            <div class="w-12 h-12 bg-slate-50 rounded flex items-center justify-center mr-6 group-hover:bg-[var(--main-color)] group-hover:text-white transition-colors italic font-bold">M</div>
-            <div class="font-bold text-lg">保守・運用マネジメント</div>
-          </div>
-          <div class="flex items-center p-8 bg-white border border-slate-200 rounded hover:border-[var(--main-color)] transition-all group">
-            <div class="w-12 h-12 bg-slate-50 rounded flex items-center justify-center mr-6 group-hover:bg-[var(--main-color)] group-hover:text-white transition-colors italic font-bold">A</div>
-            <div class="font-bold text-lg">AI・DX推進支援事業</div>
+          <div class="grid md:grid-cols-3 gap-6">
+            <div class="bg-white p-8 rounded-[40px] flex flex-col justify-between shadow-md hover:shadow-xl transition-shadow">
+              <div>
+                <span class="text-xs font-bold text-[var(--main-color)] mb-4 block uppercase tracking-tighter">01 / Service</span>
+                <h4 class="text-2xl font-black mb-6">コンサルティング</h4>
+                <div class="rounded-[30px] overflow-hidden mb-4 h-40">
+                  <img src="https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&q=80&w=800" class="w-full h-full object-cover" alt="Service 1">
+                </div>
+                <p class="text-sm text-[var(--text-light)] leading-relaxed">お客様の課題を分析し、最適なソリューションを提案します。</p>
+              </div>
+              <span class="mt-6 font-black text-xs border-b border-[var(--main-color)] pb-1 self-start text-[var(--text-color)]">MORE</span>
+            </div>
+            <div class="bg-white p-8 rounded-[40px] flex flex-col justify-between shadow-md hover:shadow-xl transition-shadow">
+              <div>
+                <span class="text-xs font-bold text-[var(--main-color)] mb-4 block uppercase tracking-tighter">02 / Service</span>
+                <h4 class="text-2xl font-black mb-6">プロジェクト管理</h4>
+                <div class="rounded-[30px] overflow-hidden mb-4 h-40">
+                  <img src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=800" class="w-full h-full object-cover" alt="Service 2">
+                </div>
+                <p class="text-sm text-[var(--text-light)] leading-relaxed">経験豊富なチームが、プロジェクトの成功を一貫してサポートします。</p>
+              </div>
+              <span class="mt-6 font-black text-xs border-b border-[var(--main-color)] pb-1 self-start text-[var(--text-color)]">MORE</span>
+            </div>
+            <div class="bg-white p-8 rounded-[40px] flex flex-col justify-between shadow-md hover:shadow-xl transition-shadow">
+              <div>
+                <span class="text-xs font-bold text-[var(--main-color)] mb-4 block uppercase tracking-tighter">03 / Service</span>
+                <h4 class="text-2xl font-black mb-6">人材ソリューション</h4>
+                <div class="rounded-[30px] overflow-hidden mb-4 h-40">
+                  <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=800" class="w-full h-full object-cover" alt="Service 3">
+                </div>
+                <p class="text-sm text-[var(--text-light)] leading-relaxed">適切な人材をマッチングし、組織の力を最大化します。</p>
+              </div>
+              <span class="mt-6 font-black text-xs border-b border-[var(--main-color)] pb-1 self-start text-[var(--text-color)]">MORE</span>
+            </div>
           </div>
         </div>
       </section>
 
-      <section id="company" class="py-28 px-6 bg-slate-900 text-white">
-        <div class="max-w-5xl mx-auto">
-          <div class="grid md:grid-cols-3 gap-12">
+      <!-- works: 実績・メッセージ -->
+      <section id="works" class="py-20 bg-[#F4F7F9] relative overflow-hidden">
+        <div class="max-w-6xl mx-auto px-6">
+          <div class="bubble-field">
+            <span class="bubble bubble-warm" style="width:130px;height:130px;left:6%;top:20%;animation-delay:0.8s;"></span>
+            <span class="bubble bubble-warm" style="width:95px;height:95px;left:80%;top:65%;animation-delay:1.9s;"></span>
+          </div>
+          <div class="bg-white rounded-[60px] p-8 md:p-14 shadow-xl">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+              <div>
+                <h2 class="font-en font-bold tracking-widest text-[var(--main-color)] mb-4 text-sm">MESSAGE</h2>
+                <h3 class="text-3xl font-black mb-6 italic">お客様と共に、<br>価値を創造する。</h3>
+                <p class="text-[var(--text-light)] leading-loose mb-8">
+                  私たちは単にサービスを提供するだけでなく、お客様のビジネスパートナーとして、持続的な成長をサポートします。長年の経験と専門知識を活かし、最高の成果をお約束します。
+                </p>
+                <a href="#company" class="bg-[var(--main-color)] text-white px-10 py-4 rounded-full font-bold inline-block hover:opacity-90 transition-all">企業情報を詳しく見る</a>
+              </div>
+              <div class="rounded-[40px] overflow-hidden aspect-[3/4]">
+                <img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&q=80&w=800" class="w-full h-full object-cover" alt="Meeting">
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- news: ニュース -->
+      <section id="news" class="py-20 bg-white relative overflow-hidden">
+        <div class="max-w-6xl mx-auto px-6">
+          <div class="bubble-field">
+            <span class="bubble" style="width:110px;height:110px;left:4%;top:18%;animation-delay:0.6s;"></span>
+            <span class="bubble" style="width:90px;height:90px;left:88%;top:60%;animation-delay:1.8s;"></span>
+          </div>
+          <div class="flex flex-col md:flex-row justify-between items-end mb-12">
             <div>
-              <h3 class="text-3xl font-bold mb-6">Company<br/>Information</h3>
-              <p class="text-sm text-slate-400 leading-loose">私たちの組織概要と、これまでの歩み、そして透明性の高い経営体制についてご紹介します。</p>
+              <h2 class="font-en font-bold tracking-widest text-[var(--main-color)] mb-2 text-sm">NEWS</h2>
+              <h3 class="text-3xl font-black">ニュース</h3>
             </div>
-            <div class="md:col-span-2">
-              <dl class="divide-y divide-white/10">
-                <div class="grid grid-cols-3 py-6">
-                  <dt class="text-slate-400 font-bold text-sm uppercase">Representative</dt>
-                  <dd class="col-span-2 font-bold">代表取締役 山田 太郎</dd>
-                </div>
-                <div class="grid grid-cols-3 py-6">
-                  <dt class="text-slate-400 font-bold text-sm uppercase">Capital</dt>
-                  <dd class="col-span-2 font-bold">5,000万円</dd>
-                </div>
-                <div class="grid grid-cols-3 py-6">
-                  <dt class="text-slate-400 font-bold text-sm uppercase">Employees</dt>
-                  <dd class="col-span-2 font-bold">120名（連結・2026年現在）</dd>
-                </div>
-                <div class="grid grid-cols-3 py-6">
-                  <dt class="text-slate-400 font-bold text-sm uppercase">License</dt>
-                  <dd class="col-span-2 font-bold text-sm">ISO 9001, ISO 27001取得済み</dd>
-                </div>
-              </dl>
+            <a href="/news" class="text-sm font-bold border-b-2 border-[var(--main-color)] pb-1 mt-4 md:mt-0 hover:text-[var(--main-color)] transition-all">VIEW ALL</a>
+          </div>
+          <div class="grid md:grid-cols-2 gap-6">
+            <a href="/news/news-page" class="group block"><article class="flex flex-col sm:flex-row gap-4 p-5 bg-[var(--accent-color)] rounded-[24px] hover:shadow-lg transition-shadow"><div class="w-full sm:w-32 h-24 bg-gray-100 rounded-[16px] overflow-hidden shrink-0"><img src="https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&q=80&w=400" class="w-full h-full object-cover group-hover:scale-105 transition-transform"></div><div><p class="text-xs font-en font-bold text-[var(--main-color)] mb-2">2025.04.01</p><h4 class="text-base font-bold group-hover:text-[var(--main-color)] transition-colors line-clamp-2">最新情報は公開投稿から自動生成されます。</h4></div></article></a>
+            <a href="/news/news-page" class="group block"><article class="flex flex-col sm:flex-row gap-4 p-5 bg-[var(--accent-color)] rounded-[24px] hover:shadow-lg transition-shadow"><div class="w-full sm:w-32 h-24 bg-gray-100 rounded-[16px] overflow-hidden shrink-0"><img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=400" class="w-full h-full object-cover group-hover:scale-105 transition-transform"></div><div><p class="text-xs font-en font-bold text-[var(--main-color)] mb-2">2025.03.15</p><h4 class="text-base font-bold group-hover:text-[var(--main-color)] transition-colors line-clamp-2">ニュース記事のタイトルがここに表示されます。</h4></div></article></a>
+          </div>
+        </div>
+      </section>
+
+      <!-- blog: ブログ -->
+      <section id="blog" class="py-20 bg-[var(--accent-color)] relative overflow-hidden">
+        <div class="max-w-6xl mx-auto px-6">
+          <div class="flex flex-col md:flex-row justify-between items-end mb-12">
+            <div>
+              <h2 class="font-en font-bold tracking-widest text-[var(--main-color)] mb-2 text-sm">BLOG</h2>
+              <h3 class="text-3xl font-black">ブログ</h3>
             </div>
+            <a href="/blog" class="text-sm font-bold border-b-2 border-[var(--main-color)] pb-1 mt-4 md:mt-0 hover:text-[var(--main-color)] transition-all">VIEW ALL</a>
+          </div>
+          <div class="grid md:grid-cols-3 gap-6">
+            <a href="/blog/blog-page" class="group">
+              <div class="aspect-video overflow-hidden rounded-3xl mb-4 shadow-md">
+                <img src="https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&q=80&w=800" alt="Blog 1" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+              </div>
+              <div class="flex items-center gap-3 mb-3">
+                <span class="text-sm font-en font-bold text-gray-400">2025.04.01</span>
+                <span class="bg-[#F4F7F9] text-[var(--main-color)] text-xs font-bold px-3 py-1 rounded-full">BLOG</span>
+              </div>
+              <h4 class="text-lg font-bold group-hover:text-[var(--main-color)] transition-all line-clamp-2">ブログ記事は公開投稿から自動生成されます。</h4>
+            </a>
+            <a href="/blog/blog-page" class="group">
+              <div class="aspect-video overflow-hidden rounded-3xl mb-4 shadow-md">
+                <img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=800" alt="Blog 2" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+              </div>
+              <div class="flex items-center gap-3 mb-3">
+                <span class="text-sm font-en font-bold text-gray-400">2025.03.15</span>
+                <span class="bg-[#F4F7F9] text-[var(--main-color)] text-xs font-bold px-3 py-1 rounded-full">BLOG</span>
+              </div>
+              <h4 class="text-lg font-bold group-hover:text-[var(--main-color)] transition-all line-clamp-2">ブログ記事のタイトルがここに表示されます。</h4>
+            </a>
+            <a href="/blog/blog-page" class="group">
+              <div class="aspect-video overflow-hidden rounded-3xl mb-4 shadow-md">
+                <img src="https://images.unsplash.com/photo-1541888946425-d81bb19480c5?auto=format&fit=crop&q=80&w=800" alt="Blog 3" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+              </div>
+              <div class="flex items-center gap-3 mb-3">
+                <span class="text-sm font-en font-bold text-gray-400">2025.03.01</span>
+                <span class="bg-[#F4F7F9] text-[var(--main-color)] text-xs font-bold px-3 py-1 rounded-full">BLOG</span>
+              </div>
+              <h4 class="text-lg font-bold group-hover:text-[var(--main-color)] transition-all line-clamp-2">最新のアプローチと私たちの取り組み。</h4>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- company: 企業情報・お問い合わせ -->
+      <section id="company" class="py-12 px-6">
+        <div class="max-w-5xl mx-auto bg-[var(--main-color)] rounded-[60px] p-10 md:p-16 text-center text-white shadow-2xl">
+          <h2 class="font-en font-bold tracking-[0.3em] mb-4 text-sm">CONTACT</h2>
+          <h3 class="text-3xl md:text-4xl font-black mb-8">お気軽にご相談ください</h3>
+          <div class="flex flex-col md:flex-row justify-center items-center gap-4">
+            <a href="#" class="bg-white text-[var(--main-color)] w-full md:w-auto px-10 py-4 rounded-full font-black text-lg hover:bg-gray-100 transition-all">
+              TEL. 000-0000-0000
+            </a>
+            <a href="#" class="bg-transparent border-2 border-white w-full md:w-auto px-10 py-4 rounded-full font-black text-lg hover:bg-white hover:text-[var(--main-color)] transition-all">
+              お問い合わせフォーム
+            </a>
           </div>
         </div>
       </section>
     </main>
 
-    <footer class="bg-black text-white py-16 text-center border-t border-white/5">
-      <div class="font-black text-xl mb-6 tracking-widest uppercase">Corporate Inc.</div>
-      <p class="text-[10px] tracking-[0.2em] text-slate-500">&copy; 2026 CORPORATE INC. ALL RIGHTS RESERVED.</p>
-    </footer>
-  </div>
-</div>`
-},
-  {
-  id: 'template-pop',
-  name: 'Pop: 元気 & 親しみ',
-  tags: ['pop', 'kids', 'event', 'colorful'],
-  description: '明るい色使いと丸みのある要素。全セクション対応。',
-  html: `<div class="template-root" style="--main-color: #ec4899; --sub-color: #3b82f6; --accent-color: #fef08a; --text-color: #334155; --bg-color: #fffaf0;">
-  <div class="min-h-screen font-sans text-[var(--text-color)] bg-[var(--bg-color)] relative overflow-hidden" style="background-image: radial-gradient(var(--accent-color) 1px, transparent 1px); background-size: 30px 30px;">
-    
-    <header class="p-6 flex justify-center sticky top-0 z-50">
-      <div class="bg-white px-8 py-3 rounded-2xl border-[3px] border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex items-center gap-6">
-        <div class="font-black text-[var(--main-color)] text-2xl tracking-tighter uppercase">Pop! <span class="text-[var(--sub-color)]">Shop</span></div>
-        <nav class="hidden md:flex gap-4">
-          <a href="#concept" class="text-xs font-black uppercase hover:text-[var(--main-color)] transition-colors">About</a>
-          <a href="#features" class="text-xs font-black uppercase hover:text-[var(--main-color)] transition-colors">Style</a>
-          <a href="#service" class="text-xs font-black uppercase hover:text-[var(--main-color)] transition-colors">Menu</a>
-        </nav>
-      </div>
-    </header>
-
-    <main>
-      <section id="top" class="relative py-24 px-4 text-center">
-        <div class="max-w-4xl mx-auto">
-          <div class="inline-block px-6 py-2 bg-[var(--accent-color)] border-[3px] border-black rounded-full text-sm font-black mb-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] -rotate-3">
-            HAPPINESS FOR ALL!
-          </div>
-          <h2 class="text-7xl md:text-[100px] font-black leading-none mb-12">
-            <span class="inline-block transform -rotate-2 text-[var(--main-color)] drop-shadow-[4px_4px_0px_#000]">ワクワクを</span><br/>
-            <span class="inline-block transform rotate-1 text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-[var(--main-color)] drop-shadow-[4px_4px_0px_rgba(0,0,0,0.2)]">届けよう！</span>
-          </h2>
-          
-          <div class="flex justify-center items-center gap-6 md:gap-10">
-            <div class="w-32 h-32 bg-[var(--main-color)] border-[4px] border-black rounded-full flex items-center justify-center text-white font-black text-2xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] animate-bounce italic">Fun!</div>
-            <div class="w-24 h-24 bg-[var(--sub-color)] border-[4px] border-black rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] animate-bounce delay-150 rotate-12">Joy!</div>
-            <div class="hidden md:flex w-28 h-28 bg-orange-400 border-[4px] border-black rounded-[2rem] items-center justify-center text-white font-black text-xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] animate-bounce delay-300 -rotate-12">Wow!</div>
-          </div>
+    <footer class="bg-[var(--accent-color)] pt-14 pb-10 relative overflow-hidden">
+      <div class="max-w-6xl mx-auto px-6">
+        <div class="bubble-field">
+          <span class="bubble bubble-warm" style="width:120px;height:120px;left:6%;top:18%;animation-delay:0.7s;"></span>
+          <span class="bubble bubble-warm" style="width:90px;height:90px;left:82%;top:65%;animation-delay:1.9s;"></span>
         </div>
-      </section>
-
-      <section id="concept" class="py-20 px-6 text-center">
-        <div class="relative bg-white p-12 rounded-[3.5rem] border-[4px] border-black shadow-[12px_12px_0px_0px_var(--accent-color)] max-w-2xl mx-auto">
-          <div class="absolute -top-6 -left-6 bg-[var(--sub-color)] text-white font-black px-6 py-2 rounded-xl border-[3px] border-black -rotate-6">Our Mind</div>
-          <h3 class="text-4xl font-black mb-8 text-[var(--main-color)] tracking-tight">毎日に、ハッピーな色を。</h3>
-          <p class="text-xl font-bold leading-relaxed">私たちは、遊び心を忘れないデザインで、あなたの日常をカラフルに塗り替えます。退屈な時間を「最高の思い出」に変える。それが私たちのミッションです！</p>
-        </div>
-      </section>
-
-      <section id="features" class="py-20 px-6">
-        <div class="max-w-6xl mx-auto grid md:grid-cols-3 gap-10">
-          <div class="group relative bg-white p-8 rounded-[2rem] border-[3px] border-black shadow-[8px_8px_0px_0px_var(--main-color)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all">
-            <span class="text-6xl mb-6 block transform group-hover:scale-125 transition-transform duration-300">🎨</span>
-            <h4 class="text-2xl font-black mb-4">カラフル・パワー</h4>
-            <p class="font-bold text-sm text-[var(--text-color)]/70">1,000色以上のパレットから、あなただけの「好き」を見つけ出します。</p>
-          </div>
-          <div class="group relative bg-white p-8 rounded-[2rem] border-[3px] border-black shadow-[8px_8px_0px_0px_var(--accent-color)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all">
-            <span class="text-6xl mb-6 block transform group-hover:rotate-12 transition-transform duration-300">🚀</span>
-            <h4 class="text-2xl font-black mb-4">爆速デリバリー</h4>
-            <p class="font-bold text-sm text-[var(--text-color)]/70">ワクワクは冷めないうちに！驚きのスピードでアイデアをカタチにします。</p>
-          </div>
-          <div class="group relative bg-white p-8 rounded-[2rem] border-[3px] border-black shadow-[8px_8px_0px_0px_var(--sub-color)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all">
-            <span class="text-6xl mb-6 block transform group-hover:-translate-y-2 transition-transform duration-300">🤝</span>
-            <h4 class="text-2xl font-black mb-4">超フレンドリー</h4>
-            <p class="font-bold text-sm text-[var(--text-color)]/70">まるで親友のように。あなたの想いに全力で寄り添うチームです！</p>
-          </div>
-        </div>
-      </section>
-
-      <section id="service" class="py-24 px-6 bg-[var(--main-color)] rounded-t-[80px] border-t-[6px] border-black">
-        <div class="max-w-4xl mx-auto">
-          <h3 class="text-5xl font-black text-white text-center mb-16 italic drop-shadow-[4px_4px_0px_#000]">What We Do</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div class="bg-[var(--accent-color)] p-10 rounded-[2.5rem] border-[4px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform -rotate-1 hover:rotate-0 transition-transform cursor-default">
-              <h4 class="text-3xl font-black mb-4">イベント企画</h4>
-              <p class="font-bold opacity-80 leading-relaxed">度肝を抜くようなサプライズから、心温まるパーティーまで。特別な日をプロデュース！</p>
-            </div>
-            <div class="bg-white p-10 rounded-[2.5rem] border-[4px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1 hover:rotate-0 transition-transform cursor-default">
-              <h4 class="text-3xl font-black mb-4 text-[var(--sub-color)]">デザイン制作</h4>
-              <p class="font-bold opacity-80 leading-relaxed">ロゴ、WEB、グッズまで。見た瞬間に「最高！」と言いたくなるデザインを作ります。</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="works" class="py-32 px-6">
-        <div class="max-w-6xl mx-auto">
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div class="aspect-square bg-white border-[3px] border-black rounded-[2rem] shadow-[4px_4px_0px_0px_#000] rotate-2"></div>
-            <div class="aspect-square bg-[var(--sub-color)] border-[3px] border-black rounded-[2rem] shadow-[4px_4px_0px_0px_#000] -rotate-3"></div>
-            <div class="aspect-square bg-orange-400 border-[3px] border-black rounded-[2rem] shadow-[4px_4px_0px_0px_#000] rotate-6"></div>
-            <div class="aspect-square bg-[var(--main-color)] border-[3px] border-black rounded-[2rem] shadow-[4px_4px_0px_0px_#000] -rotate-2"></div>
-          </div>
-        </div>
-      </section>
-
-      <section id="company" class="py-24 px-6 text-center">
-        <div class="inline-block relative">
-          <div class="absolute inset-0 bg-black rounded-3xl translate-x-3 translate-y-3"></div>
-          <div class="relative bg-white p-12 rounded-3xl border-[3px] border-black text-left max-w-md">
-            <h3 class="text-2xl font-black mb-6 border-b-[4px] border-[var(--accent-color)] inline-block">Shop Info</h3>
-            <div class="space-y-4 font-black text-lg">
-              <p class="flex justify-between gap-10"><span>なまえ</span><span class="text-[var(--main-color)]">POP!制作所</span></p>
-              <p class="flex justify-between gap-10"><span>ばしょ</span><span class="text-[var(--sub-color)] text-right">おもちゃの国<br/>1-2-3-4</span></p>
-              <p class="flex justify-between gap-10"><span>でんわ</span><span>03-POP-JOY</span></p>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="py-20 text-center bg-white border-t-[6px] border-black">
-      <div class="font-black text-[var(--main-color)] text-4xl mb-4 tracking-tighter">POP! SHOP</div>
-      <p class="font-black text-sm tracking-widest text-slate-400 uppercase italic">Keep Playing, Keep Smiling!</p>
-      <p class="mt-8 font-black text-xs text-slate-300 tracking-widest">&copy; 2026 POP! FACTORY ALL RIGHTS RESERVED.</p>
-    </footer>
-  </div>
-</div>`
-},{
-  id: 'template-minimal',
-  name: 'Minimal: 洗練された余白',
-  tags: ['minimal', 'art', 'fashion', 'white'],
-  description: '要素を極限まで削ぎ落とし、余白で語るデザイン。',
-  html: `<div class="template-root" style="--main-color: #000000; --accent-color: #f8fafc; --text-color: #1a1a1a; --text-light: #64748b; --bg-color: #ffffff;">
-  <div class="min-h-screen font-sans text-[var(--text-color)] bg-[var(--bg-color)] selection:bg-black selection:text-white">
-    
-    <header class="sticky top-0 w-full bg-white/80 backdrop-blur-md z-50 border-b border-slate-100">
-      <div class="max-w-7xl mx-auto px-8 h-20 flex justify-between items-center">
-        <h1 class="text-lg font-bold tracking-[0.4em] uppercase">Mnml</h1>
-        <nav class="hidden md:flex items-center gap-10 text-[11px] font-bold tracking-[0.2em] uppercase">
-          <a href="#concept" class="hover:text-gray-400 transition-colors">Concept</a>
-          <a href="#features" class="hover:text-gray-400 transition-colors">Method</a>
-          <a href="#service" class="hover:text-gray-400 transition-colors">Pricing</a>
-          <a href="#contact" class="px-5 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-all">Contact</a>
-        </nav>
-      </div>
-    </header>
-
-    <main>
-      <section id="top" class="py-32 md:py-48 px-8 max-w-7xl mx-auto">
-        <div class="max-w-3xl">
-          <h2 class="text-5xl md:text-7xl font-light tracking-tight leading-tight mb-12">
-            Less <span class="italic font-serif">is</span> more.<br/>
-            本質を、デザインする。
-          </h2>
-          <p class="text-lg text-[var(--text-light)] leading-relaxed mb-16 max-w-xl">
-            私たちは、情報の洪水の中から本当に価値のあるものだけを抽出し、研ぎ澄まされた形へと昇華させます。
-          </p>
-          <div class="flex items-center gap-4">
-            <div class="h-px w-20 bg-black"></div>
-            <span class="text-xs font-bold tracking-[0.3em] uppercase">Est. 2026 Tokyo</span>
-          </div>
-        </div>
-      </section>
-
-      <section id="concept" class="py-32 px-8 bg-[var(--accent-color)]">
-        <div class="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
-          <div class="text-sm leading-[2.2] tracking-widest text-[var(--text-color)]">
-            <h3 class="text-xs font-bold mb-10 tracking-[0.4em] uppercase text-[var(--text-light)]">Philosophy</h3>
-            <p class="text-xl font-light">
-              装飾は最小限に。メッセージは最大限に。<br/>
-              無駄を削ぎ落とすプロセスこそが、<br/>
-              ブランドの輪郭を最も鮮明に描き出します。
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-14">
+          <div class="col-span-2 md:col-span-1">
+            <div class="font-black text-lg mb-4">Company Name</div>
+            <p class="text-xs font-bold text-gray-400 leading-loose">
+              株式会社サンプル<br>
+              〒000-0000<br>
+              東京都渋谷区1-1-1<br>
+              TEL: 000-0000-0000
             </p>
           </div>
-          <div class="aspect-video bg-white shadow-sm border border-slate-100 rounded-sm"></div>
-        </div>
-      </section>
-
-      <section id="features" class="py-32 px-8 max-w-7xl mx-auto">
-        <div class="grid md:grid-cols-3 gap-12">
-          <div class="border-t border-black pt-8">
-            <h4 class="text-xs font-bold mb-6 tracking-[0.2em] uppercase">01. Identity</h4>
-            <p class="text-[13px] leading-relaxed text-[var(--text-light)]">
-              トレンドに左右されない、普遍的なアイデンティティを追求します。
-            </p>
-          </div>
-          <div class="border-t border-black pt-8">
-            <h4 class="text-xs font-bold mb-6 tracking-[0.2em] uppercase">02. Space</h4>
-            <p class="text-[13px] leading-relaxed text-[var(--text-light)]">
-              適切な余白を設計し、ユーザーの視線と直感に寄り添う構成を構築します。
-            </p>
-          </div>
-          <div class="border-t border-black pt-8">
-            <h4 class="text-xs font-bold mb-6 tracking-[0.2em] uppercase">03. Quality</h4>
-            <p class="text-[13px] leading-relaxed text-[var(--text-light)]">
-              1pxのズレも許さない緻密な実装で、デジタル上の体験を磨き上げます。
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section id="service" class="py-32 px-8 bg-black text-white">
-        <div class="max-w-4xl mx-auto">
-          <h3 class="text-center text-xs tracking-[0.5em] uppercase mb-20 opacity-50">Service Plan</h3>
-          <div class="divide-y divide-white/20">
-            <div class="py-10 flex justify-between items-center group cursor-pointer">
-              <span class="text-xl font-light tracking-widest group-hover:pl-4 transition-all uppercase">Design Consulting</span>
-              <span class="text-sm font-bold tracking-widest">¥500,000 —</span>
-            </div>
-            <div class="py-10 flex justify-between items-center group cursor-pointer">
-              <span class="text-xl font-light tracking-widest group-hover:pl-4 transition-all uppercase">Full Identity System</span>
-              <span class="text-sm font-bold tracking-widest">¥1,200,000 —</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="works" class="py-32 px-8 max-w-7xl mx-auto">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div class="group">
-            <div class="aspect-square bg-slate-100 overflow-hidden relative border border-slate-100">
-              <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-500"></div>
-            </div>
-            <p class="mt-4 text-[10px] tracking-widest uppercase font-bold text-gray-400 italic">2026 / Visual Study</p>
-          </div>
-          <div class="group">
-            <div class="aspect-square bg-slate-100 overflow-hidden relative border border-slate-100">
-              <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-500"></div>
-            </div>
-            <p class="mt-4 text-[10px] tracking-widest uppercase font-bold text-gray-400 italic">2026 / Architecture</p>
-          </div>
-        </div>
-      </section>
-
-      <section id="company" class="py-32 px-8 border-t border-slate-100 max-w-7xl mx-auto">
-        <div class="grid md:grid-cols-2 gap-12 text-sm tracking-widest">
           <div>
-            <p class="mb-4 text-xs font-bold uppercase opacity-40">Office</p>
-            <p class="leading-loose">〒150-0001<br/>東京都渋谷区神宮前 1-2-3<br/>MNML STUDIO</p>
-          </div>
-          <div class="md:text-right">
-            <p class="mb-4 text-xs font-bold uppercase opacity-40">Contact</p>
-            <p class="leading-loose">info@mnml.jp<br/>03-1234-5678</p>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="py-20 text-center border-t border-slate-100">
-      <p class="text-[10px] font-bold tracking-[0.4em] uppercase text-slate-300">© MMXXVI MNML ALL RIGHTS RESERVED.</p>
-    </footer>
-  </div>
-</div>`
-},{
-  id: 'template-dark',
-  name: 'Dark: テック & クール',
-  tags: ['dark', 'tech', 'night', 'cool'],
-  description: '黒を基調とした、先進的なダークモード。',
-  html: `<div class="template-root" style="--main-color: #06b6d4; --sub-color: #0891b2; --accent-color: #0f172a; --text-color: #e2e8f0; --bg-color: #020617;">
-  <div class="min-h-screen font-mono text-[var(--text-color)] bg-[var(--bg-color)] relative selection:bg-[var(--main-color)] selection:text-black">
-    
-    <div class="absolute inset-0 pointer-events-none z-[100]" style="background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02)); background-size: 100% 4px, 3px 100%;"></div>
-
-    <header class="p-6 border-b border-[var(--main-color)]/30 flex justify-between bg-black/80 backdrop-blur-md sticky top-0 z-50">
-      <div class="flex items-center gap-4">
-        <div class="w-3 h-3 bg-[var(--main-color)] rounded-full animate-pulse shadow-[0_0_10px_var(--main-color)]"></div>
-        <span class="font-black tracking-tighter text-xl">DEV<span class="text-[var(--main-color)]">.IO</span></span>
-      </div>
-      <nav class="hidden md:flex gap-8 text-[10px] uppercase tracking-[0.2em] items-center">
-        <a href="#concept" class="hover:text-[var(--main-color)] transition-colors">/Concept</a>
-        <a href="#features" class="hover:text-[var(--main-color)] transition-colors">/Specs</a>
-        <a href="#service" class="hover:text-[var(--main-color)] transition-colors">/Core</a>
-        <div class="px-3 py-1 border border-red-500/50 text-red-500 text-[8px] animate-pulse">System: Stable</div>
-      </nav>
-    </header>
-
-    <main>
-      <section id="top" class="relative py-40 px-6 max-w-6xl mx-auto overflow-hidden">
-        <div class="absolute -top-20 -left-20 w-96 h-96 bg-[var(--main-color)]/10 blur-[120px] rounded-full"></div>
-        <div class="relative z-10">
-          <div class="flex items-center gap-3 mb-6">
-            <span class="bg-[var(--main-color)]/20 text-[var(--main-color)] text-[10px] px-2 py-0.5 font-bold uppercase tracking-widest border border-[var(--main-color)]/40">Initialize... Success</span>
-            <span class="text-slate-600 text-[10px]">v4.02.26</span>
-          </div>
-          <h2 class="text-6xl md:text-8xl font-black mb-10 leading-none">
-            FUTURE<br/>
-            <span class="text-transparent" style="-webkit-text-stroke: 1px var(--main-color); filter: drop-shadow(0 0 5px var(--main-color));">PROTOCOL</span>
-          </h2>
-          <p class="text-slate-400 max-w-xl text-lg mb-12 border-l-2 border-slate-700 pl-6">
-            最先端の量子アルゴリズムと、洗練されたアーキテクチャで、<br/>
-            デジタル領域の限界を再定義する。
-          </p>
-          <button class="group relative px-8 py-4 bg-transparent border border-[var(--main-color)] text-[var(--main-color)] uppercase text-xs tracking-[0.3em] overflow-hidden hover:text-black transition-colors duration-300">
-            <span class="relative z-10">Connect Terminal</span>
-            <div class="absolute inset-0 bg-[var(--main-color)] translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-          </button>
-        </div>
-      </section>
-
-      <section id="concept" class="py-24 px-6 bg-slate-900/50 border-y border-slate-800 relative">
-        <div class="max-w-4xl mx-auto">
-          <div class="flex justify-between items-end mb-12">
-            <h3 class="text-[var(--main-color)] text-xs tracking-[0.5em] uppercase">Core Mission</h3>
-            <span class="text-slate-700 text-[8px]">0x001A_44B</span>
-          </div>
-          <p class="text-3xl md:text-5xl font-bold leading-tight italic">
-            「不可能を<span class="text-[var(--main-color)] shadow-[0_0_15px_rgba(6,182,212,0.5)]">コード</span>で解決する」
-          </p>
-          <div class="mt-12 flex gap-1">
-            <div class="w-12 h-1 bg-[var(--main-color)]"></div>
-            <div class="w-4 h-1 bg-slate-700"></div>
-            <div class="w-2 h-1 bg-slate-700"></div>
-          </div>
-        </div>
-      </section>
-
-      <section id="features" class="py-32 px-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-          <div class="group p-10 border border-slate-800 bg-black/60 relative hover:border-[var(--main-color)] transition-all overflow-hidden">
-            <div class="absolute top-0 right-0 p-2 text-[8px] text-slate-700 uppercase group-hover:text-[var(--main-color)] transition-colors">M_01</div>
-            <h4 class="text-xl font-bold mb-4 text-white group-hover:text-[var(--main-color)] transition-colors">Fast Execution</h4>
-            <p class="text-xs text-slate-500 leading-relaxed mb-6">極限まで最適化されたランタイムにより、ミリ秒単位のレスポンスを実現。</p>
-            <div class="w-full h-0.5 bg-slate-800 group-hover:bg-[var(--main-color)] transition-all"></div>
-          </div>
-          <div class="group p-10 border border-slate-800 bg-black/60 relative hover:border-[var(--main-color)] transition-all overflow-hidden">
-            <div class="absolute top-0 right-0 p-2 text-[8px] text-slate-700 uppercase group-hover:text-[var(--main-color)] transition-colors">M_02</div>
-            <h4 class="text-xl font-bold mb-4 text-white group-hover:text-[var(--main-color)] transition-colors">Encrypted</h4>
-            <p class="text-xs text-slate-500 leading-relaxed mb-6">ゼロトラスト原則に基づく、軍用レベルの暗号化プロトコルを標準装備。</p>
-            <div class="w-full h-0.5 bg-slate-800 group-hover:bg-[var(--main-color)] transition-all"></div>
-          </div>
-          <div class="group p-10 border border-slate-800 bg-black/60 relative hover:border-[var(--main-color)] transition-all overflow-hidden">
-            <div class="absolute top-0 right-0 p-2 text-[8px] text-slate-700 uppercase group-hover:text-[var(--main-color)] transition-colors">M_03</div>
-            <h4 class="text-xl font-bold mb-4 text-white group-hover:text-[var(--main-color)] transition-colors">Scalability</h4>
-            <p class="text-xs text-slate-500 leading-relaxed mb-6">数百万の同時接続に耐えうる、自律分散型のスケーリング機構。</p>
-            <div class="w-full h-0.5 bg-slate-800 group-hover:bg-[var(--main-color)] transition-all"></div>
-          </div>
-        </div>
-      </section>
-
-      <section id="service" class="py-24 px-6 bg-slate-900/30">
-        <div class="max-w-4xl mx-auto">
-          <div class="border border-slate-800 p-8 bg-black/40">
-            <h3 class="text-xs mb-8 tracking-[0.4em] text-slate-500 uppercase">Available Protocols</h3>
-            <div class="space-y-4">
-              <div class="flex justify-between items-center p-5 border-l-2 border-[var(--main-color)] bg-slate-800/20 group hover:bg-[var(--main-color)]/5 transition-colors">
-                <div class="flex items-center gap-4">
-                  <span class="text-xs text-slate-600">01</span>
-                  <span class="text-sm font-bold tracking-widest uppercase">Cloud Architecture</span>
-                </div>
-                <span class="text-[10px] text-[var(--main-color)] animate-pulse font-bold tracking-widest">[ READY ]</span>
-              </div>
-              <div class="flex justify-between items-center p-5 border-l-2 border-slate-700 bg-slate-800/10 group hover:bg-[var(--main-color)]/5 transition-colors">
-                <div class="flex items-center gap-4">
-                  <span class="text-xs text-slate-600">02</span>
-                  <span class="text-sm font-bold tracking-widest uppercase">Neural Net Interface</span>
-                </div>
-                <span class="text-[10px] text-slate-600 font-bold tracking-widest">[ STANDBY ]</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="works" class="py-32 px-6">
-        <div class="max-w-6xl mx-auto">
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="aspect-video bg-slate-800/50 border border-slate-700 group relative cursor-crosshair">
-              <div class="absolute inset-0 bg-[var(--main-color)]/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div class="absolute bottom-2 left-2 text-[8px] text-slate-600 uppercase">Archive_01</div>
-            </div>
-            <div class="aspect-video bg-slate-900/50 border border-slate-700 group relative cursor-crosshair">
-              <div class="absolute inset-0 bg-[var(--main-color)]/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div class="absolute bottom-2 left-2 text-[8px] text-slate-600 uppercase">Archive_02</div>
-            </div>
-            <div class="aspect-video bg-slate-800/50 border border-slate-700 group relative cursor-crosshair">
-              <div class="absolute inset-0 bg-[var(--main-color)]/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div class="absolute bottom-2 left-2 text-[8px] text-slate-600 uppercase">Archive_03</div>
-            </div>
-            <div class="aspect-video bg-slate-900/50 border border-slate-700 group relative cursor-crosshair">
-              <div class="absolute inset-0 bg-[var(--main-color)]/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div class="absolute bottom-2 left-2 text-[8px] text-slate-600 uppercase">Archive_04</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="company" class="py-24 px-6 border-t border-slate-800/50">
-        <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 text-[11px] tracking-widest">
-          <div class="space-y-6">
-            <p class="text-slate-600 uppercase">// Location_Data</p>
-            <div class="p-6 bg-slate-900/50 border-r-2 border-red-500/50">
-               <p class="text-white">SHIBUYA_QUARTER_X</p>
-               <p class="text-slate-500 mt-2 italic">Latitude: 35.6580° N, Longitude: 139.7016° E</p>
-            </div>
-          </div>
-          <div class="space-y-6">
-            <p class="text-slate-600 uppercase">// Contact_Channel</p>
-            <div class="p-6 bg-slate-900/50 border-r-2 border-[var(--main-color)]/50">
-               <p class="text-white">ENCRYPTED_LINE: 03-XXXX-XXXX</p>
-               <p class="text-slate-500 mt-2 italic">Signal_Strength: Optimal</p>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="py-16 border-t border-slate-900 bg-black text-center">
-      <div class="mb-4 text-[var(--main-color)] opacity-50 text-[10px] animate-pulse">■ CONNECTION_ACTIVE</div>
-      <p class="text-[9px] text-slate-600 tracking-[0.4em] uppercase">
-        TERMINAL_END. (C) 2026 DEV.IO - ALL SYSTEMS OPERATIONAL
-      </p>
-    </footer>
-  </div>
-</div>`
-},
-  {
-    id: 'template-natural',
-    name: 'Natural: オーガニック',
-    tags: ['natural', 'cafe', 'food', 'green'],
-    description: 'アースカラーと柔らかい雰囲気で、自然や健康志向をアピール。',
-    html: `<div class="template-root" style="--main-color: #8B9D8B; --sub-color: #a7b4a7; --accent-color: #4A5D4A; --bg-color: #F7F5F0; --text-color: #5A5A5A; --white: #ffffff;">
-  <div class="min-h-screen font-sans text-[var(--text-color)] bg-[var(--bg-color)]">
-    
-    <header class="p-8 flex justify-between items-center max-w-7xl mx-auto">
-      <div class="font-serif text-xl tracking-widest text-[var(--accent-color)] font-bold">Organic <span class="font-light">Life</span></div>
-      <nav class="hidden md:flex gap-8 text-xs uppercase tracking-[0.2em] font-medium">
-        <a href="#concept" class="hover:text-[var(--main-color)] transition-colors">Story</a>
-        <a href="#features" class="hover:text-[var(--main-color)] transition-colors">Quality</a>
-        <a href="#service" class="hover:text-[var(--main-color)] transition-colors">Menu</a>
-      </nav>
-    </header>
-
-    <main>
-      <section id="top" class="py-12 px-6 text-center">
-        <div class="max-w-4xl mx-auto">
-          <div class="relative mb-16 px-4">
-            <div class="rounded-t-[200px] rounded-b-[20px] overflow-hidden shadow-2xl shadow-[var(--main-color)]/10 aspect-[4/5] md:aspect-[16/9] max-h-[500px]">
-              <img src="https://images.unsplash.com/photo-1542838132-92c53300491e?w=1200" class="w-full h-full object-cover transform hover:scale-105 transition-transform duration-[2000ms]">
-            </div>
-            <div class="absolute -bottom-6 -right-2 md:right-10 bg-[var(--main-color)] text-white p-8 rounded-full w-24 h-24 flex items-center justify-center text-[10px] leading-tight tracking-widest font-bold rotate-12">
-              NATURAL<br/>FIRST
-            </div>
-          </div>
-          <h2 class="font-serif text-4xl md:text-5xl text-[var(--accent-color)] leading-snug mb-8 tracking-tight">
-            自然の恵みを、<br class="md:hidden"/>そのままに。
-          </h2>
-          <p class="text-sm md:text-base tracking-[0.1em] leading-loose max-w-xl mx-auto opacity-80">
-            心と体に優しい、オーガニックな暮らし。<br/>
-            日々の忙しさを忘れ、自分を慈しむ時間をご提案します。
-          </p>
-        </div>
-      </section>
-
-      <section id="concept" class="py-24 px-6">
-        <div class="max-w-3xl mx-auto bg-white/60 p-12 md:p-20 rounded-[40px] border border-white text-center shadow-sm">
-          <span class="text-[var(--main-color)] text-xs tracking-[0.4em] uppercase font-bold mb-6 block">Concept</span>
-          <h3 class="font-serif text-2xl md:text-3xl text-[var(--accent-color)] mb-10 leading-relaxed">地球と調和する、<br/>素材本来の力。</h3>
-          <p class="leading-[2.2] text-sm md:text-base">
-            私たちが大切にしているのは、素材本来の力です。<br/>
-            余計なものを削ぎ落とし、地球のサイクルと<br/>
-            一歩ずつ歩幅を合わせるようなライフスタイルを。<br/>
-            あなたの毎日に、小さな「心地よさ」を届けます。
-          </p>
-          <div class="mt-12 flex justify-center gap-2">
-            <span class="w-1.5 h-1.5 bg-[var(--sub-color)] rounded-full"></span>
-            <span class="w-1.5 h-1.5 bg-[var(--sub-color)] rounded-full opacity-40"></span>
-            <span class="w-1.5 h-1.5 bg-[var(--sub-color)] rounded-full opacity-20"></span>
-          </div>
-        </div>
-      </section>
-
-      <section id="features" class="py-24 px-6 max-w-6xl mx-auto">
-        <div class="grid md:grid-cols-3 gap-12 md:gap-8">
-          <div class="text-center group">
-            <div class="w-16 h-16 bg-[var(--main-color)]/10 rounded-full flex items-center justify-center mx-auto mb-8 group-hover:bg-[var(--main-color)]/20 transition-colors">
-              <span class="text-2xl italic font-serif text-[var(--accent-color)]">01</span>
-            </div>
-            <h4 class="font-serif text-xl mb-4 text-[var(--accent-color)]">厳選素材</h4>
-            <p class="text-xs leading-[2.2] px-4 opacity-80">独自の厳しい基準で選ばれた、国内の有機契約農家直送の素材のみを使用しています。</p>
-          </div>
-          <div class="text-center group">
-            <div class="w-16 h-16 bg-[var(--main-color)]/10 rounded-full flex items-center justify-center mx-auto mb-8 group-hover:bg-[var(--main-color)]/20 transition-colors">
-              <span class="text-2xl italic font-serif text-[var(--accent-color)]">02</span>
-            </div>
-            <h4 class="font-serif text-xl mb-4 text-[var(--accent-color)]">環境配慮</h4>
-            <p class="text-xs leading-[2.2] px-4 opacity-80">生分解性のパッケージや再生紙を使用し、地球への負担を最小限に抑えています。</p>
-          </div>
-          <div class="text-center group">
-            <div class="w-16 h-16 bg-[var(--main-color)]/10 rounded-full flex items-center justify-center mx-auto mb-8 group-hover:bg-[var(--main-color)]/20 transition-colors">
-              <span class="text-2xl italic font-serif text-[var(--accent-color)]">03</span>
-            </div>
-            <h4 class="font-serif text-xl mb-4 text-[var(--accent-color)]">手仕事</h4>
-            <p class="text-xs leading-[2.2] px-4 opacity-80">効率よりも質を。一つひとつ丁寧に、職人が想いを込めて作り上げています。</p>
-          </div>
-        </div>
-      </section>
-
-      <section id="service" class="py-24 px-6 bg-[var(--main-color)]/5">
-        <div class="max-w-2xl mx-auto">
-          <div class="text-center mb-16">
-            <h2 class="font-serif text-3xl text-[var(--accent-color)]">Main Menu</h2>
-            <p class="text-[10px] tracking-[0.3em] uppercase mt-2 opacity-50">Seasonal Selection</p>
-          </div>
-          <div class="bg-white p-8 md:p-12 rounded-[30px] shadow-sm">
-            <ul class="space-y-8">
-              <li class="flex justify-between items-baseline border-b border-dotted border-gray-200 pb-4">
-                <div>
-                  <span class="font-bold text-[var(--accent-color)] block">季節の野菜セット</span>
-                  <span class="text-[10px] opacity-60">旬の有機野菜 8〜10種</span>
-                </div>
-                <span class="font-serif text-lg italic text-[var(--main-color)]">¥3,500</span>
-              </li>
-              <li class="flex justify-between items-baseline border-b border-dotted border-gray-200 pb-4">
-                <div>
-                  <span class="font-bold text-[var(--accent-color)] block">オーガニックティー</span>
-                  <span class="text-[10px] opacity-60">手摘み・天日干し 10パック</span>
-                </div>
-                <span class="font-serif text-lg italic text-[var(--main-color)]">¥1,200</span>
-              </li>
-              <li class="flex justify-between items-baseline border-b border-dotted border-gray-200 pb-4">
-                <div>
-                  <span class="font-bold text-[var(--accent-color)] block">自家製ジャム</span>
-                  <span class="text-[10px] opacity-60">無添加・砂糖不使用 200g</span>
-                </div>
-                <span class="font-serif text-lg italic text-[var(--main-color)]">¥950</span>
-              </li>
+            <h4 class="font-bold text-sm mb-6 border-l-4 border-[var(--main-color)] pl-3">企業情報</h4>
+            <ul class="space-y-3 text-sm font-bold text-gray-500">
+              <li><a href="#" class="hover:text-[var(--main-color)]">会社概要</a></li>
+              <li><a href="#" class="hover:text-[var(--main-color)]">代表挨拶</a></li>
             </ul>
-            <div class="mt-12 text-center">
-              <button class="px-10 py-4 bg-[var(--main-color)] text-white text-xs font-bold tracking-[0.2em] rounded-full hover:bg-[var(--accent-color)] transition-all shadow-lg shadow-[var(--main-color)]/20 uppercase">View All Menu</button>
-            </div>
+          </div>
+          <div>
+            <h4 class="font-bold text-sm mb-6 border-l-4 border-[var(--main-color)] pl-3">事業内容</h4>
+            <ul class="space-y-3 text-sm font-bold text-gray-500">
+              <li><a href="#" class="hover:text-[var(--main-color)]">サービス一覧</a></li>
+              <li><a href="#" class="hover:text-[var(--main-color)]">実績紹介</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="font-bold text-sm mb-6 border-l-4 border-[var(--main-color)] pl-3">その他</h4>
+            <ul class="space-y-3 text-sm font-bold text-gray-500">
+              <li><a href="#" class="hover:text-[var(--main-color)]">採用情報</a></li>
+              <li><a href="#" class="hover:text-[var(--main-color)]">ブログ</a></li>
+              <li><a href="#" class="hover:text-[var(--main-color)]">お問い合わせ</a></li>
+            </ul>
           </div>
         </div>
-      </section>
-
-      <section id="gallery" class="py-24 px-6 max-w-6xl mx-auto">
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div class="aspect-square bg-white rounded-2xl overflow-hidden border-8 border-white shadow-sm rotate-1">
-             <div class="w-full h-full bg-slate-200"></div>
-          </div>
-          <div class="aspect-square bg-white rounded-2xl overflow-hidden border-8 border-white shadow-sm -rotate-2 mt-4 md:mt-0">
-             <div class="w-full h-full bg-slate-100"></div>
-          </div>
-          <div class="aspect-square bg-white rounded-2xl overflow-hidden border-8 border-white shadow-sm rotate-3 hidden md:block">
-             <div class="w-full h-full bg-slate-200"></div>
-          </div>
+        <div class="border-t border-gray-200 pt-6 text-center text-xs font-bold text-gray-400">
+          <p>&copy; Company Name. ALL RIGHTS RESERVED.</p>
         </div>
-      </section>
-
-      <section id="company" class="py-24 px-6 border-t border-[var(--main-color)]/10">
-        <div class="max-w-3xl mx-auto">
-          <div class="flex flex-col md:flex-row justify-between items-start gap-12">
-            <div class="max-w-xs">
-              <h3 class="font-serif text-2xl text-[var(--accent-color)] mb-4">Store Info</h3>
-              <p class="text-sm leading-relaxed opacity-70">都会の喧騒から少し離れた、静かな路地裏に私たちの小さな拠点はあります。お散歩のついでに、ぜひお立ち寄りください。</p>
-            </div>
-            <div class="w-full md:w-auto">
-              <table class="w-full text-sm">
-                <tr class="border-b border-gray-100"><th class="py-4 pr-12 text-left font-bold text-[var(--accent-color)]">店名</th><td class="py-4">Organic Life</td></tr>
-                <tr class="border-b border-gray-100"><th class="py-4 pr-12 text-left font-bold text-[var(--accent-color)]">住所</th><td class="py-4">東京都自然区緑町 1-2-3</td></tr>
-                <tr class="border-b border-gray-100"><th class="py-4 pr-12 text-left font-bold text-[var(--accent-color)]">営業時間</th><td class="py-4">11:00 - 18:00 (Tue - Sun)</td></tr>
-              </table>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="py-12 bg-white text-center">
-      <div class="font-serif text-lg tracking-widest text-[var(--accent-color)] opacity-50 mb-4">Organic Life</div>
-      <p class="text-[10px] tracking-[0.1em] opacity-40">&copy; 2026 ORGANIC LIFE. PRESERVING NATURE'S GIFT.</p>
+      </div>
     </footer>
   </div>
-</div>`
+</div>`,
   },
   {
-    id: 'template-japanese',
-    name: 'Japanese: 和の伝統',
-    tags: ['japanese', 'traditional', 'restaurant', 'culture'],
-    description: '縦書きや和柄を取り入れた、落ち着きのある和風デザイン。',
-    html: `<div class="template-root" style="--main-color: #722F37; --accent-color: #2C2C2C; --bg-color: #F9F8F6; --text-color: #1a1a1a; --border-color: #d1d1d1;">
-  <div class="min-h-screen font-serif text-[var(--text-color)] bg-[var(--bg-color)] relative" style="background-image: url('https://www.transparenttextures.com/patterns/washi.png');">
-    
-    <header class="p-10 flex justify-between items-start sticky top-0 z-50 pointer-events-none">
-      <div class="bg-[var(--main-color)] text-white p-4 writing-vertical-rl text-lg tracking-[0.3em] font-bold pointer-events-auto">
-        和風建築工房
-      </div>
-      <nav class="hidden md:flex flex-col gap-8 text-xs tracking-[0.4em] font-bold pointer-events-auto text-right">
-        <a href="#concept" class="hover:text-[var(--main-color)] transition-colors">想い</a>
-        <a href="#features" class="hover:text-[var(--main-color)] transition-colors">特徴</a>
-        <a href="#service" class="hover:text-[var(--main-color)] transition-colors">品書</a>
-      </nav>
-    </header>
+    id: 'template-noir',
+    name: 'Noir: ミニマルエディトリアル',
+    tags: ['minimal', 'editorial', 'monochrome', 'creative', 'studio', 'モダン', 'クール', 'シンプル'],
+    description: 'モノクロベースにレッドアクセント。クリエイティブスタジオ・デザイン事務所向けのエディトリアルデザイン。',
+    html: `<div class="template-root" style="--main-color: #c8161d; --main-dark: #111; --accent-color: #f7f7f5; --text-color: #1a1a1a; --text-light: #999; --bg-color: #fff; --section-gap: 0; --section-padding: 4rem 0;">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500&family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
 
-    <main>
-      <section id="top" class="min-h-screen flex items-center justify-center px-6 relative">
-        <div class="absolute right-10 md:right-20 top-1/4 h-32 w-px bg-[var(--main-color)]"></div>
-        <div class="relative">
-          <h2 class="writing-vertical-rl text-5xl md:text-7xl leading-relaxed tracking-[0.4em] font-bold">
-            和の伝統と<br/>
-            <span class="text-[var(--main-color)]">革新</span>の融合。
-          </h2>
-          <p class="absolute -left-12 bottom-0 text-[10px] tracking-[0.5em] uppercase opacity-40 rotate-180 writing-vertical-rl">Tradition & Innovation</p>
-        </div>
-      </section>
+/* ===== CSS Reset & Variables ===== */
+.template-root {
+  --color-bg: var(--bg-color, #fff);
+  --color-text: var(--text-color, #1a1a1a);
+  --color-accent: var(--main-color, #c8161d);
+  --color-gray: var(--accent-color, #f7f7f5);
+  --color-border: #e5e5e5;
+  --color-dark: var(--main-dark, #111);
+  --font-display: 'Cormorant Garamond', serif;
+  --font-body: 'Noto Sans JP', sans-serif;
+  --ease: cubic-bezier(.16, 1, .3, 1);
 
-      <section id="concept" class="py-32 px-6 max-w-5xl mx-auto">
-        <div class="flex flex-col md:flex-row-reverse items-center justify-between gap-16">
-          <div class="relative">
-             <div class="w-64 md:w-80 aspect-[3/4] bg-slate-200 border-[12px] border-white shadow-xl relative z-10"></div>
-             <div class="absolute -top-6 -left-6 w-full h-full border border-[var(--main-color)]/20 z-0"></div>
-          </div>
-          <div class="flex gap-10">
-            <h3 class="writing-vertical-rl text-2xl font-bold border-r border-[var(--main-color)] pr-6 tracking-[0.3em]">
-              心安らぐ、<br/>木の住まい。
-            </h3>
-            <p class="writing-vertical-rl text-sm leading-[3] tracking-widest h-[400px]">
-              四季の移ろいを愛で、心安らぐ空間を。<br/>
-              私たちは伝統的な建築技術を頑なに守りつつ、<br/>
-              現代の暮らしに寄り添う住まいをご提案します。<br/>
-              百年の時を耐えうる、真の価値をここに。
-            </p>
-          </div>
-        </div>
-      </section>
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-body);
+  font-weight: 400;
+  color: var(--color-text);
+  background: var(--color-bg);
+  line-height: 1.8;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
 
-      <section id="features" class="py-32 px-6 bg-[var(--accent-color)] text-white relative">
-        <div class="max-w-6xl mx-auto">
-          <div class="flex items-center gap-6 mb-20">
-            <div class="w-12 h-px bg-[var(--main-color)]"></div>
-            <h3 class="text-xl tracking-[0.5em] font-bold uppercase">特徴 / Strength</h3>
-          </div>
-          <div class="grid md:grid-cols-3 gap-12">
-            <div class="border border-white/20 p-10 hover:border-[var(--main-color)] transition-colors relative group">
-              <span class="absolute top-4 left-4 text-[10px] text-[var(--main-color)] font-bold">一</span>
-              <h4 class="text-lg font-bold mb-6 text-center tracking-[0.2em]">天然木材</h4>
-              <p class="text-xs leading-loose opacity-70">選び抜かれた国産材のみを使用。木の呼吸を感じる、健やかな住空間を実現します。</p>
-            </div>
-            <div class="border border-white/20 p-10 hover:border-[var(--main-color)] transition-colors relative group">
-              <span class="absolute top-4 left-4 text-[10px] text-[var(--main-color)] font-bold">二</span>
-              <h4 class="text-lg font-bold mb-6 text-center tracking-[0.2em]">匠の技</h4>
-              <p class="text-xs leading-loose opacity-70">熟練の職人による繊細な仕上げ。継手、仕口、細部に至るまで妥協なき技を注ぎます。</p>
-            </div>
-            <div class="border border-white/20 p-10 hover:border-[var(--main-color)] transition-colors relative group">
-              <span class="absolute top-4 left-4 text-[10px] text-[var(--main-color)] font-bold">三</span>
-              <h4 class="text-lg font-bold mb-6 text-center tracking-[0.2em]">持続性</h4>
-              <p class="text-xs leading-loose opacity-70">三世代にわたって住み継げる強度。日本の風土に適した、堅牢な構造体を構築します。</p>
-            </div>
-          </div>
-        </div>
-      </section>
+.template-root *, .template-root *::before, .template-root *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-      <section id="service" class="py-32 px-6 max-w-3xl mx-auto">
-        <div class="border-2 border-[var(--accent-color)] p-1 md:p-2">
-          <div class="border border-[var(--accent-color)] p-10 md:p-16">
-            <h3 class="text-center font-bold text-2xl tracking-[0.5em] mb-16 underline underline-offset-8 decoration-[var(--main-color)]">御品書き</h3>
-            <div class="space-y-12">
-              <div class="flex justify-between items-end border-b border-dashed border-[var(--border-color)] pb-4">
-                <span class="text-lg font-bold tracking-widest">注文住宅設計</span>
-                <span class="text-sm opacity-60 font-sans">伍、〇〇〇万円〜</span>
-              </div>
-              <div class="flex justify-between items-end border-b border-dashed border-[var(--border-color)] pb-4">
-                <span class="text-lg font-bold tracking-widest">古民家再生事業</span>
-                <span class="text-sm opacity-60 font-sans">弐、〇〇〇万円〜</span>
-              </div>
-              <div class="flex justify-between items-end border-b border-dashed border-[var(--border-color)] pb-4">
-                <span class="text-lg font-bold tracking-widest">茶室・庭園造作</span>
-                <span class="text-sm opacity-60 font-sans">応相談</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+.template-root a {
+  text-decoration: none;
+  color: inherit;
+}
 
-      <section id="works" class="py-32 px-6 bg-white/40">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-w-6xl mx-auto">
-          <div class="aspect-video bg-slate-200 relative group overflow-hidden">
-            <div class="absolute inset-0 border border-white z-10 m-4"></div>
-            </div>
-          <div class="aspect-video bg-slate-300 relative group overflow-hidden">
-            <div class="absolute inset-0 border border-white z-10 m-4"></div>
-            </div>
-        </div>
-      </section>
+.template-root ul, .template-root ol {
+  list-style: none;
+}
 
-      <section id="company" class="py-32 px-6 max-w-4xl mx-auto text-sm">
-        <div class="border-t border-b border-[var(--accent-color)] py-12 grid md:grid-cols-3 gap-8">
-          <div class="md:col-span-1">
-            <h3 class="font-bold text-lg tracking-widest uppercase mb-4">屋号</h3>
-            <p class="text-xl">和風建築工房</p>
-          </div>
-          <div class="md:col-span-2 space-y-4">
-            <p class="flex justify-between border-b border-[var(--border-color)] pb-2">
-              <span class="opacity-60">所在地</span>
-              <span>東京都千代田区和風町一丁目一番地</span>
-            </p>
-            <p class="flex justify-between border-b border-[var(--border-color)] pb-2">
-              <span class="opacity-60">連絡先</span>
-              <span class="font-sans">03-1234-5678</span>
-            </p>
-          </div>
-        </div>
-      </section>
-    </main>
+.template-root img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
 
-    <footer class="py-20 text-center opacity-40 text-[10px] tracking-[0.5em] uppercase">
-      &copy; MMXXVI JAPANESE TRADITION - KOUBOU.
-    </footer>
-  </div>
-</div>`
-  },
-  {
-    id: 'template-portfolio',
-    name: 'Portfolio: 作品重視',
-    tags: ['portfolio', 'photo', 'creator', 'gallery'],
-    description: '画像や作品をグリッド状に配置し、視覚的なインパクトを重視。',
-    html: `<div class="template-root" style="--main-color: #000000; --sub-color: #f4f4f4; --accent-color: #666666; --bg-color: #ffffff; --text-color: #1a1a1a;">
-  <div class="min-h-screen font-sans text-[var(--text-color)] bg-[var(--bg-color)] selection:bg-black selection:text-white">
-    
-    <div class="fixed top-10 right-10 z-[100] hidden md:block">
-      <a href="#contact" class="w-24 h-24 rounded-full border border-black flex items-center justify-center text-[10px] font-bold tracking-widest uppercase hover:bg-black hover:text-white transition-all duration-500">Contact</a>
-    </div>
+/* ===== Loading Screen ===== */
+.template-root .loader {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: var(--color-dark);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity .6s var(--ease), visibility .6s var(--ease);
+}
 
-    <header class="h-screen flex flex-col justify-center px-8 md:px-[10%] relative overflow-hidden">
-      <div class="absolute top-10 left-10">
-        <span class="text-xs font-bold tracking-[0.5em] uppercase opacity-30 italic">Vol. 2026 / Selected Works</span>
-      </div>
-      
-      <div class="relative z-10">
-        <h1 class="text-[18vw] font-[900] leading-[0.85] tracking-tighter uppercase mix-blend-difference">
-          Port<br/><span class="ml-[5vw]">folio.</span>
-        </h1>
-        <div class="mt-12 flex items-center gap-8">
-          <div class="h-px w-32 bg-black"></div>
-          <p class="text-sm font-bold tracking-[0.3em] uppercase">Visual Designer / Art Director</p>
-        </div>
-      </div>
+.template-root .loader.is-loaded {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
 
-      <div class="absolute bottom-10 left-10 text-[10px] tracking-[0.4em] uppercase opacity-20 rotate-90 origin-left">
-        Scroll to discover
-      </div>
-    </header>
+.template-root .loader__inner {
+  text-align: center;
+}
 
-    <main>
-      <section id="concept" class="py-40 px-8 md:px-[10%] bg-[var(--sub-color)]">
-        <div class="max-w-5xl mx-auto">
-          <h2 class="text-[10px] font-bold tracking-[0.5em] uppercase text-[var(--accent-color)] mb-12">About</h2>
-          <p class="text-3xl md:text-6xl font-bold leading-[1.1] tracking-tight text-balance">
-            境界を超え、新しい視点を与えるデザインを。コンセプトからアウトプットまで、一貫した世界観を構築します。
-          </p>
-        </div>
-      </section>
+.template-root .loader__logo {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 400;
+  letter-spacing: .25em;
+  color: #fff;
+  margin-bottom: 24px;
+  opacity: 0;
+  animation: loaderTextIn 1s var(--ease) .2s forwards;
+}
 
-      <section id="features" class="py-32 px-8 md:px-[10%] border-b border-slate-100">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-16 md:gap-8">
-          <div class="group">
-            <span class="text-6xl font-black opacity-5 group-hover:opacity-10 transition-opacity">01</span>
-            <h3 class="text-xl font-bold mt-[-1.5rem] mb-4">Strategy</h3>
-            <p class="text-sm leading-relaxed text-[var(--accent-color)]">徹底したリサーチに基づき、ブランドが進むべき本質的なルートを策定します。</p>
-          </div>
-          <div class="group">
-            <span class="text-6xl font-black opacity-5 group-hover:opacity-10 transition-opacity">02</span>
-            <h3 class="text-xl font-bold mt-[-1.5rem] mb-4">Design</h3>
-            <p class="text-sm leading-relaxed text-[var(--accent-color)]">視覚的な美しさと使い心地を高次元で融合させた、独自のビジュアルを提案します。</p>
-          </div>
-          <div class="group">
-            <span class="text-6xl font-black opacity-5 group-hover:opacity-10 transition-opacity">03</span>
-            <h3 class="text-xl font-bold mt-[-1.5rem] mb-4">Development</h3>
-            <p class="text-sm leading-relaxed text-[var(--accent-color)]">細部までこだわり抜いた実装で、デジタル上の体験に命を吹き込みます。</p>
-          </div>
-        </div>
-      </section>
+.template-root .loader__bar {
+  width: 120px;
+  height: 1px;
+  background: rgba(255,255,255,.15);
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+}
 
-      <section id="works" class="py-32">
-        <div class="px-8 md:px-[10%] mb-16 flex justify-between items-end">
-          <h2 class="text-5xl font-[900] uppercase tracking-tighter">Works</h2>
-          <span class="text-xs font-bold opacity-30">Featured Projects (06)</span>
-        </div>
+.template-root .loader__bar::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: var(--color-accent);
+  animation: loaderBar 1.8s var(--ease) .4s forwards;
+}
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1">
-          <div class="aspect-square bg-slate-100 relative group cursor-pointer overflow-hidden">
-            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/80 transition-all duration-500 z-10"></div>
-            <div class="absolute inset-0 flex flex-col justify-center items-center text-white opacity-0 group-hover:opacity-100 transition-all duration-500 z-20 p-8">
-              <span class="text-[10px] tracking-[0.3em] uppercase mb-4 translate-y-4 group-hover:translate-y-0 transition-transform">Branding</span>
-              <h4 class="text-2xl font-bold tracking-tight">Project Name 01</h4>
-            </div>
-          </div>
-          <div class="aspect-square bg-slate-200 relative group cursor-pointer overflow-hidden">
-             <div class="absolute inset-0 bg-black/0 group-hover:bg-black/80 transition-all duration-500 z-10"></div>
-             <div class="absolute inset-0 flex flex-col justify-center items-center text-white opacity-0 group-hover:opacity-100 transition-all duration-500 z-20 p-8">
-              <span class="text-[10px] tracking-[0.3em] uppercase mb-4 translate-y-4 group-hover:translate-y-0 transition-transform">Digital</span>
-              <h4 class="text-2xl font-bold tracking-tight">Project Name 02</h4>
-            </div>
-          </div>
-          <div class="aspect-square bg-slate-100 relative group cursor-pointer overflow-hidden">
-             <div class="absolute inset-0 bg-black/0 group-hover:bg-black/80 transition-all duration-500 z-10"></div>
-             <div class="absolute inset-0 flex flex-col justify-center items-center text-white opacity-0 group-hover:opacity-100 transition-all duration-500 z-20 p-8">
-              <span class="text-[10px] tracking-[0.3em] uppercase mb-4 translate-y-4 group-hover:translate-y-0 transition-transform">Identity</span>
-              <h4 class="text-2xl font-bold tracking-tight">Project Name 03</h4>
-            </div>
-          </div>
-          <div class="aspect-square bg-slate-200 relative group cursor-pointer overflow-hidden">
-             <div class="absolute inset-0 bg-black/0 group-hover:bg-black/80 transition-all duration-500 z-10"></div>
-             <div class="absolute inset-0 flex flex-col justify-center items-center text-white opacity-0 group-hover:opacity-100 transition-all duration-500 z-20 p-8">
-              <span class="text-[10px] tracking-[0.3em] uppercase mb-4 translate-y-4 group-hover:translate-y-0 transition-transform">Visual</span>
-              <h4 class="text-2xl font-bold tracking-tight">Project Name 04</h4>
-            </div>
-          </div>
-          <div class="aspect-square bg-slate-100 relative group cursor-pointer overflow-hidden">
-             <div class="absolute inset-0 bg-black/0 group-hover:bg-black/80 transition-all duration-500 z-10"></div>
-             <div class="absolute inset-0 flex flex-col justify-center items-center text-white opacity-0 group-hover:opacity-100 transition-all duration-500 z-20 p-8">
-              <span class="text-[10px] tracking-[0.3em] uppercase mb-4 translate-y-4 group-hover:translate-y-0 transition-transform">Motion</span>
-              <h4 class="text-2xl font-bold tracking-tight">Project Name 05</h4>
-            </div>
-          </div>
-          <div class="aspect-square bg-slate-200 relative group cursor-pointer overflow-hidden">
-             <div class="absolute inset-0 bg-black/0 group-hover:bg-black/80 transition-all duration-500 z-10"></div>
-             <div class="absolute inset-0 flex flex-col justify-center items-center text-white opacity-0 group-hover:opacity-100 transition-all duration-500 z-20 p-8">
-              <span class="text-[10px] tracking-[0.3em] uppercase mb-4 translate-y-4 group-hover:translate-y-0 transition-transform">Editorial</span>
-              <h4 class="text-2xl font-bold tracking-tight">Project Name 06</h4>
-            </div>
-          </div>
-        </div>
-      </section>
+@keyframes loaderTextIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
-      <section id="contact" class="py-48 px-8 md:px-[10%] text-center">
-        <h3 class="text-xs font-bold tracking-[0.8em] uppercase opacity-30 mb-12">Get in touch</h3>
-        <a href="mailto:hello@portfolio.com" class="text-3xl md:text-7xl font-bold tracking-tighter hover:opacity-50 transition-opacity">hello@portfolio.com</a>
-        <div class="mt-24 flex justify-center gap-12 text-[10px] font-bold tracking-widest uppercase">
-          <a href="#" class="hover:underline">Instagram</a>
-          <a href="#" class="hover:underline">Dribbble</a>
-          <a href="#" class="hover:underline">Behance</a>
-        </div>
-      </section>
-    </main>
+@keyframes loaderBar {
+  to { left: 100%; }
+}
 
-    <footer class="py-12 px-8 md:px-[10%] flex flex-col md:flex-row justify-between items-center gap-6 border-t border-slate-100 text-[10px] font-bold tracking-[0.2em] uppercase opacity-30">
-      <span>&copy; 2026 Creative Works Portfolio.</span>
-      <span>Designed with focus.</span>
-    </footer>
-  </div>
-</div>`
-  },
-  {
-    id: 'template-lp',
-    name: 'LP: コンバージョン特化',
-    tags: ['lp', 'marketing', 'sales', 'bold'],
-    description: '大きな見出しと明確なCTAで、ユーザーのアクションを促す構成。',
-    html: `<div class="template-root" style="--main-color: #E63946; --sub-color: #f8fafc; --accent-color: #1D3557; --text-color: #1d3557; --text-light: #475569; --bg-color: #FFFFFF;">
-  <div class="min-h-screen font-sans text-[var(--text-color)] bg-[var(--bg-color)] selection:bg-[var(--main-color)] selection:text-white">
-    
-    <header class="bg-white/90 backdrop-blur-md border-b border-slate-100 py-5 px-8 sticky top-0 z-50">
-      <div class="max-w-7xl mx-auto flex justify-between items-center">
-        <div class="text-2xl font-black tracking-tighter text-[var(--accent-color)]">PRODUCT<span class="text-[var(--main-color)]">X</span></div>
-        <nav class="hidden lg:flex gap-8 text-sm font-bold text-[var(--text-light)]">
-          <a href="#concept" class="hover:text-[var(--main-color)]">特徴</a>
-          <a href="#features" class="hover:text-[var(--main-color)]">選ばれる理由</a>
-          <a href="#flow" class="hover:text-[var(--main-color)]">導入の流れ</a>
-          <a href="#service" class="hover:text-[var(--main-color)]">料金</a>
-        </nav>
-        <a href="#cta" class="bg-[var(--main-color)] text-white text-xs font-bold px-8 py-3 rounded-full hover:shadow-lg hover:shadow-red-200 transition-all uppercase tracking-widest">無料相談はこちら</a>
-      </div>
-    </header>
+/* ===== Header ===== */
+.template-root .header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  background: rgba(255,255,255,.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border);
+  transition: transform .4s var(--ease), box-shadow .4s var(--ease);
+}
 
-    <main>
-      <section id="top" class="relative pt-32 pb-40 px-6 bg-gradient-to-br from-[var(--accent-color)] to-[#162a45] text-white overflow-hidden">
-        <div class="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center relative z-10">
-          <div class="text-left">
-            <span class="inline-block border border-red-400 text-red-400 text-xs font-bold px-4 py-1 rounded-full mb-8 tracking-[0.2em] uppercase">2026 New Solution</span>
-            <h2 class="text-5xl md:text-7xl font-black leading-[1.1] mb-8">
-              停滞したビジネスに、<br/><span class="text-[var(--main-color)]">劇的な加速</span>を。
-            </h2>
-            <p class="text-xl opacity-80 mb-12 leading-relaxed max-w-xl">
-              私たちは単なるツール提供者ではありません。あなたのチームの一員として、戦略立案から実行まで、圧倒的なスピードで成果へと導きます。
-            </p>
-            <div class="flex flex-col sm:flex-row gap-4">
-              <a href="#cta" class="px-10 py-5 bg-[var(--main-color)] text-white font-bold text-lg rounded-xl shadow-2xl hover:-translate-y-1 transition-all text-center">資料を無料でダウンロード</a>
-              <div class="flex items-center gap-4 px-6 py-4 bg-white/10 rounded-xl backdrop-blur-sm border border-white/10">
-                <span class="text-2xl font-black text-red-400">98%</span>
-                <span class="text-[10px] leading-tight opacity-70 uppercase tracking-widest">Customer<br/>Satisfaction</span>
-              </div>
-            </div>
-          </div>
-          <div class="relative hidden lg:block">
-            <div class="aspect-video bg-white/5 rounded-3xl border border-white/10 backdrop-blur-3xl p-4 shadow-2xl">
-               <div class="w-full h-full bg-slate-800/50 rounded-2xl border border-white/5 overflow-hidden flex items-center justify-center">
-                 <span class="text-white/20 text-xs tracking-[1em] uppercase">Visual Asset Area</span>
-               </div>
-            </div>
-            <div class="absolute -bottom-10 -right-10 w-48 h-48 bg-[var(--main-color)] rounded-full blur-[100px] opacity-20"></div>
-          </div>
-        </div>
-      </section>
+.template-root .header.is-hidden {
+  transform: translateY(-100%);
+}
 
-      <section id="concept" class="py-32 px-6">
-        <div class="max-w-7xl mx-auto">
-          <div class="text-center mb-24">
-            <h3 class="text-3xl md:text-5xl font-black mb-8">なぜ、あなたのビジネスには<br class="hidden md:block"/>「ProductX」が必要なのか？</h3>
-            <div class="h-1.5 w-24 bg-[var(--main-color)] mx-auto mb-8"></div>
-            <p class="text-[var(--text-light)] text-lg max-w-3xl mx-auto leading-loose">
-              多くの企業が陥る「リソース不足」と「戦略の迷走」。私たちは、これら2つの課題を同時に解決するために、独自のフレームワークを開発しました。
-            </p>
-          </div>
-          <div class="grid md:grid-cols-2 gap-20 items-center">
-            <div class="space-y-12">
-              <div class="flex gap-6">
-                <div class="shrink-0 w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center font-bold">Q</div>
-                <div>
-                  <h4 class="text-xl font-bold mb-3">競合他社との差別化が困難</h4>
-                  <p class="text-sm text-[var(--text-light)] leading-loose">独自の強みを言語化し、マーケットでの優位性を1ヶ月以内に確立します。市場調査からポジショニング設定までワンストップで対応。</p>
-                </div>
-              </div>
-              <div class="flex gap-6">
-                <div class="shrink-0 w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center font-bold">Q</div>
-                <div>
-                  <h4 class="text-xl font-bold mb-3">複雑化したオペレーション</h4>
-                  <p class="text-sm text-[var(--text-light)] leading-loose">属人化した業務を徹底的にデジタル化。生産性を平均40%向上させ、クリエイティブな仕事に集中できる環境を作ります。</p>
-                </div>
-              </div>
-            </div>
-            <div class="bg-slate-900 rounded-[2rem] p-12 text-white relative overflow-hidden">
-              <div class="relative z-10">
-                <p class="text-red-400 font-bold mb-4">Solution</p>
-                <p class="text-2xl leading-relaxed italic mb-8">「分析・戦略・実行。この3要素を、分断させることなく一本の線で繋ぐこと。」</p>
-                <p class="text-sm opacity-60">これが、私たちが提供する唯一無二のバリューです。</p>
-              </div>
-              <div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-            </div>
-          </div>
-        </div>
-      </section>
+.template-root .header.is-scrolled {
+  box-shadow: 0 1px 30px rgba(0,0,0,.06);
+}
 
-      <section id="features" class="py-32 px-6 bg-[var(--sub-color)]">
-        <div class="max-w-7xl mx-auto">
-          <div class="flex flex-col md:flex-row justify-between items-end mb-20 gap-8">
-            <div class="max-w-2xl text-left">
-              <h3 class="text-xs font-bold tracking-[0.4em] uppercase text-[var(--main-color)] mb-4">Core Strengths</h3>
-              <p class="text-4xl font-black">圧倒的な成果を支える<br/>3つの柱</p>
-            </div>
-            <p class="text-[var(--text-light)] max-w-md text-sm leading-loose">
-              私たちは表面的な改善は行いません。根源的なデータに基づき、持続可能な成長基盤を構築します。
-            </p>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div class="bg-white p-12 rounded-3xl shadow-sm border border-slate-200 group hover:border-[var(--main-color)] transition-all duration-500">
-              <div class="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-red-50 transition-colors">
-                <svg class="w-8 h-8 text-[var(--main-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-              </div>
-              <h4 class="text-2xl font-bold mb-6">業界最速の実行力</h4>
-              <p class="text-[var(--text-light)] text-sm leading-loose mb-8">
-                構想から検証まで、平均2週間。失敗を恐れず高速でサイクルを回すことで、最短ルートでの正解を見つけ出します。
-              </p>
-              <ul class="space-y-3 text-xs font-bold text-slate-400">
-                <li>・最短3日でプロトタイプ作成</li>
-                <li>・リアルタイムフィードバック体制</li>
-              </ul>
-            </div>
-            <div class="bg-white p-12 rounded-3xl shadow-sm border border-slate-200 group hover:border-[var(--main-color)] transition-all duration-500">
-              <div class="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-red-50 transition-colors">
-                <svg class="w-8 h-8 text-[var(--main-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-              </div>
-              <h4 class="text-2xl font-bold mb-6">フルスタック支援</h4>
-              <p class="text-[var(--text-light)] text-sm leading-loose mb-8">
-                デザイン、マーケティング、開発、営業戦略。各領域のスペシャリストがチームを組み、一貫した支援を提供します。
-              </p>
-              <ul class="space-y-3 text-xs font-bold text-slate-400">
-                <li>・全領域を一社で完結</li>
-                <li>・シームレスなコミュニケーション</li>
-              </ul>
-            </div>
-            <div class="bg-white p-12 rounded-3xl shadow-sm border border-slate-200 group hover:border-[var(--main-color)] transition-all duration-500">
-              <div class="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-red-50 transition-colors">
-                <svg class="w-8 h-8 text-[var(--main-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-              </div>
-              <h4 class="text-2xl font-bold mb-6">データドリブン</h4>
-              <p class="text-[var(--text-light)] text-sm leading-loose mb-8">
-                「勘」に頼らない。独自の解析ツールを用い、ユーザーの行動を可視化。事実に基づいた最適な打ち手を選定します。
-              </p>
-              <ul class="space-y-3 text-xs font-bold text-slate-400">
-                <li>・精度の高いA/Bテスト実行</li>
-                <li>・LTVを最大化する導線設計</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
+.template-root .header__inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 60px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 
-      <section id="flow" class="py-32 px-6">
-        <div class="max-w-5xl mx-auto">
-          <div class="text-center mb-20">
-            <h3 class="text-3xl font-black mb-4">導入までの4ステップ</h3>
-            <p class="text-slate-400 uppercase tracking-widest text-[10px]">Seamless Onboarding Process</p>
-          </div>
-          <div class="space-y-4">
-            <div class="flex flex-col md:flex-row gap-8 items-start p-10 border border-slate-100 rounded-2xl hover:bg-slate-50 transition-colors">
-              <div class="text-4xl font-black text-slate-200 italic">01</div>
-              <div>
-                <h4 class="text-xl font-bold mb-4">ヒアリング・現状分析</h4>
-                <p class="text-sm text-[var(--text-light)] leading-loose">まずはオンラインにて貴社のビジネスモデルと現在抱えている課題を詳しく伺います。専門のコンサルタントが指標となる数値を洗い出し、ポテンシャルを可視化します。</p>
-              </div>
-            </div>
-            <div class="flex flex-col md:flex-row gap-8 items-start p-10 border border-slate-100 rounded-2xl hover:bg-slate-50 transition-colors">
-              <div class="text-4xl font-black text-slate-200 italic">02</div>
-              <div>
-                <h4 class="text-xl font-bold mb-4">戦略ロードマップの提示</h4>
-                <p class="text-sm text-[var(--text-light)] leading-loose">ヒアリング内容に基づき、具体的な解決策とスケジュールを提示します。「何を」「いつまでに」「どれくらいの成果」を出すのかを明確にしたロードマップを作成します。</p>
-              </div>
-            </div>
-            <div class="flex flex-col md:flex-row gap-8 items-start p-10 border border-slate-100 rounded-2xl hover:bg-slate-50 transition-colors">
-              <div class="text-4xl font-black text-slate-200 italic">03</div>
-              <div>
-                <h4 class="text-xl font-bold mb-4">実行・プロダクト実装</h4>
-                <p class="text-sm text-[var(--text-light)] leading-loose">合意いただいた戦略に沿って、専任チームが実装を開始します。デザインの作成、システム開発、広告運用設定など、必要なリソースをすべて投入します。</p>
-              </div>
-            </div>
-            <div class="flex flex-col md:flex-row gap-8 items-start p-10 border border-slate-100 rounded-2xl hover:bg-slate-50 transition-colors">
-              <div class="text-4xl font-black text-slate-200 italic">04</div>
-              <div>
-                <h4 class="text-xl font-bold mb-4">グロース・継続改善</h4>
-                <p class="text-sm text-[var(--text-light)] leading-loose">リリースはスタートに過ぎません。実際のユーザーデータを元に、PDCAサイクルを回し続けます。週次でのレポーティングを行い、成果を最大化します。</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+.template-root .header__logo {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
 
-      <section id="service" class="py-32 px-6 bg-slate-900 text-white">
-        <div class="max-w-7xl mx-auto">
-          <div class="text-center mb-24">
-            <h3 class="text-3xl md:text-5xl font-black mb-8">明快な料金体系</h3>
-            <p class="text-slate-400 max-w-2xl mx-auto">貴社のフェーズに合わせた3つのプランをご用意しました。<br/>すべてのプランに専任のプロジェクトマネージャーがつきます。</p>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div class="p-10 border border-white/10 rounded-3xl flex flex-col">
-              <h4 class="text-xl font-bold mb-4">Lite Plan</h4>
-              <p class="text-xs text-slate-400 mb-8 font-sans">まず始めてみたい小規模チーム向け</p>
-              <div class="flex items-baseline gap-1 mb-10">
-                <span class="text-3xl font-black">¥19,800</span>
-                <span class="text-slate-500">/月</span>
-              </div>
-              <ul class="space-y-4 text-sm mb-12 flex-grow">
-                <li class="flex items-center gap-3 opacity-60"><svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> 基本解析機能</li>
-                <li class="flex items-center gap-3 opacity-60"><svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> 月次レポート</li>
-                <li class="flex items-center gap-3 opacity-30"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg> 専任担当者</li>
-              </ul>
-              <button class="w-full py-4 border border-white/20 rounded-xl hover:bg-white/5 transition-colors">詳細を見る</button>
-            </div>
-            <div class="p-10 bg-white text-[var(--accent-color)] rounded-3xl shadow-2xl relative scale-105 z-10">
-              <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-[var(--main-color)] text-white text-[10px] font-bold px-6 py-1 rounded-full tracking-widest uppercase shadow-xl">Most Recommended</div>
-              <h4 class="text-xl font-bold mb-4">Standard Plan</h4>
-              <p class="text-xs text-slate-400 mb-8 font-sans">本格的なグロースを目指す企業向け</p>
-              <div class="flex items-baseline gap-1 mb-10">
-                <span class="text-4xl font-black text-[var(--main-color)]">¥49,800</span>
-                <span class="text-slate-500">/月</span>
-              </div>
-              <ul class="space-y-4 text-sm mb-12 flex-grow">
-                <li class="flex items-center gap-3"><svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> すべての解析機能</li>
-                <li class="flex items-center gap-3"><svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> 週次詳細レポート</li>
-                <li class="flex items-center gap-3"><svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> 専任担当PMアサイン</li>
-                <li class="flex items-center gap-3"><svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> 無制限のデータ保存</li>
-              </ul>
-              <button class="w-full py-5 bg-[var(--accent-color)] text-white font-bold rounded-xl hover:bg-[var(--main-color)] transition-all shadow-xl">このプランで申し込む</button>
-            </div>
-            <div class="p-10 border border-white/10 rounded-3xl flex flex-col">
-              <h4 class="text-xl font-bold mb-4">Enterprise</h4>
-              <p class="text-xs text-slate-400 mb-8 font-sans">大規模組織・多角的な支援が必要な場合</p>
-              <div class="flex items-baseline gap-1 mb-10">
-                <span class="text-3xl font-black">Custom</span>
-              </div>
-              <ul class="space-y-4 text-sm mb-12 flex-grow">
-                <li class="flex items-center gap-3 opacity-80"><svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> 24時間365日サポート</li>
-                <li class="flex items-center gap-3 opacity-80"><svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> 独自のダッシュボード構築</li>
-                <li class="flex items-center gap-3 opacity-80"><svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> 役員向け戦略コンサルティング</li>
-              </ul>
-              <button class="w-full py-4 border border-white/20 rounded-xl hover:bg-white/5 transition-colors">お問い合わせ</button>
-            </div>
-          </div>
-        </div>
-      </section>
+.template-root .header__logo-text {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 400;
+  letter-spacing: .2em;
+}
 
-      <section id="faq" class="py-32 px-6 bg-white">
-        <div class="max-w-4xl mx-auto">
-          <h3 class="text-center text-3xl font-black mb-20">よくあるご質問</h3>
-          <div class="divide-y divide-slate-100">
-            <div class="py-8">
-              <h4 class="text-lg font-bold mb-4 flex gap-4"><span class="text-red-400">Q.</span> 導入までにどれくらいの期間が必要ですか？</h4>
-              <p class="text-sm text-[var(--text-light)] leading-loose pl-8">最短でヒアリングから1週間で初期設定が完了し、運用を開始できます。通常は2週間〜1ヶ月程度で本格的なフェーズに移行します。</p>
-            </div>
-            <div class="py-8">
-              <h4 class="text-lg font-bold mb-4 flex gap-4"><span class="text-red-400">Q.</span> 途中でプランの変更は可能ですか？</h4>
-              <p class="text-sm text-[var(--text-light)] leading-loose pl-8">はい、月単位でのアップグレード・ダウングレードが可能です。ビジネスの成長スピードに合わせて柔軟に調整いただけます。</p>
-            </div>
-            <div class="py-8">
-              <h4 class="text-lg font-bold mb-4 flex gap-4"><span class="text-red-400">Q.</span> 解約金などは発生しますか？</h4>
-              <p class="text-sm text-[var(--text-light)] leading-loose pl-8">いいえ、最低利用期間などの縛りは一切ございません。私たちは成果に自信があるため、不要になったらいつでも停止いただけます。</p>
-            </div>
-          </div>
-        </div>
-      </section>
+.template-root .header__logo-sub {
+  font-size: .6rem;
+  letter-spacing: .15em;
+  color: var(--color-accent);
+  text-transform: uppercase;
+}
 
-      <section id="cta" class="py-32 px-6 bg-slate-50 border-t border-slate-100">
-        <div class="max-w-5xl mx-auto text-center">
-          <h3 class="text-4xl md:text-6xl font-black mb-12">次は、あなたの番です。</h3>
-          <p class="text-lg text-[var(--text-light)] mb-12">
-            現状を維持するか、それとも一気に飛躍するか。<br/>
-            まずは無料で、あなたのビジネスの可能性を診断させてください。
-          </p>
-          <div class="bg-white p-12 rounded-[3rem] shadow-2xl shadow-slate-200 inline-block w-full md:w-auto">
-             <div class="flex flex-col md:flex-row items-center gap-8">
-                <div class="text-left">
-                  <p class="text-xs font-bold text-red-500 mb-2 uppercase tracking-widest">Free Consultation</p>
-                  <p class="text-xl font-bold">オンライン相談を予約する</p>
-                </div>
-                <button class="px-12 py-6 bg-[var(--main-color)] text-white font-bold text-xl rounded-2xl hover:bg-[var(--accent-color)] transition-all shadow-xl shadow-red-200">相談予約フォームへ</button>
-             </div>
-          </div>
-        </div>
-      </section>
+.template-root .header__nav {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
 
-      <section id="company" class="py-24 px-6 border-t border-slate-100 bg-white">
-        <div class="max-w-4xl mx-auto">
-          <div class="grid md:grid-cols-2 gap-16">
-            <div>
-              <h3 class="text-2xl font-black mb-8">運営会社</h3>
-              <p class="text-sm leading-loose text-[var(--text-light)] mb-8">
-                私たちはテクノロジーとデザインの力で、あらゆるビジネスのボトルネックを解消することを目指すクリエイティブ・エージェンシーです。
-              </p>
-            </div>
-            <div class="bg-slate-50 p-8 rounded-2xl">
-              <table class="w-full text-sm">
-                <tr class="border-b border-slate-200"><th class="py-4 text-left font-bold text-slate-400 uppercase tracking-widest text-[10px]">Company</th><td class="py-4 text-right">株式会社ProductX</td></tr>
-                <tr class="border-b border-slate-200"><th class="py-4 text-left font-bold text-slate-400 uppercase tracking-widest text-[10px]">Location</th><td class="py-4 text-right">東京都港区六本木 1-2-3</td></tr>
-                <tr><th class="py-4 text-left font-bold text-slate-400 uppercase tracking-widest text-[10px]">Established</th><td class="py-4 text-right">2018年4月</td></tr>
-              </table>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
+.template-root .header__nav-list {
+  display: flex;
+  gap: 36px;
+  align-items: center;
+}
 
-    <footer class="py-16 bg-[var(--accent-color)] text-white/40 text-center text-xs tracking-[0.2em] font-bold">
-      <div class="mb-8 opacity-100 text-white font-black tracking-tighter text-xl">PRODUCT<span class="text-[var(--main-color)]">X</span></div>
-      &copy; 2026 PRODUCTX INC. ALL RIGHTS RESERVED.
-    </footer>
-  </div>
-</div>`
+.template-root .header__nav-item {
+  position: relative;
+}
+
+.template-root .header__nav-link {
+  font-size: .7rem;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  transition: color .3s;
+}
+
+.template-root .header__nav-link:hover {
+  color: var(--color-accent);
+}
+
+/* Nav-flip animation */
+.template-root .nav-flip {
+  display: inline-block;
+  position: relative;
+  overflow: hidden;
+  height: 1.2em;
+  line-height: 1.2em;
+}
+
+.template-root .nav-flip span {
+  display: block;
+  transition: transform .35s var(--ease);
+}
+
+.template-root .nav-flip span:last-child {
+  position: absolute;
+  top: 0; left: 0;
+  color: var(--color-accent);
+  transform: translateY(100%);
+}
+
+.template-root .nav-flip:hover span:first-child {
+  transform: translateY(-100%);
+}
+
+.template-root .nav-flip:hover span:last-child {
+  transform: translateY(0);
+}
+
+.template-root .header__cta {
+  font-size: .7rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  padding: 10px 28px;
+  border: 1px solid var(--color-text);
+  transition: all .3s var(--ease);
+}
+
+.template-root .header__cta:hover {
+  background: var(--color-text);
+  color: #fff;
+}
+
+/* Hamburger */
+.template-root .hamburger {
+  display: none;
+  width: 28px;
+  height: 20px;
+  position: relative;
+  cursor: pointer;
+  z-index: 200;
+}
+
+.template-root .hamburger span {
+  display: block;
+  width: 100%;
+  height: 1px;
+  background: var(--color-text);
+  position: absolute;
+  left: 0;
+  transition: all .35s var(--ease);
+}
+
+.template-root .hamburger span:nth-child(1) { top: 0; }
+.template-root .hamburger span:nth-child(2) { top: 50%; }
+.template-root .hamburger span:nth-child(3) { bottom: 0; }
+
+.template-root .hamburger.is-active span:nth-child(1) {
+  top: 50%;
+  transform: rotate(45deg);
+}
+
+.template-root .hamburger.is-active span:nth-child(2) {
+  opacity: 0;
+}
+
+.template-root .hamburger.is-active span:nth-child(3) {
+  bottom: 50%;
+  transform: rotate(-45deg);
+}
+
+/* Mobile Nav Overlay */
+.template-root .mobile-nav {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: var(--color-dark);
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all .5s var(--ease);
+}
+
+.template-root .mobile-nav.is-open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.template-root .mobile-nav__list {
+  text-align: center;
+}
+
+.template-root .mobile-nav__item {
+  margin-bottom: 32px;
+}
+
+.template-root .mobile-nav__link {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 300;
+  letter-spacing: .15em;
+  color: #fff;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all .4s var(--ease);
+}
+
+.template-root .mobile-nav.is-open .mobile-nav__link {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.template-root .mobile-nav__item:nth-child(1) .mobile-nav__link { transition-delay: .1s; }
+.template-root .mobile-nav__item:nth-child(2) .mobile-nav__link { transition-delay: .15s; }
+.template-root .mobile-nav__item:nth-child(3) .mobile-nav__link { transition-delay: .2s; }
+.template-root .mobile-nav__item:nth-child(4) .mobile-nav__link { transition-delay: .25s; }
+.template-root .mobile-nav__item:nth-child(5) .mobile-nav__link { transition-delay: .3s; }
+.template-root .mobile-nav__item:nth-child(6) .mobile-nav__link { transition-delay: .35s; }
+
+/* ===== Scroll Animations ===== */
+.template-root [data-anim="fade"] {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity .8s var(--ease), transform .8s var(--ease);
+}
+
+.template-root [data-anim="fade"].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.template-root [data-anim="rise"] {
+  opacity: 0;
+  transform: translateY(60px);
+  transition: opacity 1s var(--ease), transform 1s var(--ease);
+}
+
+.template-root [data-anim="rise"].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.template-root [data-anim="img-reveal"] {
+  position: relative;
+  overflow: hidden;
+}
+
+.template-root [data-anim="img-reveal"]::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: var(--color-dark);
+  transform-origin: right;
+  transition: transform 1s var(--ease);
+}
+
+.template-root [data-anim="img-reveal"].is-visible::after {
+  transform: scaleX(0);
+}
+
+.template-root [data-anim="img-reveal"] img {
+  transform: scale(1.3);
+  transition: transform 1.4s var(--ease);
+}
+
+.template-root [data-anim="img-reveal"].is-visible img {
+  transform: scale(1);
+}
+
+.template-root [data-anim="slide-left"] {
+  opacity: 0;
+  transform: translateX(-60px);
+  transition: opacity .8s var(--ease), transform .8s var(--ease);
+}
+
+.template-root [data-anim="slide-left"].is-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.template-root [data-anim="slide-right"] {
+  opacity: 0;
+  transform: translateX(60px);
+  transition: opacity .8s var(--ease), transform .8s var(--ease);
+}
+
+.template-root [data-anim="slide-right"].is-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.template-root [data-anim="scale"] {
+  opacity: 0;
+  transform: scale(.9);
+  transition: opacity .8s var(--ease), transform .8s var(--ease);
+}
+
+.template-root [data-anim="scale"].is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.template-root [data-anim="stagger"] > * {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity .6s var(--ease), transform .6s var(--ease);
+}
+
+.template-root [data-anim="stagger"].is-visible > * {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.template-root [data-anim="stagger"].is-visible > *:nth-child(1) { transition-delay: 0s; }
+.template-root [data-anim="stagger"].is-visible > *:nth-child(2) { transition-delay: .1s; }
+.template-root [data-anim="stagger"].is-visible > *:nth-child(3) { transition-delay: .2s; }
+.template-root [data-anim="stagger"].is-visible > *:nth-child(4) { transition-delay: .3s; }
+.template-root [data-anim="stagger"].is-visible > *:nth-child(5) { transition-delay: .4s; }
+.template-root [data-anim="stagger"].is-visible > *:nth-child(6) { transition-delay: .5s; }
+
+/* ===== SVG Animation ===== */
+.template-root .svg-line-draw {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+
+.template-root .about__svg-path,
+.template-root #aboutPath {
+  stroke-dasharray: 2000;
+  stroke-dashoffset: 2000;
+  transition: stroke-dashoffset 2s var(--ease);
+}
+
+.template-root .about__svg-path.is-drawn,
+.template-root #aboutPath.is-drawn {
+  stroke-dashoffset: 0;
+}
+
+/* ===== Hero Section ===== */
+.template-root .hero {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  min-height: 700px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  background: var(--color-dark);
+}
+
+.template-root .hero__bg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 1;
+}
+
+.template-root .hero__bg img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  opacity: .25;
+  transform: scale(1.1);
+  animation: heroScale 15s var(--ease) forwards;
+}
+
+@keyframes heroScale {
+  from { transform: scale(1.1); }
+  to   { transform: scale(1); }
+}
+
+.template-root .hero__content {
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 60px;
+}
+
+.template-root .hero__label {
+  font-size: .65rem;
+  letter-spacing: .35em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 32px;
+  opacity: 0;
+  animation: loaderTextIn 1s var(--ease) 1.8s forwards;
+}
+
+.template-root .hero__title {
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 7vw, 6.5rem);
+  font-weight: 300;
+  font-style: italic;
+  line-height: 1.05;
+  color: #fff;
+  letter-spacing: .02em;
+  margin-bottom: 40px;
+  opacity: 0;
+  animation: loaderTextIn 1s var(--ease) 2s forwards;
+}
+
+.template-root .hero__line {
+  width: 60px;
+  height: 1px;
+  background: var(--color-accent);
+  opacity: 0;
+  animation: loaderTextIn 1s var(--ease) 2.2s forwards;
+}
+
+.template-root .hero__scroll {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: rgba(255,255,255,.4);
+  font-size: .55rem;
+  letter-spacing: .25em;
+  text-transform: uppercase;
+}
+
+.template-root .hero__scroll-line {
+  display: block;
+  width: 1px;
+  height: 50px;
+  background: rgba(255,255,255,.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.template-root .hero__scroll-line::after {
+  content: '';
+  position: absolute;
+  top: -100%;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--color-accent);
+  animation: scrollPulse 2s ease-in-out infinite;
+}
+
+@keyframes scrollPulse {
+  0%   { top: -100%; }
+  50%  { top: 0; }
+  100% { top: 100%; }
+}
+
+/* ===== About Section ===== */
+.template-root .about {
+  position: relative;
+  padding: 140px 0;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.template-root .about__inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 60px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.template-root .about__label {
+  font-family: var(--font-display);
+  font-size: .75rem;
+  letter-spacing: .3em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 20px;
+}
+
+.template-root .about__title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3.5vw, 3.2rem);
+  font-weight: 300;
+  font-style: italic;
+  line-height: 1.2;
+  margin-bottom: 24px;
+}
+
+.template-root .about__line {
+  width: 40px;
+  height: 1px;
+  background: var(--color-accent);
+  margin-bottom: 32px;
+}
+
+.template-root .about__text {
+  font-size: .85rem;
+  line-height: 2.2;
+  color: #666;
+  font-weight: 300;
+}
+
+.template-root .about__img-wrap {
+  position: relative;
+}
+
+.template-root .about__img-wrap img {
+  width: 100%;
+  height: 500px;
+  object-fit: cover;
+}
+
+/* ===== Service (svc) Section ===== */
+.template-root .svc {
+  padding: 140px 0;
+  background: var(--color-gray);
+}
+
+.template-root .svc__inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 60px;
+}
+
+.template-root .svc__header {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: start;
+  margin-bottom: 80px;
+}
+
+.template-root .svc__label {
+  font-family: var(--font-display);
+  font-size: .75rem;
+  letter-spacing: .3em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 20px;
+}
+
+.template-root .svc__title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3.5vw, 3.2rem);
+  font-weight: 300;
+  font-style: italic;
+  line-height: 1.2;
+}
+
+.template-root .svc__desc {
+  font-size: .85rem;
+  line-height: 2.2;
+  color: #666;
+  font-weight: 300;
+  padding-top: 16px;
+}
+
+.template-root .svc__img-wrap {
+  position: relative;
+  margin-bottom: 80px;
+}
+
+.template-root .svc__img-wrap img {
+  width: 100%;
+  height: 480px;
+  object-fit: cover;
+}
+
+.template-root .svc__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 48px;
+}
+
+.template-root .svc__card {
+  padding: 40px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.template-root .svc__card-num {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 300;
+  color: var(--color-accent);
+  margin-bottom: 20px;
+  line-height: 1;
+}
+
+.template-root .svc__card-title {
+  font-size: .95rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.template-root .svc__card-text {
+  font-size: .8rem;
+  line-height: 2;
+  color: #666;
+  font-weight: 300;
+}
+
+/* ===== Works Section ===== */
+.template-root .works {
+  padding: 140px 0;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.template-root .works__inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 60px;
+}
+
+.template-root .works__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 60px;
+}
+
+.template-root .works__label {
+  font-family: var(--font-display);
+  font-size: .75rem;
+  letter-spacing: .3em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 20px;
+}
+
+.template-root .works__title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3.5vw, 3.2rem);
+  font-weight: 300;
+  font-style: italic;
+  line-height: 1.2;
+}
+
+.template-root .works__more {
+  font-family: var(--font-display);
+  font-size: .85rem;
+  letter-spacing: .1em;
+  position: relative;
+  padding-bottom: 4px;
+}
+
+.template-root .works__more::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0;
+  width: 100%; height: 1px;
+  background: var(--color-text);
+  transform-origin: right;
+  transition: transform .3s var(--ease);
+}
+
+.template-root .works__more:hover::after {
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+/* Works marquee */
+.template-root .works__marquee {
+  overflow: hidden;
+  white-space: nowrap;
+  margin-bottom: 60px;
+}
+
+.template-root .works__marquee-inner {
+  display: inline-flex;
+  animation: marquee 30s linear infinite;
+}
+
+.template-root .works__marquee-text {
+  font-family: var(--font-display);
+  font-size: 8rem;
+  font-weight: 300;
+  font-style: italic;
+  color: transparent;
+  -webkit-text-stroke: 1px var(--color-border);
+  letter-spacing: .05em;
+  padding-right: 80px;
+  user-select: none;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.template-root .works__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 40px;
+}
+
+.template-root .works__card {
+  display: block;
+  position: relative;
+  overflow: hidden;
+}
+
+.template-root .works__card-img {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4/3;
+}
+
+.template-root .works__card-img img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform .8s var(--ease);
+}
+
+.template-root .works__card:hover .works__card-img img {
+  transform: scale(1.08);
+}
+
+.template-root .works__card-info {
+  padding: 24px 0;
+}
+
+.template-root .works__card-cat {
+  font-size: .65rem;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 8px;
+}
+
+.template-root .works__card-name {
+  font-size: 1rem;
+  font-weight: 500;
+  transition: color .3s;
+}
+
+.template-root .works__card:hover .works__card-name {
+  color: var(--color-accent);
+}
+
+/* ===== News Section ===== */
+.template-root .news {
+  padding: 140px 0;
+  background: var(--color-gray);
+}
+
+.template-root .news__inner {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 60px;
+}
+
+.template-root .news__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 60px;
+}
+
+.template-root .news__label {
+  font-family: var(--font-display);
+  font-size: .75rem;
+  letter-spacing: .3em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 20px;
+}
+
+.template-root .news__title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3.5vw, 3.2rem);
+  font-weight: 300;
+  font-style: italic;
+  line-height: 1.2;
+}
+
+.template-root .news__more {
+  font-family: var(--font-display);
+  font-size: .85rem;
+  letter-spacing: .1em;
+  position: relative;
+  padding-bottom: 4px;
+}
+
+.template-root .news__more::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0;
+  width: 100%; height: 1px;
+  background: var(--color-text);
+  transform-origin: right;
+  transition: transform .3s var(--ease);
+}
+
+.template-root .news__more:hover::after {
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+.template-root .news__list {
+  border-top: 1px solid var(--color-border);
+}
+
+.template-root .news__item {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 28px 0;
+  border-bottom: 1px solid var(--color-border);
+  transition: padding-left .3s var(--ease);
+}
+
+.template-root .news__item:hover {
+  padding-left: 12px;
+}
+
+.template-root .news__date {
+  font-size: .75rem;
+  letter-spacing: .08em;
+  color: #999;
+  flex-shrink: 0;
+}
+
+.template-root .news__tag {
+  font-size: .6rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+  padding: 3px 12px;
+  flex-shrink: 0;
+}
+
+.template-root .news__text {
+  font-size: .85rem;
+  color: var(--color-text);
+  transition: color .3s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-root .news__item:hover .news__text {
+  color: var(--color-accent);
+}
+
+/* ===== Company Section ===== */
+.template-root .company {
+  padding: 140px 0;
+  background: var(--color-bg);
+}
+
+.template-root .company__inner {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 60px;
+}
+
+.template-root .company__header {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.template-root .company__label {
+  font-family: var(--font-display);
+  font-size: .75rem;
+  letter-spacing: .3em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 20px;
+}
+
+.template-root .company__title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3.5vw, 3.2rem);
+  font-weight: 300;
+  font-style: italic;
+  line-height: 1.2;
+}
+
+.template-root .company__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.template-root .company__table tr {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.template-root .company__table th {
+  text-align: left;
+  font-size: .75rem;
+  font-weight: 400;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #999;
+  padding: 24px 0;
+  width: 180px;
+  vertical-align: top;
+}
+
+.template-root .company__table td {
+  font-size: .85rem;
+  padding: 24px 0;
+  line-height: 1.8;
+}
+
+/* ===== CTA Section ===== */
+.template-root .cta {
+  padding: 0;
+  background: var(--color-bg);
+}
+
+.template-root .cta__inner {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 60px 140px;
+}
+
+.template-root .cta__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 80px;
+}
+
+.template-root .cta__box {
+  padding: 48px;
+  transition: all .4s var(--ease);
+}
+
+.template-root .cta__box--dark {
+  background: var(--color-dark);
+  color: #fff;
+}
+
+.template-root .cta__box--dark:hover {
+  background: var(--color-accent);
+}
+
+.template-root .cta__box--outline {
+  border: 1px solid var(--color-border);
+}
+
+.template-root .cta__box--outline:hover {
+  border-color: var(--color-accent);
+}
+
+.template-root .cta__box-label {
+  font-size: .65rem;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  opacity: .5;
+  margin-bottom: 16px;
+}
+
+.template-root .cta__box-value {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 400;
+  letter-spacing: .05em;
+}
+
+.template-root .cta__box-note {
+  font-size: .7rem;
+  margin-top: 16px;
+  opacity: .4;
+}
+
+/* ===== Footer ===== */
+.template-root .footer {
+  background: var(--color-dark);
+  color: #fff;
+  padding: 80px 0 40px;
+}
+
+.template-root .footer__inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 60px;
+}
+
+.template-root .footer__grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 60px;
+  margin-bottom: 60px;
+}
+
+.template-root .footer__logo {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 400;
+  letter-spacing: .2em;
+  margin-bottom: 20px;
+}
+
+.template-root .footer__info {
+  font-size: .75rem;
+  line-height: 2;
+  color: rgba(255,255,255,.35);
+}
+
+.template-root .footer__heading {
+  font-size: .65rem;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.45);
+  margin-bottom: 24px;
+}
+
+.template-root .footer__link-list li {
+  margin-bottom: 12px;
+}
+
+.template-root .footer__link-list a {
+  font-size: .8rem;
+  color: rgba(255,255,255,.35);
+  transition: color .3s;
+}
+
+.template-root .footer__link-list a:hover {
+  color: var(--color-accent);
+}
+
+.template-root .footer__bottom {
+  border-top: 1px solid rgba(255,255,255,.08);
+  padding-top: 24px;
+  text-align: center;
+}
+
+.template-root .footer__copy {
+  font-size: .6rem;
+  letter-spacing: .15em;
+  color: rgba(255,255,255,.25);
+}
+
+/* ===== Responsive: Tablet ===== */
+/* ===== Features ===== */
+.template-root .features {
+  padding: 140px 0;
+  background: var(--color-bg);
+}
+
+.template-root .features__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 60px;
+}
+
+.template-root .features__header {
+  margin-bottom: 64px;
+}
+
+.template-root .features__label {
+  font-family: var(--font-display);
+  font-size: .9rem;
+  font-weight: 300;
+  color: var(--color-accent);
+  margin-bottom: 12px;
+}
+
+.template-root .features__title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 300;
+  letter-spacing: -.02em;
+  line-height: 1.2;
+}
+
+.template-root .features__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+}
+
+.template-root .features__card {
+  padding: 40px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.template-root .features__card-num {
+  font-family: var(--font-display);
+  font-size: .85rem;
+  color: var(--color-accent);
+  margin-bottom: 20px;
+}
+
+.template-root .features__card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.template-root .features__card-text {
+  font-size: .82rem;
+  color: #999;
+  line-height: 2;
+  font-weight: 300;
+}
+
+/* ===== Blog ===== */
+.template-root .blog {
+  padding: 140px 0;
+  background: var(--color-bg);
+}
+
+.template-root .blog__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 60px;
+}
+
+.template-root .blog__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 56px;
+}
+
+.template-root .blog__label {
+  font-family: var(--font-display);
+  font-size: .9rem;
+  font-weight: 300;
+  color: #999;
+  margin-bottom: 12px;
+}
+
+.template-root .blog__title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 300;
+  letter-spacing: -.02em;
+  line-height: 1.2;
+}
+
+.template-root .blog__more {
+  font-family: var(--font-display);
+  font-size: .8rem;
+  letter-spacing: .08em;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 4px;
+  transition: border-color .3s;
+}
+
+.template-root .blog__more:hover {
+  border-color: var(--color-text);
+}
+
+.template-root .blog__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 40px;
+}
+
+.template-root .blog__card {
+  display: block;
+}
+
+.template-root .blog__card-img {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 3 / 2;
+  margin-bottom: 16px;
+  background: #eee;
+}
+
+.template-root .blog__card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform .8s var(--ease);
+}
+
+.template-root .blog__card:hover .blog__card-img img {
+  transform: scale(1.06);
+}
+
+.template-root .blog__card-date {
+  font-family: var(--font-display);
+  font-size: .75rem;
+  color: #999;
+  letter-spacing: .06em;
+  margin-bottom: 6px;
+}
+
+.template-root .blog__card-name {
+  font-size: .95rem;
+  font-weight: 400;
+  line-height: 1.6;
+  transition: opacity .3s;
+}
+
+.template-root .blog__card:hover .blog__card-name {
+  opacity: .6;
+}
+
+@media (max-width: 999px) {
+  .template-root .header__inner {
+    padding: 0 30px;
+    height: 64px;
   }
+
+  .template-root .header__nav {
+    display: none;
+  }
+
+  .template-root .hamburger {
+    display: block;
+  }
+
+  .template-root .hero__content {
+    padding: 0 30px;
+  }
+
+  .template-root .about__inner {
+    grid-template-columns: 1fr;
+    gap: 48px;
+    padding: 0 30px;
+  }
+
+  .template-root .about {
+    padding: 100px 0;
+  }
+
+  .template-root .svc__inner {
+    padding: 0 30px;
+  }
+
+  .template-root .svc__header {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .template-root .svc__grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .template-root .svc {
+    padding: 100px 0;
+  }
+
+  .template-root .works__inner {
+    padding: 0 30px;
+  }
+
+  .template-root .works__grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .template-root .works {
+    padding: 100px 0;
+  }
+
+  .template-root .works__marquee-text {
+    font-size: 5rem;
+  }
+
+  .template-root .news__inner {
+    padding: 0 30px;
+  }
+
+  .template-root .news {
+    padding: 100px 0;
+  }
+
+  .template-root .company__inner {
+    padding: 0 30px;
+  }
+
+  .template-root .company {
+    padding: 100px 0;
+  }
+
+  .template-root .features__inner {
+    padding: 0 30px;
+  }
+
+  .template-root .features {
+    padding: 100px 0;
+  }
+
+  .template-root .features__grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .template-root .blog__inner {
+    padding: 0 30px;
+  }
+
+  .template-root .blog {
+    padding: 100px 0;
+  }
+
+  .template-root .blog__grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .template-root .cta__inner {
+    padding: 0 30px 100px;
+  }
+
+  .template-root .cta__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .template-root .footer__inner {
+    padding: 0 30px;
+  }
+
+  .template-root .footer__grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+  }
+}
+
+/* ===== Responsive: Mobile ===== */
+@media (max-width: 767px) {
+  .template-root .header__inner {
+    padding: 0 20px;
+    height: 56px;
+  }
+
+  .template-root .hero {
+    min-height: 500px;
+  }
+
+  .template-root .hero__content {
+    padding: 0 20px;
+  }
+
+  .template-root .hero__label {
+    font-size: .55rem;
+  }
+
+  .template-root .about__inner {
+    padding: 0 20px;
+  }
+
+  .template-root .about {
+    padding: 80px 0;
+  }
+
+  .template-root .about__img-wrap img {
+    height: 300px;
+  }
+
+  .template-root .svc__inner {
+    padding: 0 20px;
+  }
+
+  .template-root .svc {
+    padding: 80px 0;
+  }
+
+  .template-root .svc__img-wrap img {
+    height: 280px;
+  }
+
+  .template-root .works__inner {
+    padding: 0 20px;
+  }
+
+  .template-root .works {
+    padding: 80px 0;
+  }
+
+  .template-root .works__marquee-text {
+    font-size: 3.5rem;
+  }
+
+  .template-root .news__inner {
+    padding: 0 20px;
+  }
+
+  .template-root .news {
+    padding: 80px 0;
+  }
+
+  .template-root .news__item {
+    flex-wrap: wrap;
+    gap: 8px 16px;
+  }
+
+  .template-root .company__inner {
+    padding: 0 20px;
+  }
+
+  .template-root .company {
+    padding: 80px 0;
+  }
+
+  .template-root .company__table th {
+    display: block;
+    width: 100%;
+    padding-bottom: 4px;
+  }
+
+  .template-root .company__table td {
+    display: block;
+    padding-top: 0;
+  }
+
+  .template-root .cta__inner {
+    padding: 0 20px 80px;
+  }
+
+  .template-root .cta__box {
+    padding: 32px;
+  }
+
+  .template-root .footer__inner {
+    padding: 0 20px;
+  }
+
+  .template-root .footer__grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+}
+</style>
+
+<!-- Loading Screen -->
+<div class="loader" id="loader">
+  <div class="loader__inner">
+    <span class="loader__logo">NOIR</span>
+    <div class="loader__bar"></div>
+  </div>
+</div>
+
+<!-- Header -->
+<header class="header" id="header">
+  <div class="header__inner">
+    <a href="#top" class="header__logo">
+      <span class="header__logo-text">NOIR</span>
+      <span class="header__logo-sub">Studio</span>
+    </a>
+    <nav class="header__nav">
+      <ul class="header__nav-list" data-sync="site-pages">
+        <li class="header__nav-item">
+          <a href="#concept" class="header__nav-link nav-flip">
+            <span>About</span><span>About</span>
+          </a>
+        </li>
+        <li class="header__nav-item">
+          <a href="#service" class="header__nav-link nav-flip">
+            <span>Service</span><span>Service</span>
+          </a>
+        </li>
+        <li class="header__nav-item">
+          <a href="#works" class="header__nav-link nav-flip">
+            <span>Works</span><span>Works</span>
+          </a>
+        </li>
+        <li class="header__nav-item">
+          <a href="#news" class="header__nav-link nav-flip">
+            <span>News</span><span>News</span>
+          </a>
+        </li>
+        <li class="header__nav-item">
+          <a href="#company" class="header__nav-link nav-flip">
+            <span>Company</span><span>Company</span>
+          </a>
+        </li>
+      </ul>
+      <a href="#contact" class="header__cta">Contact</a>
+    </nav>
+    <div class="hamburger" id="hamburger">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</header>
+
+<!-- Mobile Nav -->
+<div class="mobile-nav" id="mobileNav">
+  <ul class="mobile-nav__list">
+    <li class="mobile-nav__item"><a href="#concept" class="mobile-nav__link">About</a></li>
+    <li class="mobile-nav__item"><a href="#service" class="mobile-nav__link">Service</a></li>
+    <li class="mobile-nav__item"><a href="#works" class="mobile-nav__link">Works</a></li>
+    <li class="mobile-nav__item"><a href="#news" class="mobile-nav__link">News</a></li>
+    <li class="mobile-nav__item"><a href="#company" class="mobile-nav__link">Company</a></li>
+    <li class="mobile-nav__item"><a href="#contact" class="mobile-nav__link">Contact</a></li>
+  </ul>
+</div>
+
+<!-- Hero -->
+<section id="top" class="hero">
+  <div class="hero__bg">
+    <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=2000" alt="Hero Background">
+  </div>
+  <div class="hero__content">
+    <p class="hero__label">デザイン / アートディレクション / ブランディング</p>
+    <h1 class="hero__title">Making<br>Digital Beautiful</h1>
+    <div class="hero__line"></div>
+  </div>
+  <div class="hero__scroll">
+    <span>Scroll</span>
+    <span class="hero__scroll-line"></span>
+  </div>
+</section>
+
+<!-- About -->
+<section id="concept" class="about">
+  <svg class="svg-line-draw" viewBox="0 0 1400 600" preserveAspectRatio="none">
+    <path id="aboutPath" d="M0,300 Q350,100 700,300 T1400,300" fill="none" stroke="rgba(200,22,29,0.08)" stroke-width="1"/>
+  </svg>
+  <div class="about__inner">
+    <div data-anim="slide-left">
+      <p class="about__label">私たちについて</p>
+      <h2 class="about__title">削ぎ落として、<br>本質を残す。</h2>
+      <div class="about__line"></div>
+      <p class="about__text">
+        本質を見極め、余分を削ぎ落とすことで、真に美しいデザインが生まれる。<br><br>
+        私たちはミニマリズムの力を信じ、すべてのプロジェクトに洗練された美意識を注ぎ込みます。ブランドの核心を捉え、記憶に残る体験をデザインします。
+      </p>
+    </div>
+    <div class="about__img-wrap" data-anim="img-reveal">
+      <img src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=800" alt="About">
+    </div>
+  </div>
+</section>
+
+<!-- Service -->
+<section id="service" class="svc">
+  <div class="svc__inner">
+    <div class="svc__header">
+      <div data-anim="fade">
+        <p class="svc__label">事業内容</p>
+        <h2 class="svc__title">私たちが<br>できること</h2>
+      </div>
+      <p class="svc__desc" data-anim="fade">
+        戦略的思考とクリエイティブの融合。数値に裏打ちされたデザインで、ビジネスの成長を支えます。ロゴ、Web、印刷物まで一貫したブランド体験を構築します。
+      </p>
+    </div>
+    <div class="svc__img-wrap" data-anim="img-reveal">
+      <img src="https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&q=80&w=1200" alt="Service">
+    </div>
+    <div class="svc__grid" data-anim="stagger">
+      <div class="svc__card">
+        <p class="svc__card-num">01</p>
+        <h3 class="svc__card-title">ブランディング</h3>
+        <p class="svc__card-text">ブランドの本質を捉え、ロゴ・VI・ガイドラインを策定。一貫した世界観を構築します。</p>
+      </div>
+      <div class="svc__card">
+        <p class="svc__card-num">02</p>
+        <h3 class="svc__card-title">Webデザイン・開発</h3>
+        <p class="svc__card-text">美しさと機能性を両立したWebサイトを設計・開発。ユーザー体験を最大化します。</p>
+      </div>
+      <div class="svc__card">
+        <p class="svc__card-num">03</p>
+        <h3 class="svc__card-title">アートディレクション</h3>
+        <p class="svc__card-text">撮影・映像・グラフィックのディレクション。ビジュアルコミュニケーションを統括します。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Works -->
+<section id="works" class="works">
+  <div class="works__inner">
+    <div class="works__header" data-anim="fade">
+      <div>
+        <p class="works__label">実績紹介</p>
+        <h2 class="works__title">制作<br>実績</h2>
+      </div>
+      <a href="/works" class="works__more">すべての実績を見る</a>
+    </div>
+    <div class="works__marquee">
+      <div class="works__marquee-inner">
+        <span class="works__marquee-text">WORKS WORKS WORKS WORKS&nbsp;</span>
+        <span class="works__marquee-text">WORKS WORKS WORKS WORKS&nbsp;</span>
+      </div>
+    </div>
+    <div class="works__grid" data-anim="stagger">
+      <a href="/works/work-page" class="works__card">
+        <div class="works__card-img" data-anim="img-reveal">
+          <img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=800" alt="Work 1">
+        </div>
+        <div class="works__card-info">
+          <p class="works__card-cat">ブランディング</p>
+          <h3 class="works__card-name">ブランドアイデンティティ設計</h3>
+        </div>
+      </a>
+      <a href="/works/work-page" class="works__card">
+        <div class="works__card-img" data-anim="img-reveal">
+          <img src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&q=80&w=800" alt="Work 2">
+        </div>
+        <div class="works__card-info">
+          <p class="works__card-cat">Webデザイン</p>
+          <h3 class="works__card-name">コーポレートサイトリニューアル</h3>
+        </div>
+      </a>
+      <a href="/works/work-page" class="works__card">
+        <div class="works__card-img" data-anim="img-reveal">
+          <img src="https://images.unsplash.com/photo-1541888946425-d81bb19480c5?auto=format&fit=crop&q=80&w=800" alt="Work 3">
+        </div>
+        <div class="works__card-info">
+          <p class="works__card-cat">アートディレクション</p>
+          <h3 class="works__card-name">プロダクト撮影ディレクション</h3>
+        </div>
+      </a>
+      <a href="/works/work-page" class="works__card">
+        <div class="works__card-img" data-anim="img-reveal">
+          <img src="https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&q=80&w=800" alt="Work 4">
+        </div>
+        <div class="works__card-info">
+          <p class="works__card-cat">ブランディング</p>
+          <h3 class="works__card-name">ビジュアルアイデンティティ構築</h3>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Features / Strengths -->
+<section id="features" class="features">
+  <div class="features__inner">
+    <div class="features__header" data-anim="fade">
+      <p class="features__label">私たちの強み</p>
+      <h2 class="features__title">選ばれる<br>理由</h2>
+    </div>
+    <div class="features__grid" data-anim="stagger">
+      <div class="features__card">
+        <p class="features__card-num">01</p>
+        <h3 class="features__card-title">戦略から実装まで一貫対応</h3>
+        <p class="features__card-text">調査・分析に基づく戦略設計から、デザイン・コーディング・運用まで、ワンストップで対応します。</p>
+      </div>
+      <div class="features__card">
+        <p class="features__card-num">02</p>
+        <h3 class="features__card-title">品質へのこだわり</h3>
+        <p class="features__card-text">細部まで妥協しないクラフトマンシップ。国内外のデザインアワードで評価される品質基準を維持しています。</p>
+      </div>
+      <div class="features__card">
+        <p class="features__card-num">03</p>
+        <h3 class="features__card-title">長期的なパートナーシップ</h3>
+        <p class="features__card-text">制作して終わりではなく、公開後の改善・運用支援まで。お客様のビジネス成長に伴走します。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- News -->
+<section id="news" class="news">
+  <div class="news__inner">
+    <div class="news__header" data-anim="fade">
+      <div>
+        <p class="news__label">お知らせ</p>
+        <h2 class="news__title">最新の<br>ニュース</h2>
+      </div>
+      <a href="/news" class="news__more">すべてのニュースを見る</a>
+    </div>
+    <div class="news__list" data-anim="fade">
+      <a href="/news/news-page" class="news__item">
+        <time class="news__date">2025.04.01</time>
+        <span class="news__tag">Info</span>
+        <span class="news__text">最新情報は公開投稿から自動生成されます。</span>
+      </a>
+      <a href="/news/news-page" class="news__item">
+        <time class="news__date">2025.03.15</time>
+        <span class="news__tag">Award</span>
+        <span class="news__text">ニュース記事のタイトルがここに表示されます。</span>
+      </a>
+      <a href="/news/news-page" class="news__item">
+        <time class="news__date">2025.03.01</time>
+        <span class="news__tag">Press</span>
+        <span class="news__text">メディア掲載のお知らせ。</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Company -->
+<section id="company" class="company">
+  <div class="company__inner">
+    <div class="company__header" data-anim="fade">
+      <p class="company__label">会社情報</p>
+      <h2 class="company__title">会社概要</h2>
+    </div>
+    <div data-anim="fade">
+      <table class="company__table">
+        <tr><th>会社名</th><td>株式会社サンプル</td></tr>
+        <tr><th>設立</th><td>2020年4月</td></tr>
+        <tr><th>所在地</th><td>〒000-0000 東京都渋谷区1-1-1</td></tr>
+        <tr><th>代表</th><td>山田 太郎</td></tr>
+        <tr><th>事業内容</th><td>ブランディング / Webデザイン・開発 / アートディレクション</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Blog -->
+<section id="blog" class="blog">
+  <div class="blog__inner">
+    <div class="blog__header" data-anim="fade">
+      <div>
+        <p class="blog__label">ブログ</p>
+        <h2 class="blog__title">最新の<br>記事</h2>
+      </div>
+      <a href="/blog" class="blog__more">すべての記事を見る</a>
+    </div>
+    <div class="blog__grid" data-anim="stagger">
+      <a href="/blog/blog-page" class="blog__card">
+        <div class="blog__card-img" data-anim="img-reveal">
+          <img src="https://images.unsplash.com/photo-1486325212027-8081e485255e?auto=format&fit=crop&q=80&w=800" alt="Blog 1">
+        </div>
+        <div class="blog__card-info">
+          <p class="blog__card-date">2025.04.01</p>
+          <h3 class="blog__card-name">ブログ記事は公開投稿から自動生成されます。</h3>
+        </div>
+      </a>
+      <a href="/blog/blog-page" class="blog__card">
+        <div class="blog__card-img" data-anim="img-reveal">
+          <img src="https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&q=80&w=800" alt="Blog 2">
+        </div>
+        <div class="blog__card-info">
+          <p class="blog__card-date">2025.03.15</p>
+          <h3 class="blog__card-name">ブログ記事のタイトルがここに表示されます。</h3>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Contact CTA -->
+<section id="contact" class="cta">
+  <div class="cta__inner">
+    <div class="cta__grid" data-anim="stagger">
+      <a href="tel:000-0000-0000" class="cta__box cta__box--dark">
+        <p class="cta__box-label">お電話</p>
+        <p class="cta__box-value">000-0000-0000</p>
+        <p class="cta__box-note">平日 10:00 - 19:00</p>
+      </a>
+      <a href="#" class="cta__box cta__box--outline">
+        <p class="cta__box-label">お問い合わせ</p>
+        <p class="cta__box-value">フォームから相談する</p>
+        <p class="cta__box-note">お気軽にご連絡ください</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="footer__inner">
+    <div class="footer__grid">
+      <div>
+        <p class="footer__logo">NOIR</p>
+        <p class="footer__info">
+          株式会社サンプル<br>
+          〒000-0000<br>
+          東京都渋谷区1-1-1<br>
+          TEL: 000-0000-0000
+        </p>
+      </div>
+      <div>
+        <p class="footer__heading">事業内容</p>
+        <ul class="footer__link-list">
+          <li><a href="#">ブランディング</a></li>
+          <li><a href="#">Webデザイン</a></li>
+          <li><a href="#">アートディレクション</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="footer__heading">企業情報</p>
+        <ul class="footer__link-list">
+          <li><a href="#">会社概要</a></li>
+          <li><a href="#">採用情報</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="footer__heading">コンテンツ</p>
+        <ul class="footer__link-list">
+          <li><a href="#">ニュース</a></li>
+          <li><a href="#">ブログ</a></li>
+          <li><a href="#">お問い合わせ</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <p class="footer__copy">&copy; NOIR STUDIO. ALL RIGHTS RESERVED.</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function() {
+  var root = document.currentScript ? document.currentScript.closest('.template-root') : null;
+  if (!root) {
+    var scripts = document.querySelectorAll('script');
+    var lastScript = scripts[scripts.length - 1];
+    root = lastScript.closest('.template-root');
+  }
+  if (!root) return;
+
+  /* ===== Loading Screen ===== */
+  var loader = root.querySelector('#loader');
+  if (loader) {
+    setTimeout(function() {
+      loader.classList.add('is-loaded');
+    }, 2400);
+  }
+
+  /* ===== SmoothScroll Class ===== */
+  var SmoothScroll = function(root) {
+    this.root = root;
+    this.links = root.querySelectorAll('a[href^="#"]');
+    this.init();
+  };
+
+  SmoothScroll.prototype.init = function() {
+    var self = this;
+    this.links.forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        var href = this.getAttribute('href');
+        if (href === '#') return;
+        var target = root.querySelector(href);
+        if (!target) return;
+        e.preventDefault();
+        var headerH = 80;
+        var top = target.getBoundingClientRect().top + window.pageYOffset - headerH;
+        window.scrollTo({ top: top, behavior: 'smooth' });
+
+        /* Close mobile nav if open */
+        var mobileNav = root.querySelector('#mobileNav');
+        var hamburger = root.querySelector('#hamburger');
+        if (mobileNav && mobileNav.classList.contains('is-open')) {
+          mobileNav.classList.remove('is-open');
+          if (hamburger) hamburger.classList.remove('is-active');
+        }
+      });
+    });
+  };
+
+  new SmoothScroll(root);
+
+  /* ===== Header Scroll State ===== */
+  var header = root.querySelector('#header');
+  var lastScroll = 0;
+
+  if (header) {
+    window.addEventListener('scroll', function() {
+      var currentScroll = window.pageYOffset;
+
+      if (currentScroll > 100) {
+        header.classList.add('is-scrolled');
+      } else {
+        header.classList.remove('is-scrolled');
+      }
+
+      if (currentScroll > lastScroll && currentScroll > 300) {
+        header.classList.add('is-hidden');
+      } else {
+        header.classList.remove('is-hidden');
+      }
+
+      lastScroll = currentScroll;
+    });
+  }
+
+  /* ===== Hamburger Menu ===== */
+  var hamburger = root.querySelector('#hamburger');
+  var mobileNav = root.querySelector('#mobileNav');
+
+  if (hamburger && mobileNav) {
+    hamburger.addEventListener('click', function() {
+      this.classList.toggle('is-active');
+      mobileNav.classList.toggle('is-open');
+    });
+  }
+
+  /* ===== Scroll-Triggered Animations (IntersectionObserver) ===== */
+  var animEls = root.querySelectorAll('[data-anim]');
+  if (animEls.length > 0 && 'IntersectionObserver' in window) {
+    var animObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+        }
+      });
+    }, {
+      threshold: 0.15,
+      rootMargin: '0px 0px -60px 0px'
+    });
+
+    animEls.forEach(function(el) {
+      animObserver.observe(el);
+    });
+  }
+
+  /* ===== SVG Line Draw ===== */
+  var svgPath = root.querySelector('#aboutPath');
+  if (svgPath && 'IntersectionObserver' in window) {
+    var svgObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          svgPath.classList.add('is-drawn');
+        }
+      });
+    }, { threshold: 0.3 });
+
+    svgObserver.observe(svgPath.closest('svg') || svgPath);
+  }
+
+  /* ===== Parallax Engine ===== */
+  var heroSection = root.querySelector('#top');
+  var heroImg = heroSection ? heroSection.querySelector('.hero__bg img') : null;
+  var aboutSvg = root.querySelector('.svg-line-draw');
+  var marqueeInner = root.querySelector('.works__marquee-inner');
+  var svcImg = root.querySelector('.svc__img-wrap img');
+  var ctaBoxes = root.querySelectorAll('.cta__box');
+
+  function parallax() {
+    var scrollY = window.pageYOffset;
+    var winH = window.innerHeight;
+
+    /* Hero parallax */
+    if (heroImg) {
+      var heroRect = heroSection.getBoundingClientRect();
+      if (heroRect.bottom > 0) {
+        heroImg.style.transform = 'scale(' + (1.1 - scrollY * 0.0001) + ') translateY(' + (scrollY * 0.3) + 'px)';
+      }
+    }
+
+    /* About SVG path parallax */
+    if (aboutSvg) {
+      var svgRect = aboutSvg.getBoundingClientRect();
+      if (svgRect.top < winH && svgRect.bottom > 0) {
+        var progress = (winH - svgRect.top) / (winH + svgRect.height);
+        aboutSvg.style.transform = 'translateY(' + (progress * 30 - 15) + 'px)';
+      }
+    }
+
+    /* Works marquee parallax */
+    if (marqueeInner) {
+      var marqueeRect = marqueeInner.getBoundingClientRect();
+      if (marqueeRect.top < winH && marqueeRect.bottom > 0) {
+        var offset = (winH - marqueeRect.top) * 0.05;
+        marqueeInner.style.animationDuration = Math.max(15, 30 - offset) + 's';
+      }
+    }
+
+    /* Service image parallax */
+    if (svcImg) {
+      var svcRect = svcImg.getBoundingClientRect();
+      if (svcRect.top < winH && svcRect.bottom > 0) {
+        var svcProgress = (winH - svcRect.top) / (winH + svcRect.height);
+        svcImg.style.transform = 'translateY(' + ((svcProgress - 0.5) * -30) + 'px)';
+      }
+    }
+
+    /* CTA boxes subtle parallax */
+    ctaBoxes.forEach(function(box, i) {
+      var boxRect = box.getBoundingClientRect();
+      if (boxRect.top < winH && boxRect.bottom > 0) {
+        var boxProgress = (winH - boxRect.top) / (winH + boxRect.height);
+        box.style.transform = 'translateY(' + ((boxProgress - 0.5) * (i === 0 ? -10 : 10)) + 'px)';
+      }
+    });
+
+    requestAnimationFrame(parallax);
+  }
+
+  requestAnimationFrame(parallax);
+
+  /* ===== Active Nav Link ===== */
+  var sections = root.querySelectorAll('section[id]');
+  var navLinks = root.querySelectorAll('.header__nav-link');
+
+  function updateActiveNav() {
+    var scrollPos = window.pageYOffset + 120;
+    sections.forEach(function(section) {
+      var top = section.offsetTop;
+      var height = section.offsetHeight;
+      var id = section.getAttribute('id');
+
+      if (scrollPos >= top && scrollPos < top + height) {
+        navLinks.forEach(function(link) {
+          link.classList.remove('is-active');
+          if (link.getAttribute('href') === '#' + id) {
+            link.classList.add('is-active');
+          }
+        });
+      }
+    });
+  }
+
+  window.addEventListener('scroll', updateActiveNav);
+  updateActiveNav();
+
+})();
+</script>
+
+</div>`,
+  },
 ];

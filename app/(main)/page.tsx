@@ -1435,10 +1435,8 @@ function PaletteDesignInner() {
   };
 
   const STUDIO_TASTE_OPTIONS = [
-    'モダン', 'クリーン', 'シンプル', 'ラグジュアリー', '大人っぽい',
-    '信頼感', '堅実', '元気', 'POP', 'ミニマル',
-    '余白', 'テック感', 'クール', 'オーガニック', '柔らかい雰囲気',
-    '和風', '伝統', 'ポートフォリオ', 'ギャラリー', 'LP', 'コンバージョン特化',
+    'Warm（温かみ・信頼感）',
+    'Noir（モダン・クール）',
   ];
 
   const STUDIO_COLOR_OPTIONS = [
@@ -1743,50 +1741,10 @@ function PaletteDesignInner() {
 
   const chooseTemplateByTaste = (taste: string): Template => {
     const t = String(taste || '').trim().toLowerCase();
-    if (!t) return templates[0];
-
-    const tasteKeywordMap: Record<string, string[]> = {
-      'モダン': ['modern', 'モダン', 'clean', 'startup'],
-      'クリーン': ['clean', 'クリーン', 'simple'],
-      'シンプル': ['simple', 'minimal', 'シンプル'],
-      'ラグジュアリー': ['luxury', 'elegant', 'ラグジュアリー'],
-      '大人っぽい': ['luxury', 'elegant', 'minimal'],
-      '信頼感': ['corporate', 'business', 'trust', '信頼'],
-      '堅実': ['corporate', 'business', 'firm'],
-      '元気': ['pop', 'colorful', '元気'],
-      'POP': ['pop', 'colorful', '元気', '親しみ'],
-      '親しみ': ['pop', 'natural', '親しみ'],
-      'ミニマル': ['minimal', '洗練'],
-      '余白': ['minimal', '余白'],
-      'テック感': ['dark', 'tech', 'テック'],
-      'クール': ['dark', 'cool', 'クール'],
-      'オーガニック': ['natural', 'organic', 'オーガニック'],
-      '柔らかい雰囲気': ['natural', 'soft', '柔らかい'],
-      '和風': ['japanese', '和風'],
-      '伝統': ['japanese', 'traditional', '伝統'],
-      'ポートフォリオ': ['portfolio', 'creator'],
-      'ギャラリー': ['gallery', 'portfolio', 'works'],
-      'LP': ['lp', 'marketing', 'sales'],
-      'コンバージョン特化': ['lp', 'conversion', 'marketing'],
-    };
-
-    const key = STUDIO_TASTE_OPTIONS.find((label) => label.toLowerCase() === t) || taste;
-    const keywords = tasteKeywordMap[key] || [t];
-
-    let best = templates[0];
-    let bestScore = -1;
-    templates.forEach((template) => {
-      const hay = `${template.name} ${template.description} ${template.tags.join(' ')}`.toLowerCase();
-      let score = 0;
-      keywords.forEach((keyword) => {
-        if (hay.includes(keyword.toLowerCase())) score += 3;
-      });
-      if (score > bestScore) {
-        best = template;
-        bestScore = score;
-      }
-    });
-    return best;
+    if (t.includes('noir') || t.includes('モダン') || t.includes('クール') || t.includes('シンプル') || t.includes('ミニマル')) {
+      return templates.find((tp) => tp.id === 'template-noir') || templates[0];
+    }
+    return templates.find((tp) => tp.id === 'template-warm') || templates[0];
   };
 
   const decodeHtmlEntities = (value: string): string => {
@@ -2689,29 +2647,29 @@ ${template.html}
 
   const buildStudioDraftPrompt = (template: Template, profile: StudioProfile): string => {
     return `
-あなたはWebデザイナーです。以下の要件で、ベースHTMLを顧客向けの下書きHTMLに調整してください。
+あなたはWebデザイナーです。以下のベースHTMLを、顧客情報に合わせて調整してください。
 
-要件:
-- 本文は日本語中心
-- 指定したセクションのみを中心に構成（フッターは固定で残す）
-- 選択テンプレートの構造・レイアウトの雰囲気は維持する
-- 配色は白背景 + 黒系テキスト + 薄いグレー枠線のワイヤーフレーム調に統一
-- 画像エリアは実画像を使わず、グレーのプレースホルダー領域に「どんな画像を入れるか」をテキストで記載
-- リンクやボタンは動作不要のダミー表示でよい
-- 屋号名は「${profile.shopName}」
-- 業種は「${profile.industry}」
+## 顧客情報
+- 屋号名: ${profile.shopName}
+- 業種: ${profile.industry}
 - サービス内容: ${profile.services.join(' / ')}
 - 強み・アピールポイント: ${profile.appealPoint || '未設定'}
 - テイスト: ${profile.taste}
 - 会社情報掲載: ${profile.includeCompanyInfo ? 'あり' : 'なし'}
 - 会社情報詳細: ${Object.entries(profile.companyDetails).map(([k, v]) => `${k}:${v}`).join(' / ') || 'なし'}
 
-制約:
-- HTML構造は極力維持（セクションの順序や骨組みを壊さない）
-- 説明文は自然な日本語
-- 最後は \`\`\`html ... \`\`\` のみ返す
+## 調整ルール（厳守）
+- テンプレートのHTML構造・CSS・レイアウトはそのまま維持する。大幅な書き換えは禁止。
+- 変更するのはテキスト内容のみ（屋号名・キャッチコピー・サービス説明・会社情報など）
+- 画像の<img>タグはすべて以下に置き換える:
+  <div style="background:#e5e7eb;display:flex;align-items:center;justify-content:center;width:100%;height:100%;min-height:200px;border-radius:inherit;color:#9ca3af;font-size:14px;font-weight:bold;">ここに画像が入ります</div>
+- CSS変数（--main-color等）はそのまま残す
+- 不要なセクション（顧客が選択していないもの）は削除してよい
+- 本文は日本語で自然な文章にする
+- ダミーの電話番号・住所などは「000-0000-0000」「〒000-0000 住所未設定」とする
+- 最後は \`\`\`html ... \`\`\` のみ返す（説明文不要）
 
-ベースHTML:
+## ベースHTML
 ${template.html}
 `;
   };
