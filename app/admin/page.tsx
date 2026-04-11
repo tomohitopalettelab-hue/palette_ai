@@ -130,7 +130,7 @@ export default function AdminPage() {
           <div className="flex flex-wrap items-end gap-3 justify-between">
             <div>
               <h1 className="text-xl font-black text-slate-800">palette_ai 契約顧客一覧</h1>
-              <p className="text-sm text-slate-600 mt-1">pal-db の契約情報から、palette_ai プラン契約中の顧客のみ表示します。</p>
+              <p className="text-sm text-slate-600 mt-1">契約情報から、palette_ai プラン契約中の顧客のみ表示します。</p>
             </div>
             <button onClick={load} className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50">再読込</button>
           </div>

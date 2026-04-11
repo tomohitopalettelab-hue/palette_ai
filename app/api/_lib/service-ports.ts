@@ -1,8 +1,8 @@
-const palDbBase =
-  process.env.PAL_DB_BASE_URL || 'http://localhost:3100';
+const crmBase =
+  process.env.PAL_DB_BASE_URL || 'http://localhost:3107';
 
 export const SERVICE_URLS: Record<string, string> = {
-  pal_db: palDbBase,
+  palette_crm: crmBase,
   pal_studio:
     process.env.PAL_STUDIO_BASE_URL || 'http://localhost:3001',
   pal_trust:

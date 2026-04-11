@@ -2990,7 +2990,7 @@ ${currentHtml}
 
     if (studioStep === 'shopName') {
       const shopNameVal = first;
-      // pal_db に業種が登録済みならスキップ
+      // CRM に業種が登録済みならスキップ
       if (authIndustry) {
         setStudioProfile((prev) => ({ ...prev, shopName: shopNameVal, industry: authIndustry }));
         setStudioStep('services');
