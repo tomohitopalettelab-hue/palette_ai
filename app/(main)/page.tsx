@@ -192,7 +192,7 @@ function PaletteDesignInner() {
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'ai', content: 'こんにちは！Palette AIです。まず顧客IDを入力してください。（例: A0001）' }
+    { role: 'ai', content: 'こんにちは！Palette AIです。まずログインIDを入力してください。' }
   ]);
   const [authStep, setAuthStep] = useState<'askId' | 'askPassword' | 'authenticated'>('askId');
   const [authPaletteId, setAuthPaletteId] = useState('');
@@ -3324,8 +3324,8 @@ ${currentHtml}
       const status = String(card.status || '');
       const isHearingWaiting = includesAny(phase, ['ヒアリング待ち', 'awaiting', 'hearing'])
         || includesAny(status, ['ヒアリング待ち', 'awaiting']);
-      const isDeliveredOrOperating = includesAny(phase, ['納品完了', '運用中', 'active', 'completed'])
-        || includesAny(status, ['納品完了', '運用中', 'delivered', 'in progress']);
+      const isDeliveredOrOperating = includesAny(phase, ['納品完了', '運用中', 'active', 'completed', 'in progress'])
+        || includesAny(status, ['納品完了', '運用中', 'delivered', 'in progress', 'active']);
 
       if (isHearingWaiting) {
         appendAiMessage({
@@ -3429,11 +3429,13 @@ ${currentHtml}
     { key: 'industry', label: '業種（例: 美容院、飲食店、整体院）', required: true, type: 'text' as const },
     { key: 'loginId', label: 'ログインID（半角英数字）', required: true, type: 'text' as const },
     { key: 'loginPassword', label: 'ログインパスワード', required: true, type: 'text' as const },
-    { key: 'priceInitial', label: '初期費用（円）', required: true, type: 'text' as const },
-    { key: 'priceYen', label: '月額費用（円）', required: true, type: 'text' as const },
+    { key: 'priceInitial', label: '初期費用（税抜・円）', required: true, type: 'text' as const },
+    { key: 'priceYen', label: '月額費用（税抜・円）', required: true, type: 'text' as const },
     { key: 'term', label: '契約期間（例: 12ヶ月）', required: true, type: 'text' as const },
-    { key: 'dateContract', label: '契約日（例: 2026-04-04）', required: true, type: 'text' as const },
-    { key: 'dateDelivery', label: '納品希望月（例: 2026-05）', required: true, type: 'text' as const },
+    { key: 'dateContract', label: '契約日', required: true, type: 'date' as const },
+    { key: 'dateDelivery', label: '納品希望月', required: true, type: 'month' as const },
+    { key: 'initialFeeDueDate', label: '初期費用支払予定日', required: true, type: 'date' as const },
+    { key: 'firstMonthlyDueDate', label: '初回月額支払予定日', required: true, type: 'date' as const },
     { key: 'googleMapUrl', label: 'Google Map URL', required: false, type: 'text' as const },
     { key: 'adminGoogleMapUrl', label: 'Googleビジネスプロフィール URL', required: true, type: 'text' as const },
     { key: 'surveyQuestions', label: 'アンケートで聞きたい質問（改行区切り）', required: false, type: 'textarea' as const },
@@ -3453,7 +3455,7 @@ ${currentHtml}
 
   const submitPalTrustOrder = async () => {
     const a = palTrustOrderAnswers;
-    if (!a.shopName || !a.industry || !a.loginId || !a.loginPassword || !a.adminGoogleMapUrl || !a.priceInitial || !a.priceYen || !a.term || !a.dateContract || !a.dateDelivery) {
+    if (!a.shopName || !a.industry || !a.loginId || !a.loginPassword || !a.adminGoogleMapUrl || !a.priceInitial || !a.priceYen || !a.term || !a.dateContract || !a.dateDelivery || !a.initialFeeDueDate || !a.firstMonthlyDueDate) {
       appendAiMessage({ content: '必須項目（*マーク）をすべて入力してください。' });
       return;
     }
@@ -3479,6 +3481,8 @@ ${currentHtml}
           term: a.term || '',
           dateContract: a.dateContract || '',
           dateDelivery: a.dateDelivery || '',
+          initialFeeDueDate: a.initialFeeDueDate || '',
+          firstMonthlyDueDate: a.firstMonthlyDueDate || '',
           googleMapUrl: a.googleMapUrl || '',
           adminGoogleMapUrl: a.adminGoogleMapUrl || '',
           surveyQuestions: a.surveyQuestions || '',
@@ -3633,11 +3637,11 @@ ${currentHtml}
 
       try {
         if (authStep === 'askId') {
-          const paletteId = rawText.toUpperCase();
-          if (!/^[A-Z][0-9]{4}$/.test(paletteId)) {
+          const paletteId = rawText.trim().toUpperCase();
+          if (!paletteId) {
             setMessages([
               ...updatedMessages,
-              { role: 'ai', content: '顧客IDは「英字1文字 + 数字4桁」で入力してください。（例: A0001）' },
+              { role: 'ai', content: 'ログインIDを入力してください。' },
             ]);
             return;
           }
@@ -3647,7 +3651,7 @@ ${currentHtml}
           if (!checkRes.ok || !checkData?.success || !checkData?.exists) {
             setMessages([
               ...updatedMessages,
-              { role: 'ai', content: `顧客ID ${paletteId} が見つかりませんでした。もう一度入力してください。` },
+              { role: 'ai', content: `ログインID ${paletteId} が見つかりませんでした。もう一度入力してください。` },
             ]);
             return;
           }
@@ -3656,7 +3660,7 @@ ${currentHtml}
           setAuthStep('askPassword');
           setMessages([
             ...updatedMessages,
-            { role: 'ai', content: `顧客ID ${paletteId} を確認しました。続けてパスワードを入力してください。` },
+            { role: 'ai', content: `ログインID ${paletteId} を確認しました。続けてパスワードを入力してください。` },
           ]);
           return;
         }
@@ -4796,7 +4800,7 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
                 )}
 
                 {!canUseMedia && (
-                  <div className="text-[11px] text-slate-400">顧客ID認証後に利用できます。</div>
+                  <div className="text-[11px] text-slate-400">ログイン後に利用できます。</div>
                 )}
 
                 {canUseMedia && mediaLoading && (
@@ -4905,7 +4909,7 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
                 </div>
 
                 {!canUseMedia && (
-                  <div className="text-[11px] text-slate-400">顧客ID認証後に利用できます。</div>
+                  <div className="text-[11px] text-slate-400">ログイン後に利用できます。</div>
                 )}
 
                 {canUseMedia && mediaLoading && (
@@ -5154,7 +5158,7 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
                     isComposerFocusedRef.current = false;
                   }}
                   onKeyDown={handleKeyDown} 
-                  placeholder={isSelectionOnlyStage ? '上の選択ボタンから回答してください。' : authStep === 'askId' ? '顧客ID（例: A0001）を入力...' : authStep === 'askPassword' ? 'パスワードを入力...' : '回答を入力...'} 
+                  placeholder={isSelectionOnlyStage ? '上の選択ボタンから回答してください。' : authStep === 'askId' ? 'ログインIDを入力...' : authStep === 'askPassword' ? 'パスワードを入力...' : '回答を入力...'} 
                   rows={1} 
                   disabled={isMainInputDisabled}
                   className="flex-1 bg-transparent border-none py-3 text-base focus:outline-none text-slate-700 font-medium resize-none min-h-[40px] max-h-[120px] touch-auto" 
@@ -5263,7 +5267,7 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
                           />
                         ) : (
                           <input
-                            type="text"
+                            type={field.type === 'date' ? 'date' : field.type === 'month' ? 'month' : 'text'}
                             value={palTrustOrderAnswers[field.key] || ''}
                             onChange={(e) => setPalTrustOrderAnswers((prev) => ({ ...prev, [field.key]: e.target.value }))}
                             placeholder={field.required ? '必須' : '任意（スキップ可）'}
