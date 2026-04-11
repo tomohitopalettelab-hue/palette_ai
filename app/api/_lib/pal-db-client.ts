@@ -1,10 +1,15 @@
 const getBaseUrl = (): string => {
-  return process.env.PAL_DB_BASE_URL?.trim() || 'http://localhost:3100';
+  return process.env.PAL_DB_BASE_URL?.trim() || 'http://localhost:3107';
 };
 
 export const buildPalDbUrl = (path: string): string => {
   const base = getBaseUrl().replace(/\/$/, '');
-  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  // palette_crm proxy: /api/xxx → /api/pal-db/xxx
+  const proxyPath = normalizedPath.startsWith('/api/')
+    ? `/api/pal-db/${normalizedPath.slice(5)}`
+    : normalizedPath;
+  return `${base}${proxyPath}`;
 };
 
 export const palDbGet = async (path: string): Promise<Response> => {

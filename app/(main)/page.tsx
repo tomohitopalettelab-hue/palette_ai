@@ -3320,24 +3320,18 @@ ${currentHtml}
         });
         return;
       }
-      const phase = String(card.phase || '');
-      const status = String(card.status || '');
-      const isHearingWaiting = includesAny(phase, ['ヒアリング待ち', 'awaiting', 'hearing'])
-        || includesAny(status, ['ヒアリング待ち', 'awaiting']);
-      const isDeliveredOrOperating = includesAny(phase, ['納品完了', '運用中', 'active', 'completed', 'in progress'])
-        || includesAny(status, ['納品完了', '運用中', 'delivered', 'in progress', 'active']);
+      const phase = String(card.phase || '').toLowerCase();
+      const status = String(card.status || '').toLowerCase();
 
-      if (isHearingWaiting) {
-        appendAiMessage({
-          content: tier === 'lite'
-            ? 'ライトプランとしてヒアリングを開始します。必要項目を絞って進めます。'
-            : 'スタンダードプランとしてヒアリングを開始します。',
-        });
-        startStudioFlow();
-        return;
-      }
+      // 新ステータス: 着手前 / 制作中 / 納品済み
+      const isNotStarted = includesAny(phase, ['着手前', 'not started'])
+        || includesAny(status, ['着手前', 'not started']);
+      const isInProduction = includesAny(phase, ['制作中', 'in progress', 'hearing'])
+        || includesAny(status, ['制作中', 'in progress', 'active']);
+      const isDelivered = includesAny(phase, ['納品済み', '納品完了', 'completed', 'delivered'])
+        || includesAny(status, ['納品済み', '納品完了', 'completed', 'delivered']);
 
-      if (isDeliveredOrOperating) {
+      if (isDelivered) {
         appendAiMessage({
           content: 'Pal Studio で実行したい操作を選んでください。',
           actionButtons: [
@@ -3348,9 +3342,21 @@ ${currentHtml}
         return;
       }
 
+      if (isInProduction || isNotStarted) {
+        appendAiMessage({
+          content: tier === 'lite'
+            ? 'ライトプランとしてヒアリングを開始します。必要項目を絞って進めます。'
+            : 'スタンダードプランとしてヒアリングを開始します。',
+        });
+        startStudioFlow();
+        return;
+      }
+
+      // フォールバック: ヒアリング開始
       appendAiMessage({
-        content: 'Pal Studio の操作準備中です。続ける内容を教えてください。',
+        content: 'ヒアリングを開始します。',
       });
+      startStudioFlow();
       return;
     }
 

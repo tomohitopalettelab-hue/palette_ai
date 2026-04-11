@@ -31,9 +31,15 @@ const SERVICE_LABELS: Record<string, string> = {
 const STUDIO_STATUS_MAP: Record<string, string> = {
   hearing: 'ヒアリング中',
   reviewing: 'レビュー中',
-  completed: '制作完了',
+  completed: '納品済み',
   published: '公開済み',
   '未作成': '未作成',
+  '着手前': '着手前',
+  '制作中': '制作中',
+  '納品済み': '納品済み',
+  'in progress': '制作中',
+  'not started': '着手前',
+  'delivered': '納品済み',
 };
 
 const buildProgressCards = (
