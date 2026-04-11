@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
-import { buildPalDbUrl } from '../../_lib/pal-db-client';
 
 const MAX_FILE_SIZE = 12 * 1024 * 1024; // 12MB
 const ALLOWED_MIME_PREFIXES = ['image/', 'video/'];
+
+const getBaseUrl = (): string => {
+  return (process.env.PAL_DB_BASE_URL?.trim() || 'http://localhost:3107').replace(/\/$/, '');
+};
 
 const isFileLike = (value: unknown): value is File => {
   return Boolean(value && typeof (value as File).arrayBuffer === 'function');
@@ -37,11 +40,12 @@ export async function POST(req: Request) {
       );
     }
 
+    // palette_crm uses /api/media/upload with customerId param
     const forward = new FormData();
-    forward.set('paletteId', paletteId);
+    forward.set('customerId', paletteId);
     forward.set('file', file, file.name || 'upload');
 
-    const response = await fetch(buildPalDbUrl('/api/media/upload'), {
+    const response = await fetch(`${getBaseUrl()}/api/media/upload`, {
       method: 'POST',
       body: forward,
     });
