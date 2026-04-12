@@ -3377,7 +3377,12 @@ ${currentHtml}
         mood: '',
         mediaUrls: [],
       });
-      clearMultiPromptState();
+      applyStudioPrompt(
+        ['会社名・サービス名を入力してください'],
+        [['株式会社〇〇', '〇〇サロン', '〇〇クリニック', '〇〇カフェ']],
+        ['single'],
+        ['text'],
+      );
       return;
     }
 
@@ -3824,6 +3829,12 @@ ${currentHtml}
         nextAnswers.companyName = messageToSend.trim();
         nextStep = 'contactInfo';
         pushAi('動画の最後に表示するお問い合わせ先を教えてください。\n（URL、電話番号、LINE ID など）');
+        applyStudioPrompt(
+          ['お問い合わせ先を入力してください'],
+          [['https://example.com', '03-1234-5678', '@line_id', 'info@example.com']],
+          ['single'],
+          ['text'],
+        );
       } else if (palVideoLiteStep === 'contactInfo') {
         nextAnswers.contactInfo = messageToSend.trim();
         nextStep = 'purpose';
@@ -3842,8 +3853,13 @@ ${currentHtml}
       } else if (palVideoLiteStep === 'duration') {
         nextAnswers.duration = messageToSend.trim();
         nextStep = 'appeal';
-        clearMultiPromptState();
-        pushAi('お店・サービスの一番のウリ・強みを教えてください。\n（例: 「国産素材100%の無添加スキンケア」「月額980円で始められるAI営業支援」）');
+        pushAi('お店・サービスの一番のウリ・強みを教えてください。');
+        applyStudioPrompt(
+          ['ウリ・強みを入力してください（例を参考にどうぞ）'],
+          [['国産素材100%の無添加スキンケア', '月額980円で始められるAI営業支援', '創業50年の信頼と実績', '完全予約制のプライベートサロン']],
+          ['single'],
+          ['text'],
+        );
       } else if (palVideoLiteStep === 'appeal') {
         nextAnswers.appeal = messageToSend.trim();
         nextStep = 'mood';
