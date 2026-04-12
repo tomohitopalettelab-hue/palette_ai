@@ -3811,77 +3811,7 @@ ${currentHtml}
 
     // 共通ルールは /api/chat/route.ts の systemInstruction に一本化。
     // ここでは顧客名などの動的ヒントだけを追加で渡す。
-    const palVideoPlanCode = String(activeServiceCard?.planCode || '').toLowerCase();
-    const isPalVideoLite = palVideoPlanCode.includes('pal_video_lite');
-
-    if (activeServiceMode === 'pal_video' && !isPalVideoLite) {
-      const nextMessages: ChatMessage[] = [...updatedMessages];
-      const nextAnswers = { ...palVideoStandardAnswers };
-      let nextStep = palVideoStandardStep;
-
-      const pushAi = (content: string, actionButtons?: ActionButton[]) => {
-        nextMessages.push({ role: 'ai', content, actionButtons });
-      };
-
-      if (palVideoStandardStep === 'purpose') {
-        nextAnswers.purpose = messageToSend.trim();
-        nextStep = 'destination';
-        pushAi('投稿先（プラットフォーム）を教えてください。');
-        applyStudioPrompt(['投稿先を教えてください。'], [PAL_VIDEO_DESTINATION_OPTIONS], ['single']);
-      } else if (palVideoStandardStep === 'destination') {
-        nextAnswers.destination = messageToSend.trim();
-        nextStep = 'duration';
-        pushAi('動画の秒数は何秒程度がいいですか？(選択肢: 15秒, 20秒, 25秒, 30秒)');
-        applyStudioPrompt(['動画の秒数は何秒程度がいいですか？'], [PAL_VIDEO_LITE_DURATION_OPTIONS], ['single']);
-      } else if (palVideoStandardStep === 'duration') {
-        nextAnswers.duration = messageToSend.trim();
-        nextStep = 'telop';
-        clearMultiPromptState();
-        pushAi('テロップを教えてください。（メインとサブがある場合は改行で入力してください）');
-      } else if (palVideoStandardStep === 'telop') {
-        nextAnswers.telop = messageToSend.trim();
-        nextStep = 'color';
-        pushAi('使いたい色はありますか？（例: #E95464 など）');
-        applyStudioPrompt(['使いたい色を1つ選択してください。'], [STUDIO_COLOR_OPTIONS], ['single']);
-      } else if (palVideoStandardStep === 'color') {
-        nextAnswers.color = messageToSend.trim();
-        nextStep = 'media';
-        clearMultiPromptState();
-        pushAi('使いたいロゴや画像はありますか？（あればアップロードやURLで教えてください）', PAL_VIDEO_LITE_MEDIA_BUTTONS);
-      } else if (palVideoStandardStep === 'media') {
-        const urlsFromText = extractUrls(messageToSend);
-        const urls = Array.from(new Set([...selectedMediaUrls, ...urlsFromText]));
-        nextAnswers.mediaUrls = urls;
-        setSelectedMediaUrls([]);
-        nextStep = 'done';
-        clearMultiPromptState();
-        const payload = buildPalVideoPayload(nextMessages);
-        nextMessages.push({ role: 'ai', content: buildPalVideoCompletionMessage(payload) });
-
-        const fallbackCards = messages
-          .slice()
-          .reverse()
-          .find((msg) => msg.role === 'ai' && Array.isArray(msg.serviceCards) && msg.serviceCards.length > 0)
-          ?.serviceCards || [];
-        const cards = authServiceCards.length ? authServiceCards : fallbackCards;
-        nextMessages.push({
-          role: 'ai',
-          content: 'なにかお手伝いできることはありますか？',
-          serviceCards: cards,
-        });
-        setActiveServiceMode('none');
-        setConversationEnded(false);
-      }
-
-      setPalVideoStandardStep(nextStep);
-      setPalVideoStandardAnswers(nextAnswers);
-      setMessages(nextMessages);
-      void saveDraftToLab(nextMessages, 'hearing');
-      setIsLoading(false);
-      return;
-    }
-
-    if (activeServiceMode === 'pal_video' && isPalVideoLite) {
+    if (activeServiceMode === 'pal_video') {
       const nextMessages: ChatMessage[] = [...updatedMessages];
       const nextAnswers = { ...palVideoLiteAnswers };
       let nextStep = palVideoLiteStep;
@@ -3976,14 +3906,8 @@ ${currentHtml}
       : activeServiceMode === 'pal_video'
         ? `
 動的補足:
-- 現在は Pal Video 専用モードです。動画制作のヒアリングのみを行ってください。
-- ${isPalVideoLite ? 'ライトプラン向けの質問を固定順で進めてください。' : '標準の質問項目を揃えてください。'}
-- 次の項目が揃うまで、制作完了の宣言はしないでください: ${isPalVideoLite ? '用途 / 投稿先 / 秒数 / 素材（画像・ロゴ） / 色 / BGM' : '用途 / 投稿先 / 尺 / テロップ / 色 / 素材（画像・ロゴ）'}
-- 質問順序: 1)用途（プロモーション/SNS投稿/SNS広告/口コミ紹介/実績紹介） 2)投稿先（プラットフォーム） ${isPalVideoLite ? '3)秒数 4)素材 5)色 6)BGM' : '3)秒数 4)テロップ 5)色 6)素材'}
-- 用途の質問形式: 動画の用途（コンテンツの目的）を教えてください。(選択肢: プロモーション動画, SNS投稿用, SNS広告, 口コミ紹介, 実績紹介)
-- 投稿先の質問形式: 投稿先（プラットフォーム）を教えてください。(選択肢: Instagram リール, Instagram ストーリーズ, Instagram フィード, TikTok, YouTube ショート, YouTube, X (Twitter), LINE VOOM, Facebook, Webバナー動画)
-- 秒数の質問形式: 動画の秒数は何秒程度がいいですか？(選択肢: 15秒, 20秒, 25秒, 30秒)
-${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか？(選択肢: 明るい・ポップ, クール・ミニマル, 感動・シネマ, ナチュラル・ほのぼの)' : '- テロップはメインとサブがあれば分けて確認してください。'}
+- 現在は Pal Video 専用モードです。質問はステップ形式で自動進行します。
+- 質問順: 会社名 → 問い合わせ先 → 用途 → 投稿先 → 秒数 → ウリ・強み → 雰囲気 → 写真・ロゴ
 - 顧客の呼称は「${displayCustomerName}様」を優先し、顧客ID（例: P1111）で呼ばないでください。
 `
       : `
@@ -4002,9 +3926,7 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
 
     const isPalVideoMode = activeServiceMode === 'pal_video';
     const fieldOrder = isPalVideoMode
-      ? (isPalVideoLite
-        ? ['用途', '投稿先', '秒数', '素材', '色', 'BGM']
-        : ['用途', '投稿先', '尺', 'テロップ', '色', '素材'])
+      ? ['会社名', '問い合わせ先', '用途', '投稿先', '秒数', 'ウリ', '雰囲気', '素材']
       : [
           '屋号名・会社名',
           '業種・サービス',
@@ -4018,23 +3940,16 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
         ];
 
     const fieldPatterns: { label: string; pattern: RegExp }[] = isPalVideoMode
-      ? (isPalVideoLite
-        ? [
+      ? [
+            { label: '会社名', pattern: /(会社名|サービス名|店名|ブランド名)/i },
+            { label: '問い合わせ先', pattern: /(問い合わせ|連絡先|URL|電話|LINE)/i },
             { label: '用途', pattern: /(用途|コンテンツの目的|プロモーション|sns投稿|sns広告|口コミ|実績)/i },
-            { label: '投稿先', pattern: /(投稿先|プラットフォーム|掲載先|instagram|インスタ|youtube|tiktok|x|twitter|line|voom|facebook|バナー)/i },
+            { label: '投稿先', pattern: /(投稿先|プラットフォーム|掲載先|instagram|インスタ|youtube|tiktok)/i },
             { label: '秒数', pattern: /(尺|秒|時間|長さ|動画の長さ)/i },
+            { label: 'ウリ', pattern: /(ウリ|強み|特長|アピール)/i },
+            { label: '雰囲気', pattern: /(雰囲気|イメージ|トーン|おしゃれ|元気|信頼|ナチュラル|クール)/i },
             { label: '素材', pattern: /(素材|画像|写真|ロゴ|動画素材|アップロード)/i },
-            { label: '色', pattern: /(色|カラー|配色|トーン|雰囲気)/i },
-            { label: 'BGM', pattern: /(bgm|音楽|曲|サウンド|ミニマル|ポップ|ナチュラル|シネマ)/i },
           ]
-        : [
-            { label: '用途', pattern: /(用途|コンテンツの目的|プロモーション|sns投稿|sns広告|口コミ|実績)/i },
-            { label: '投稿先', pattern: /(投稿先|プラットフォーム|掲載先|instagram|インスタ|youtube|tiktok|x|twitter|line|voom|facebook|バナー)/i },
-            { label: '尺', pattern: /(尺|秒|時間|長さ|動画の長さ)/i },
-            { label: 'テロップ', pattern: /(テロップ|コピー|キャッチ|キャッチコピー)/i },
-            { label: '色', pattern: /(色|カラー|配色|トーン|雰囲気)/i },
-            { label: '素材', pattern: /(素材|画像|写真|ロゴ|動画素材)/i },
-          ])
       : [
           { label: '屋号名・会社名', pattern: /(屋号|会社名|法人名|社名|ブランド名)/i },
           { label: '業種・サービス', pattern: /(業種|サービス|事業内容|取扱|提供)/i },
@@ -4172,7 +4087,7 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
         }
         const aiRawText = trimSecurityRefusalMessage(String(data.text || ''));
         const aiText = normalizeAssistantOutput(aiRawText);
-        const isPalVideoLiteMode = activeServiceMode === 'pal_video' && isPalVideoLite;
+        const isPalVideoLiteMode = activeServiceMode === 'pal_video';
         const isPalVideoCompletion = isPalVideoLiteMode && /(制作に必要な情報|確認事項は以上|制作を開始します|制作します)/.test(aiText);
         const nextMessages: ChatMessage[] = [...updatedMessages];
 
@@ -4437,12 +4352,7 @@ ${isPalVideoLite ? '- BGMの質問形式: BGMのイメージはありますか�
   const isSelectionOnlyStage = activeServiceMode === 'pal_studio' && (studioStep === 'revisionSelect' || studioStep === 'revisionConfirm' || studioStep === 'postOkMessageToggle');
   const isBlogWaitingForAction = blogStep === 'preview' || blogStep === 'generating' || blogStep === 'publishing';
   const isMainInputDisabled = conversationEnded || isSelectionOnlyStage || isBlogWaitingForAction;
-  const palVideoPlanCode = String(activeServiceCard?.planCode || '').toLowerCase();
-  const isPalVideoLiteMode = activeServiceMode === 'pal_video' && palVideoPlanCode.includes('pal_video_lite');
-  const isPalVideoMediaStep = activeServiceMode === 'pal_video' && (
-    (isPalVideoLiteMode && palVideoLiteStep === 'media')
-    || (!isPalVideoLiteMode && palVideoStandardStep === 'media')
-  );
+  const isPalVideoMediaStep = activeServiceMode === 'pal_video' && palVideoLiteStep === 'media';
   const isStudioHearingStep = activeServiceMode === 'pal_studio'
     && !conversationEnded
     && !isSelectionOnlyStage
