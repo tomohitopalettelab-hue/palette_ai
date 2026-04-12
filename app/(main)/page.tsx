@@ -232,14 +232,16 @@ function PaletteDesignInner() {
   const [studioStep, setStudioStep] = useState<StudioStep>('idle');
   const [blogStep, setBlogStep] = useState<BlogStep>('idle');
   const [blogDraft, setBlogDraft] = useState<BlogDraft>(EMPTY_BLOG_DRAFT);
-  const [palVideoLiteStep, setPalVideoLiteStep] = useState<'purpose' | 'destination' | 'duration' | 'media' | 'color' | 'bgm' | 'done'>('purpose');
-  const [palVideoLiteAnswers, setPalVideoLiteAnswers] = useState<{ purpose: string; destination: string; duration: string; mediaUrls: string[]; color: string; bgm: string }>({
+  const [palVideoLiteStep, setPalVideoLiteStep] = useState<'companyName' | 'contactInfo' | 'purpose' | 'destination' | 'duration' | 'appeal' | 'mood' | 'media' | 'done'>('companyName');
+  const [palVideoLiteAnswers, setPalVideoLiteAnswers] = useState<{ companyName: string; contactInfo: string; purpose: string; destination: string; duration: string; appeal: string; mood: string; mediaUrls: string[] }>({
+    companyName: '',
+    contactInfo: '',
     purpose: '',
     destination: '',
     duration: '',
+    appeal: '',
+    mood: '',
     mediaUrls: [],
-    color: '',
-    bgm: '',
   });
   const [palVideoStandardStep, setPalVideoStandardStep] = useState<'purpose' | 'destination' | 'duration' | 'telop' | 'color' | 'media' | 'done'>('purpose');
   const [palVideoStandardAnswers, setPalVideoStandardAnswers] = useState<{ purpose: string; destination: string; duration: string; telop: string; color: string; mediaUrls: string[] }>({
@@ -1510,6 +1512,14 @@ function PaletteDesignInner() {
     { key: 'studio-media-done', label: '完了' },
   ];
   const PAL_VIDEO_LITE_BGM_OPTIONS = ['明るい・ポップ', 'クール・ミニマル', '感動・シネマ', 'ナチュラル・ほのぼの'];
+  const PAL_VIDEO_MOOD_OPTIONS = ['おしゃれ・洗練', '元気・ポップ', '信頼感・プロフェッショナル', 'ナチュラル・温かい', 'クール・テック'];
+  const PAL_VIDEO_MOOD_TO_TEMPLATE: Record<string, { style: string; bgm: string; colorPrimary: string; colorAccent: string }> = {
+    'おしゃれ・洗練': { style: 'magazine', bgm: 'cinematic', colorPrimary: '#1C1C1C', colorAccent: '#C4973A' },
+    '元気・ポップ': { style: 'gradient', bgm: 'bright_pop', colorPrimary: '#E95464', colorAccent: '#F5A623' },
+    '信頼感・プロフェッショナル': { style: 'standard', bgm: 'cool_minimal', colorPrimary: '#1A2744', colorAccent: '#2A7FC1' },
+    'ナチュラル・温かい': { style: 'standard', bgm: 'natural_warm', colorPrimary: '#3A5A40', colorAccent: '#D4A853' },
+    'クール・テック': { style: 'gradient', bgm: 'cool_minimal', colorPrimary: '#0D1B2A', colorAccent: '#4F7CFF' },
+  };
   const PAL_VIDEO_PURPOSE_OPTIONS = ['プロモーション動画', 'SNS投稿用', 'SNS広告', '口コミ紹介', '実績紹介'];
   const PAL_VIDEO_DESTINATION_OPTIONS = [
     'Instagram リール', 'Instagram ストーリーズ', 'Instagram フィード',
@@ -1572,12 +1582,11 @@ function PaletteDesignInner() {
   const buildPalVideoCompletionMessage = (payload: ReturnType<typeof buildPalVideoPayload>) => {
     const purposeLabel = PAL_VIDEO_PURPOSE_LABELS[payload.purpose] || '動画';
     const destinationLabel = PAL_VIDEO_DESTINATION_LABELS[payload.destination || ''] || payload.destination || '';
-    const duration = Number(payload.durationSec || 0) || 15;
-    const colorText = payload.colorNote || payload.colorPrimary || '指定なし';
-    const rawBgm = String(payload.bgm || '').trim();
-    const bgmLabel = PAL_VIDEO_BGM_LABELS[rawBgm] || rawBgm || 'BGM指定なし';
+    const duration = Number(payload.durationSec || 0) || 30;
     const destText = destinationLabel ? `（${destinationLabel}）` : '';
-    return `ありがとうございました！これで、制作に必要な情報は全て揃いました。${purposeLabel}${destText}で、${duration}秒、${colorText}を基調とした${bgmLabel}のBGMの動画を制作します。\n5営業日以内に連絡しますので、楽しみにお待ちください！`;
+    const companyText = payload.companyName ? `「${payload.companyName}」の` : '';
+    const moodText = payload.mood || '指定なし';
+    return `ありがとうございました！ヒアリングは以上です。\n\n${companyText}${purposeLabel}${destText}を${duration}秒、${moodText}の雰囲気で制作します。\n\n完成まで少々お待ちください！`;
   };
 
   const extractStudioAnswers = (raw: string): string[] => {
@@ -2260,20 +2269,27 @@ ${template.html}
 
   const buildPalVideoPayload = (currentMessages: any[]) => {
     const answers = buildUserAnswers(currentMessages);
-    const purposeAnswer = answers.find((item) => /(制作目的|コンテンツの目的|動画の用途|用途.*目的|目的.*用途|プロモーション|SNS投稿|SNS広告|口コミ|実績)/i.test(item.q))?.a || '';
-    const destinationAnswer = answers.find((item) => /(投稿先|プラットフォーム|掲載先|媒体|instagram|インスタ|youtube|tiktok|x|twitter|line|voom|facebook)/i.test(item.q))?.a || '';
-    const durationAnswer = answers.find((item) => /(尺|秒|時間|長さ|動画の長さ)/i.test(item.q))?.a || '';
-    const telopAnswer = answers.find((item) => /(テロップ|コピー|キャッチ|キャッチコピー)/i.test(item.q))?.a || '';
-    const colorAnswer = answers.find((item) => /(色|カラー|配色|トーン|雰囲気)/i.test(item.q))?.a || '';
-    const materialAnswer = answers.find((item) => /(素材|画像|写真|ロゴ|動画素材)/i.test(item.q))?.a || '';
-    const bgmAnswer = answers.find((item) => /(bgm|音楽|曲|サウンド)/i.test(item.q))?.a || '';
+    const liteAns = palVideoLiteAnswers;
 
-    const purpose = normalizePalVideoPurpose(purposeAnswer) || normalizePalVideoPurpose(answers.map((item) => item.a).join(' '));
-    const destination = normalizeDestination(destinationAnswer) || normalizeDestination(answers.map((item) => item.a).join(' '));
-    const durationSec = extractPalVideoDuration(durationAnswer || answers.map((item) => item.a).join(' ')) || 30;
-    const telop = splitTelop(telopAnswer || '');
-    const colors = extractHexColors(colorAnswer);
+    // ステップ回答を優先、なければメッセージから抽出
+    const companyName = liteAns.companyName || answers.find((item) => /(会社名|サービス名|店名|ブランド名)/i.test(item.q))?.a || '';
+    const contactInfo = liteAns.contactInfo || answers.find((item) => /(問い合わせ|連絡先|URL|電話|LINE)/i.test(item.q))?.a || '';
+    const purposeAnswer = liteAns.purpose || answers.find((item) => /(動画|用途|目的)/i.test(item.q))?.a || '';
+    const destinationAnswer = liteAns.destination || answers.find((item) => /(投稿先|プラットフォーム)/i.test(item.q))?.a || '';
+    const durationAnswer = liteAns.duration || answers.find((item) => /(秒|尺)/i.test(item.q))?.a || '';
+    const appealAnswer = liteAns.appeal || answers.find((item) => /(ウリ|強み|特長)/i.test(item.q))?.a || '';
+    const moodAnswer = liteAns.mood || answers.find((item) => /(雰囲気|イメージ|トーン)/i.test(item.q))?.a || '';
+    const materialAnswer = answers.find((item) => /(素材|画像|写真|ロゴ)/i.test(item.q))?.a || '';
+
+    const purpose = normalizePalVideoPurpose(purposeAnswer) || 'promotion';
+    const destination = normalizeDestination(destinationAnswer) || 'instagram_reel';
+    const durationSec = extractPalVideoDuration(durationAnswer) || 30;
+
+    // 雰囲気からテンプレート・BGM・カラーを自動推定
+    const moodConfig = PAL_VIDEO_MOOD_TO_TEMPLATE[moodAnswer] || PAL_VIDEO_MOOD_TO_TEMPLATE['信頼感・プロフェッショナル'];
+
     const imageUrls = [
+      ...liteAns.mediaUrls,
       ...extractUrls(materialAnswer),
       ...answers.flatMap((item) => extractUrls(item.a)),
     ];
@@ -2287,23 +2303,25 @@ ${template.html}
       .filter((msg: any) => !/(顧客id|palette id|パスワード|認証|ログイン|こんにちは！palette ai)/i.test(msg.content))
       .filter((msg: any) => !/•{3,}/.test(msg.content));
 
-    const resolvedPurpose = purpose || 'promotion';
-    const resolvedDestination = destination || 'instagram_reel';
-
     return {
-      purpose: resolvedPurpose,
-      destination: resolvedDestination,
+      companyName,
+      contactInfo,
+      appeal: appealAnswer,
+      mood: moodAnswer,
+      purpose,
+      destination,
       durationSec,
-      telopMain: telop.main || 'テロップ未設定',
-      telopSub: telop.sub || 'サブテロップ未設定',
-      colorPrimary: colors[0] || '',
-      colorAccent: colors[1] || '',
-      colorNote: colorAnswer || '',
+      telopMain: companyName || 'テロップ未設定',
+      telopSub: appealAnswer || 'サブテロップ未設定',
+      colorPrimary: moodConfig.colorPrimary,
+      colorAccent: moodConfig.colorAccent,
+      colorNote: moodAnswer,
+      style: moodConfig.style,
+      bgm: moodConfig.bgm,
       imageUrls: Array.from(new Set(imageUrls)),
-      bgm: bgmAnswer || '',
       hearingAnswers: answers,
       hearingMessages,
-      templateCandidates: resolvePalVideoTemplateCandidates(resolvedDestination),
+      templateCandidates: resolvePalVideoTemplateCandidates(destination),
     };
   };
 
@@ -2381,14 +2399,22 @@ ${template.html}
           planCode,
           status: 'draft',
           payload: {
-            title: payload.telopMain || '新規動画',
+            title: payload.companyName || payload.telopMain || '新規動画',
             purpose: payload.purpose,
             destination: payload.destination,
             duration: payload.durationSec,
             colorPrimary: payload.colorPrimary || '',
             colorAccent: payload.colorAccent || '',
             bgm: payload.bgm || '',
+            style: payload.style || 'standard',
             cuts: [],
+            hearingData: {
+              companyName: payload.companyName,
+              contactInfo: payload.contactInfo,
+              appeal: payload.appeal,
+              mood: payload.mood,
+              imageUrls: payload.imageUrls,
+            },
             hearingAnswers: payload.hearingAnswers || [],
             hearingMessages: payload.hearingMessages || [],
           },
@@ -3337,40 +3363,21 @@ ${currentHtml}
     setStudioPlanTier('standard');
 
     if (card.key === 'pal_video') {
-      const palVideoPlanCode = String(card.planCode || '').toLowerCase();
-      const isLite = palVideoPlanCode.includes('pal_video_lite');
       appendAiMessage({
-        content: isLite
-          ? 'Pal Video ライトのヒアリングを開始します。まず動画の用途（コンテンツの目的）を教えてください。'
-          : 'Pal Video のヒアリングを開始します。まず動画の用途（コンテンツの目的）を教えてください。',
+        content: 'Pal Video のヒアリングを開始します！\nまず、動画に表示する会社名（またはサービス名）を教えてください。',
       });
-      if (isLite) {
-        setPalVideoLiteStep('purpose');
-        setPalVideoLiteAnswers({
-          purpose: '',
-          destination: '',
-          duration: '',
-          mediaUrls: [],
-          color: '',
-          bgm: '',
-        });
-      } else {
-        setPalVideoStandardStep('purpose');
-        setPalVideoStandardAnswers({
-          purpose: '',
-          destination: '',
-          duration: '',
-          telop: '',
-          color: '',
-          mediaUrls: [],
-        });
-      }
+      setPalVideoLiteStep('companyName');
+      setPalVideoLiteAnswers({
+        companyName: '',
+        contactInfo: '',
+        purpose: '',
+        destination: '',
+        duration: '',
+        appeal: '',
+        mood: '',
+        mediaUrls: [],
+      });
       clearMultiPromptState();
-      applyStudioPrompt(
-        ['動画の用途（コンテンツの目的）を教えてください。'],
-        [PAL_VIDEO_PURPOSE_OPTIONS],
-        ['single'],
-      );
       return;
     }
 
@@ -3883,36 +3890,45 @@ ${currentHtml}
         nextMessages.push({ role: 'ai', content, actionButtons });
       };
 
-      if (palVideoLiteStep === 'purpose') {
+      if (palVideoLiteStep === 'companyName') {
+        nextAnswers.companyName = messageToSend.trim();
+        nextStep = 'contactInfo';
+        pushAi('動画の最後に表示するお問い合わせ先を教えてください。\n（URL、電話番号、LINE ID など）');
+      } else if (palVideoLiteStep === 'contactInfo') {
+        nextAnswers.contactInfo = messageToSend.trim();
+        nextStep = 'purpose';
+        pushAi('どんな動画を作りたいですか？');
+        applyStudioPrompt(['どんな動画を作りたいですか？'], [PAL_VIDEO_PURPOSE_OPTIONS], ['single']);
+      } else if (palVideoLiteStep === 'purpose') {
         nextAnswers.purpose = messageToSend.trim();
         nextStep = 'destination';
-        pushAi('投稿先（プラットフォーム）を教えてください。');
-        applyStudioPrompt(['投稿先を教えてください。'], [PAL_VIDEO_DESTINATION_OPTIONS], ['single']);
+        pushAi('どこに投稿しますか？');
+        applyStudioPrompt(['どこに投稿しますか？'], [PAL_VIDEO_DESTINATION_OPTIONS], ['single']);
       } else if (palVideoLiteStep === 'destination') {
         nextAnswers.destination = messageToSend.trim();
         nextStep = 'duration';
-        pushAi('動画の秒数は何秒程度がいいですか？(選択肢: 15秒, 20秒, 25秒, 30秒)');
-        applyStudioPrompt(['動画の秒数は何秒程度がいいですか？'], [PAL_VIDEO_LITE_DURATION_OPTIONS], ['single']);
+        pushAi('何秒の動画がいいですか？');
+        applyStudioPrompt(['何秒の動画がいいですか？'], [PAL_VIDEO_LITE_DURATION_OPTIONS], ['single']);
       } else if (palVideoLiteStep === 'duration') {
         nextAnswers.duration = messageToSend.trim();
+        nextStep = 'appeal';
+        clearMultiPromptState();
+        pushAi('お店・サービスの一番のウリ・強みを教えてください。\n（例: 「国産素材100%の無添加スキンケア」「月額980円で始められるAI営業支援」）');
+      } else if (palVideoLiteStep === 'appeal') {
+        nextAnswers.appeal = messageToSend.trim();
+        nextStep = 'mood';
+        pushAi('どんな雰囲気の動画にしたいですか？');
+        applyStudioPrompt(['どんな雰囲気の動画にしたいですか？'], [PAL_VIDEO_MOOD_OPTIONS], ['single']);
+      } else if (palVideoLiteStep === 'mood') {
+        nextAnswers.mood = messageToSend.trim();
         nextStep = 'media';
         clearMultiPromptState();
-        pushAi('使いたいロゴや画像はありますか？（あればアップロードやURLで教えてください）', PAL_VIDEO_LITE_MEDIA_BUTTONS);
+        pushAi('使いたい写真やロゴはありますか？\n（あればアップロードしてください。なければ「おまかせ」で自動選定します）', PAL_VIDEO_LITE_MEDIA_BUTTONS);
       } else if (palVideoLiteStep === 'media') {
         const urlsFromText = extractUrls(messageToSend);
         const urls = Array.from(new Set([...selectedMediaUrls, ...urlsFromText]));
         nextAnswers.mediaUrls = urls;
         setSelectedMediaUrls([]);
-        nextStep = 'color';
-        pushAi('使いたい色はありますか？（例: #E95464 など）');
-        applyStudioPrompt(['使いたい色を1つ選択してください。'], [STUDIO_COLOR_OPTIONS], ['single']);
-      } else if (palVideoLiteStep === 'color') {
-        nextAnswers.color = messageToSend.trim();
-        nextStep = 'bgm';
-        pushAi('BGMのイメージはありますか？(選択肢: 明るい・ポップ, クール・ミニマル, 感動・シネマ, ナチュラル・ほのぼの)');
-        applyStudioPrompt(['BGMのイメージはありますか？'], [PAL_VIDEO_LITE_BGM_OPTIONS], ['single']);
-      } else if (palVideoLiteStep === 'bgm') {
-        nextAnswers.bgm = messageToSend.trim();
         nextStep = 'done';
         clearMultiPromptState();
         const payload = buildPalVideoPayload(nextMessages);

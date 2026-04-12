@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { palDbPost } from '../../_lib/pal-db-client';
+
+const getCrmBaseUrl = (): string =>
+  process.env.PAL_CRM_BASE_URL?.trim() ||
+  process.env.PAL_DB_BASE_URL?.trim() ||
+  'http://localhost:3107';
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,7 +16,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const response = await palDbPost('/api/pal-video/jobs', body || {});
+    // palette_crm の video-jobs API に直接投稿
+    const base = getCrmBaseUrl().replace(/\/$/, '');
+    const response = await fetch(`${base}/api/crm/video-jobs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
     const data = await response.json();
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
