@@ -3919,13 +3919,6 @@ ${currentHtml}
 - 会社概要の質問は次の形式を使用してください。
   お店の場所や連絡先など、「会社概要」について、どのような情報をお伝えしますか？ (複数選択) (選択肢: 住所、電話番号、営業時間、定休日、アクセス方法、その他)
 `
-      : activeServiceMode === 'pal_video'
-        ? `
-動的補足:
-- 現在は Pal Video 専用モードです。質問はステップ形式で自動進行します。
-- 質問順: 会社名 → 問い合わせ先 → 用途 → 投稿先 → 秒数 → ウリ・強み → 雰囲気 → 写真・ロゴ
-- 顧客の呼称は「${displayCustomerName}様」を優先し、顧客ID（例: P1111）で呼ばないでください。
-`
       : `
 動的補足:
 - 顧客の呼称は「${displayCustomerName}様」を優先し、顧客ID（例: P1111）で呼ばないでください。
@@ -3940,7 +3933,7 @@ ${currentHtml}
         .trim();
     };
 
-    const isPalVideoMode = activeServiceMode === 'pal_video';
+    const isPalVideoMode = false; // pal_video はステップフローで処理済み（ここには到達しない）
     const fieldOrder = isPalVideoMode
       ? ['会社名', '問い合わせ先', '用途', '投稿先', '秒数', 'ウリ', '雰囲気', '素材']
       : [
@@ -4103,7 +4096,7 @@ ${currentHtml}
         }
         const aiRawText = trimSecurityRefusalMessage(String(data.text || ''));
         const aiText = normalizeAssistantOutput(aiRawText);
-        const isPalVideoLiteMode = activeServiceMode === 'pal_video';
+        const isPalVideoLiteMode = false; // pal_video はステップフローで処理済み
         const isPalVideoCompletion = isPalVideoLiteMode && /(制作に必要な情報|確認事項は以上|制作を開始します|制作します)/.test(aiText);
         const nextMessages: ChatMessage[] = [...updatedMessages];
 
