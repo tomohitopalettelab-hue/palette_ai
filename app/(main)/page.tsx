@@ -3504,16 +3504,39 @@ ${currentHtml}
       mediaInputRef.current?.click();
       return;
     }
-    if (button.key === 'no-media') {
-      void handleSend('なし');
-      return;
-    }
-    if (button.key === 'media-done') {
-      const payload = selectedMediaUrls.length > 0
+    if (button.key === 'no-media' || button.key === 'media-done') {
+      if (activeServiceMode === 'pal_video' && palVideoLiteStep === 'media') {
+        // pal_video media ステップを直接完了させる
+        const mediaUrls = button.key === 'media-done' ? [...selectedMediaUrls] : [];
+        setSelectedMediaUrls([]);
+        const userMsg = mediaUrls.length > 0
+          ? `以下の画像/ロゴを使用します。\n${mediaUrls.join('\n')}`
+          : 'おまかせ（自動選定）';
+        const nextMessages: ChatMessage[] = [...messages, { role: 'user' as const, content: userMsg }];
+        const nextAnswers = { ...palVideoLiteAnswers, mediaUrls };
+        clearMultiPromptState();
+        const payload = buildPalVideoPayload(nextMessages);
+        nextMessages.push({ role: 'ai' as const, content: buildPalVideoCompletionMessage(payload) });
+        const fallbackCards = messages
+          .slice().reverse()
+          .find((msg) => msg.role === 'ai' && Array.isArray(msg.serviceCards) && msg.serviceCards.length > 0)
+          ?.serviceCards || [];
+        const cards = authServiceCards.length ? authServiceCards : fallbackCards;
+        nextMessages.push({ role: 'ai' as const, content: 'なにかお手伝いできることはありますか？', serviceCards: cards });
+        void upsertPalVideoJob(nextMessages);
+        setActiveServiceMode('none');
+        setConversationEnded(false);
+        setPalVideoLiteStep('done');
+        setPalVideoLiteAnswers(nextAnswers);
+        setMessages(nextMessages);
+        void saveDraftToLab(nextMessages, 'hearing');
+        return;
+      }
+      const mediaText = button.key === 'media-done' && selectedMediaUrls.length > 0
         ? `以下の画像/ロゴを使用します。\n${selectedMediaUrls.join('\n')}`
-        : '完了';
+        : 'おまかせ（自動選定）';
       setSelectedMediaUrls([]);
-      void handleSend(payload);
+      void handleSend(mediaText);
       return;
     }
     if (button.key === 'concierge') {
@@ -3891,6 +3914,8 @@ ${currentHtml}
           content: 'なにかお手伝いできることはありますか？',
           serviceCards: cards,
         });
+        // ジョブ作成はモードリセット前に実行（activeServiceMode が 'pal_video' のうちに）
+        void upsertPalVideoJob(nextMessages);
         setActiveServiceMode('none');
         setConversationEnded(false);
       }
