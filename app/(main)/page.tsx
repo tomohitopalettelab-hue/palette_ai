@@ -3592,6 +3592,24 @@ ${currentHtml}
       void handleConcierge();
       return;
     }
+    if (button.key === 'aix-menu') {
+      appendAiMessage({
+        content: 'Palette AIX メニューです。やりたい操作を選んでください。',
+        actionButtons: [
+          { key: 'aix-reports', label: '📊 成果レポート' },
+          { key: 'aix-embed-code', label: '📋 埋め込みコード' },
+          { key: 'aix-contact-setup', label: '💬 設定を相談' },
+          { key: 'aix-bot-intro', label: '🤖 Botとは？' },
+        ],
+      });
+      return;
+    }
+    if (button.key === 'aix-bot-intro') {
+      appendAiMessage({
+        content: `Palette AIX の営業AIチャットBotは、お客様のHPに設置するだけで:\n\n✓ 24時間自動で訪問者と会話\n✓ 悩みをヒアリングして最適なサービスを提案\n✓ 「買う気度」を自動判定（1〜5段階）\n✓ 熱いリードを予約/問い合わせへ誘導\n✓ 会話ログから改善ヒントを取得\n\n設置は</body>直前にscriptタグを1行貼るだけです。`,
+      });
+      return;
+    }
     if (button.key === 'aix-contact-setup') {
       appendAiMessage({
         content: `Botの初期設定（サービス登録・会話トーン・クロージング先URLなど）はPalette Labが設定いたします。\n\nご要望があれば、以下のチャットで続けてお伝えください。\n担当者が確認後、1〜2営業日以内に設定してご連絡いたします。`,
@@ -4468,10 +4486,18 @@ ${currentHtml}
   const mediaButton: ActionButton = { key: 'media-library', label: 'メディア' };
   const conciergeButton: ActionButton = { key: 'concierge', label: '状況チェック' };
   const advisorButton: ActionButton = { key: 'marketing-advisor', label: '運用相談' };
+  const aixButton: ActionButton = { key: 'aix-menu', label: 'AIX メニュー' };
+  const hasAixPlan = authServiceCards.some((c) => c.key === 'palette_aix');
   const mergedNeutralButtons = authStep === 'authenticated'
     ? (neutralActionButtons.some((button) => button.key === 'media-library')
       ? neutralActionButtons
-      : [...neutralActionButtons, conciergeButton, advisorButton, mediaButton])
+      : [
+          ...neutralActionButtons,
+          ...(hasAixPlan ? [aixButton] : []),
+          conciergeButton,
+          advisorButton,
+          mediaButton,
+        ])
     : neutralActionButtons;
   return (
     <div className="fixed inset-0 w-full h-[100dvh] flex items-start md:items-center justify-start md:justify-center p-0 md:p-8 overflow-hidden bg-slate-50 touch-auto md:touch-none">
@@ -5165,7 +5191,9 @@ ${currentHtml}
                     key={button.key}
                     type="button"
                     onClick={() => handleActionButtonClick(button)}
-                    className="px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide text-white bg-gradient-to-r from-indigo-500 to-cyan-500 shadow-[0_8px_18px_rgba(59,130,246,0.28)] hover:from-indigo-400 hover:to-cyan-400 hover:-translate-y-0.5 transition-all duration-300"
+                    className={button.key === 'aix-menu'
+                      ? "px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide text-white bg-gradient-to-r from-fuchsia-500 via-pink-500 to-orange-400 shadow-[0_8px_18px_rgba(236,72,153,0.35)] hover:-translate-y-0.5 transition-all duration-300 ring-1 ring-white/40"
+                      : "px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide text-white bg-gradient-to-r from-indigo-500 to-cyan-500 shadow-[0_8px_18px_rgba(59,130,246,0.28)] hover:from-indigo-400 hover:to-cyan-400 hover:-translate-y-0.5 transition-all duration-300"}
                   >
                     {button.label}
                   </button>
