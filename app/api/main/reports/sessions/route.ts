@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { listSessions } from '../../../_lib/bot-store';
+import { hasPaletteAixPlan } from '../../../_lib/palette-aix-access';
 
 export async function GET(req: Request) {
   try {
@@ -9,6 +10,10 @@ export async function GET(req: Request) {
     const limit = Number(searchParams.get('limit') || 100);
     if (!paletteId || !/^[A-Z][0-9]{4}$/.test(paletteId)) {
       return NextResponse.json({ success: false, error: 'invalid paletteId' }, { status: 400 });
+    }
+    const hasPlan = await hasPaletteAixPlan(paletteId);
+    if (!hasPlan) {
+      return NextResponse.json({ success: false, error: 'Palette AIX プランが必要です', reason: 'plan_required' }, { status: 403 });
     }
 
     const sessions = await listSessions(paletteId, { limit, minScore });

@@ -380,7 +380,13 @@
   // ────────────────────────────────────────────────
   apiGet('/api/bot/config?id=' + paletteId).then(function (res) {
     if (!res || !res.success) {
-      console.warn('[palette-bot] config load failed');
+      if (res && res.reason === 'plan_required') {
+        console.info('[palette-bot] Palette AIX plan required for paletteId=' + paletteId);
+      } else {
+        console.warn('[palette-bot] config load failed:', res && res.error);
+      }
+      // 契約なし or エラー時はバブルを表示しない
+      host.remove();
       return;
     }
     state.config = res.config;
@@ -390,5 +396,6 @@
     }, delay * 1000);
   }).catch(function (err) {
     console.warn('[palette-bot] init error:', err);
+    host.remove();
   });
 })();

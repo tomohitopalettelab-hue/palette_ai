@@ -9,6 +9,7 @@ type Account = {
   name: string;
   industry: string;
   botConfigured: boolean;
+  hasAixPlan: boolean;
 };
 
 export default function BotSettingsListPage() {
@@ -71,6 +72,10 @@ export default function BotSettingsListPage() {
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-300 outline-none text-sm"
             />
           </div>
+          <div className="mt-3 text-[11px] text-slate-500 flex items-center gap-3 flex-wrap">
+            <span className="flex items-center gap-1"><span className="px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 text-[9px] font-bold">AIX</span> Palette AIX 契約あり</span>
+            <span className="flex items-center gap-1"><span className="px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[9px] font-bold">設定済</span> Bot設定済み</span>
+          </div>
         </div>
 
         {loading && <div className="text-center py-10 text-sm text-slate-400">読み込み中...</div>}
@@ -82,7 +87,9 @@ export default function BotSettingsListPage() {
               <Link
                 key={a.paletteId}
                 href={`/admin/bot-settings/${a.paletteId}`}
-                className="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-lg hover:-translate-y-0.5 hover:border-indigo-300 transition-all group"
+                className={`bg-white rounded-2xl border p-5 hover:shadow-lg hover:-translate-y-0.5 transition-all group ${
+                  a.hasAixPlan ? 'border-slate-200 hover:border-indigo-300' : 'border-slate-200 opacity-60 hover:opacity-100'
+                }`}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1 min-w-0">
@@ -90,12 +97,22 @@ export default function BotSettingsListPage() {
                     <h3 className="font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">{a.name || '名前未設定'}</h3>
                     {a.industry && <p className="text-xs text-slate-500 mt-1">{a.industry}</p>}
                   </div>
-                  {a.botConfigured ? (
-                    <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-600">設定済</span>
-                  ) : (
-                    <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500">未設定</span>
-                  )}
+                  <div className="flex flex-col gap-1 shrink-0 items-end">
+                    {a.hasAixPlan && (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white">AIX</span>
+                    )}
+                    {a.botConfigured ? (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-600">設定済</span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500">未設定</span>
+                    )}
+                  </div>
                 </div>
+                {!a.hasAixPlan && (
+                  <div className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-2 py-1 mb-2">
+                    ⚠ Palette AIX 未契約（Botは動作しません）
+                  </div>
+                )}
                 <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
                   <Settings className="w-3.5 h-3.5 text-slate-400" />
                   <span className="text-xs text-slate-500">編集する →</span>

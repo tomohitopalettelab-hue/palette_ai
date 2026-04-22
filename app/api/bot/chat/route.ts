@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { processBotTurn } from '../../_lib/bot-engine';
+import { hasPaletteAixPlan } from '../../_lib/palette-aix-access';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,6 +25,15 @@ export async function POST(req: Request) {
     }
     if (!message) {
       return NextResponse.json({ success: false, error: 'message is required' }, { status: 400, headers: corsHeaders });
+    }
+
+    // Palette AIX プラン契約チェック
+    const hasPlan = await hasPaletteAixPlan(paletteId);
+    if (!hasPlan) {
+      return NextResponse.json(
+        { success: false, error: 'Palette AIX プランが必要です', reason: 'plan_required' },
+        { status: 403, headers: corsHeaders },
+      );
     }
 
     const userAgent = req.headers.get('user-agent') || undefined;

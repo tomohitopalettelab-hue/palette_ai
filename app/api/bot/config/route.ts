@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getBotConfigOrDefault, listServices, listFaqs } from '../../_lib/bot-store';
+import { hasPaletteAixPlan } from '../../_lib/palette-aix-access';
 
 // CORS: widget.jsから任意のオリジンで呼ばれる
 const corsHeaders = {
@@ -19,6 +20,15 @@ export async function GET(req: Request) {
 
     if (!paletteId || !/^[A-Z][0-9]{4}$/.test(paletteId)) {
       return NextResponse.json({ success: false, error: 'invalid paletteId' }, { status: 400, headers: corsHeaders });
+    }
+
+    // Palette AIX プラン契約チェック
+    const hasPlan = await hasPaletteAixPlan(paletteId);
+    if (!hasPlan) {
+      return NextResponse.json(
+        { success: false, error: 'Palette AIX プランが必要です。ご契約内容をご確認ください。', reason: 'plan_required' },
+        { status: 403, headers: corsHeaders },
+      );
     }
 
     const [config, services, faqs] = await Promise.all([

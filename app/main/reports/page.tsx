@@ -21,6 +21,7 @@ export default function ReportsDashboard() {
 
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [planError, setPlanError] = useState('');
 
   // Restore session from localStorage
   useEffect(() => {
@@ -66,9 +67,14 @@ export default function ReportsDashboard() {
     if (!authenticated || !paletteId) return;
     const load = async () => {
       setLoading(true);
+      setPlanError('');
       try {
         const res = await fetch(`/api/main/reports/stats?paletteId=${paletteId}`, { cache: 'no-store' });
         const data = await res.json();
+        if (res.status === 403 && data?.reason === 'plan_required') {
+          setPlanError(data?.error || 'Palette AIX プランが必要です');
+          return;
+        }
         if (data?.success) setStats(data.stats);
       } finally {
         setLoading(false);
@@ -151,6 +157,21 @@ export default function ReportsDashboard() {
 
         {loading ? (
           <div className="text-center py-10 text-sm text-slate-400">読み込み中...</div>
+        ) : planError ? (
+          <div className="bg-white rounded-2xl border border-amber-200 p-8 text-center">
+            <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-4">
+              <Bot className="w-6 h-6 text-amber-500" />
+            </div>
+            <h2 className="text-lg font-black text-slate-800 mb-2">Palette AIX プランが必要です</h2>
+            <p className="text-sm text-slate-500 mb-4">{planError}</p>
+            <p className="text-xs text-slate-400">
+              営業Botレポートをご利用いただくには「Palette AIX」プランのご契約が必要です。<br />
+              詳しくはPalette Labまでお問い合わせください。
+            </p>
+            <button onClick={handleLogout} className="mt-6 text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 mx-auto">
+              <LogOut className="w-3.5 h-3.5" />別のアカウントでログイン
+            </button>
+          </div>
         ) : stats ? (
           <>
             {/* Stats */}

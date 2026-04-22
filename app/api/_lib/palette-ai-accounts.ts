@@ -25,7 +25,15 @@ const normalize = (value: string | null | undefined) => String(value || '').trim
 
 const isPaletteAiPlanCode = (code: string): boolean => {
   const normalized = normalize(code).replace(/-/g, '_');
-  return normalized.includes('palette_ai') || normalized === 'ai' || normalized.startsWith('ai_');
+  // palette_ai または palette_aix（上位プラン）どちらでも許可
+  return (
+    normalized.includes('palette_ai') ||  // palette_ai / palette_aix 両方にマッチ
+    normalized.includes('palette_ai_x') ||
+    normalized === 'ai' ||
+    normalized === 'aix' ||
+    normalized.startsWith('ai_') ||
+    normalized.startsWith('aix_')
+  );
 };
 
 const todayYmd = (): string => {
