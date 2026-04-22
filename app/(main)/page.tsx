@@ -3523,7 +3523,37 @@ ${currentHtml}
           ?.serviceCards || [];
         const cards = authServiceCards.length ? authServiceCards : fallbackCards;
         nextMessages.push({ role: 'ai' as const, content: 'なにかお手伝いできることはありますか？', serviceCards: cards });
-        void upsertPalVideoJob(nextMessages);
+        // upsertPalVideoJob は activeServiceMode チェックがあるため、直接 fetch で呼ぶ
+        const planCode = String(activeServiceCard?.planCode || 'pal_video_lite');
+        fetch('/api/palette-ai/pal-video-job', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            paletteId: resolvedCustomerId,
+            planCode,
+            status: 'draft',
+            payload: {
+              title: payload.companyName || payload.telopMain || '新規動画',
+              purpose: payload.purpose,
+              destination: payload.destination,
+              duration: payload.durationSec,
+              colorPrimary: payload.colorPrimary || '',
+              colorAccent: payload.colorAccent || '',
+              bgm: payload.bgm || '',
+              style: payload.style || 'standard',
+              cuts: [],
+              hearingData: {
+                companyName: payload.companyName,
+                contactInfo: payload.contactInfo,
+                appeal: payload.appeal,
+                mood: payload.mood,
+                imageUrls: payload.imageUrls,
+              },
+              hearingAnswers: payload.hearingAnswers || [],
+              hearingMessages: payload.hearingMessages || [],
+            },
+          }),
+        }).catch((e) => console.error('pal_video job creation failed:', e));
         setActiveServiceMode('none');
         setConversationEnded(false);
         setPalVideoLiteStep('done');

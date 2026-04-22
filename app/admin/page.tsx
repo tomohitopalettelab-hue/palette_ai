@@ -132,7 +132,10 @@ export default function AdminPage() {
               <h1 className="text-xl font-black text-slate-800">palette_ai 契約顧客一覧</h1>
               <p className="text-sm text-slate-600 mt-1">契約情報から、palette_ai プラン契約中の顧客のみ表示します。</p>
             </div>
-            <button onClick={load} className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50">再読込</button>
+            <div className="flex items-center gap-2">
+              <a href="/admin/bot-settings" className="px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white text-sm font-bold hover:opacity-90">営業Bot設定</a>
+              <button onClick={load} className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50">再読込</button>
+            </div>
           </div>
           <div className="mt-4">
             <input
