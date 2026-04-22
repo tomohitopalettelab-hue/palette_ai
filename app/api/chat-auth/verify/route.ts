@@ -72,12 +72,24 @@ const isAgencyPlanCode = (code: string): boolean => {
   return normalized === 'agency' || normalized.startsWith('agency_');
 };
 
+const isPaletteAixPlanCode = (code: string): boolean => {
+  const normalized = String(code || '').trim().toLowerCase().replace(/-/g, '_');
+  return (
+    normalized.includes('palette_aix') ||
+    normalized.includes('palette_ai_x') ||
+    normalized === 'aix' ||
+    normalized.startsWith('aix_')
+  );
+};
+
 const resolveServiceKey = (plan: any): string => {
   const code = String(plan?.code || '').toLowerCase();
   const normalized = code.replace(/-/g, '_');
   if (isPalStudioPlanCode(normalized)) return 'pal_studio';
   if (isPalVideoPlanCode(normalized)) return 'pal_video';
   if (isPalOptPlanCode(normalized)) return 'pal_opt';
+  // palette_aix は palette_ai より先にチェック（palette_aix は "palette_ai" を含む）
+  if (isPaletteAixPlanCode(normalized)) return 'palette_aix';
   if (normalized.includes('palette_ai') || normalized === 'ai' || normalized.startsWith('ai_')) return 'palette_ai';
   if (normalized.includes('pal_trust') || normalized === 'trust' || normalized.startsWith('trust_')) return 'pal_trust';
   if (isAgencyPlanCode(normalized)) return 'agency';
@@ -90,6 +102,9 @@ const getServiceMeta = (serviceKey: string) => {
   }
   if (serviceKey === 'pal_video') {
     return { title: 'Pal Video', description: '動画制作' };
+  }
+  if (serviceKey === 'palette_aix') {
+    return { title: 'Palette AIX', description: '営業AIチャットBot（上位プラン）' };
   }
   if (serviceKey === 'palette_ai') {
     return { title: 'Palette Ai', description: 'アシスタント' };
