@@ -190,11 +190,23 @@ export const DEFAULT_CONFIG: Omit<BotConfig, 'paletteId' | 'updatedAt'> = {
 // ============================================================
 
 let initialized = false;
+let initPromise: Promise<void> | null = null;
 
-const ensureTables = async (): Promise<void> => {
-  if (initialized) return;
+const tryIgnoreDup = async (fn: () => Promise<any>): Promise<void> => {
+  try {
+    await fn();
+  } catch (err: any) {
+    const msg = String(err?.message || '').toLowerCase();
+    // Tolerate race conditions on CREATE INDEX/TABLE IF NOT EXISTS (pg_class races on Neon)
+    if (msg.includes('duplicate key') || msg.includes('already exists') || msg.includes('pg_class')) {
+      return;
+    }
+    throw err;
+  }
+};
 
-  await sql`
+const ensureTablesOnce = async (): Promise<void> => {
+  await tryIgnoreDup(() => sql`
     CREATE TABLE IF NOT EXISTS bot_configs (
       palette_id TEXT PRIMARY KEY,
       basic JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -206,9 +218,9 @@ const ensureTables = async (): Promise<void> => {
       ng_rules JSONB NOT NULL DEFAULT '{}'::jsonb,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
-  `;
+  `);
 
-  await sql`
+  await tryIgnoreDup(() => sql`
     CREATE TABLE IF NOT EXISTS bot_services (
       id TEXT PRIMARY KEY,
       palette_id TEXT NOT NULL,
@@ -225,10 +237,10 @@ const ensureTables = async (): Promise<void> => {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
-  `;
-  await sql`CREATE INDEX IF NOT EXISTS bot_services_palette_idx ON bot_services (palette_id, sort_order)`;
+  `);
+  await tryIgnoreDup(() => sql`CREATE INDEX IF NOT EXISTS bot_services_palette_idx ON bot_services (palette_id, sort_order)`);
 
-  await sql`
+  await tryIgnoreDup(() => sql`
     CREATE TABLE IF NOT EXISTS bot_faqs (
       id TEXT PRIMARY KEY,
       palette_id TEXT NOT NULL,
@@ -238,10 +250,10 @@ const ensureTables = async (): Promise<void> => {
       priority INT NOT NULL DEFAULT 3,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
-  `;
-  await sql`CREATE INDEX IF NOT EXISTS bot_faqs_palette_idx ON bot_faqs (palette_id, priority)`;
+  `);
+  await tryIgnoreDup(() => sql`CREATE INDEX IF NOT EXISTS bot_faqs_palette_idx ON bot_faqs (palette_id, priority)`);
 
-  await sql`
+  await tryIgnoreDup(() => sql`
     CREATE TABLE IF NOT EXISTS bot_sessions (
       id TEXT PRIMARY KEY,
       palette_id TEXT NOT NULL,
@@ -260,11 +272,19 @@ const ensureTables = async (): Promise<void> => {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
-  `;
-  await sql`CREATE INDEX IF NOT EXISTS bot_sessions_palette_idx ON bot_sessions (palette_id, updated_at DESC)`;
-  await sql`CREATE INDEX IF NOT EXISTS bot_sessions_score_idx ON bot_sessions (palette_id, buy_intent_score DESC)`;
+  `);
+  await tryIgnoreDup(() => sql`CREATE INDEX IF NOT EXISTS bot_sessions_palette_idx ON bot_sessions (palette_id, updated_at DESC)`);
+  await tryIgnoreDup(() => sql`CREATE INDEX IF NOT EXISTS bot_sessions_score_idx ON bot_sessions (palette_id, buy_intent_score DESC)`);
+};
 
-  initialized = true;
+const ensureTables = async (): Promise<void> => {
+  if (initialized) return;
+  if (!initPromise) {
+    initPromise = ensureTablesOnce()
+      .then(() => { initialized = true; })
+      .catch((err) => { initPromise = null; throw err; });
+  }
+  return initPromise;
 };
 
 // ============================================================
