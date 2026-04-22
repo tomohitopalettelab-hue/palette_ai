@@ -56,7 +56,10 @@ export async function GET(req: Request) {
       faqs: faqs.map((f) => ({ question: f.question, answer: f.answer, category: f.category })),
     }, { headers: corsHeaders });
   } catch (error: any) {
-    console.error('bot config error:', error);
-    return NextResponse.json({ success: false, error: 'internal error' }, { status: 500, headers: corsHeaders });
+    console.error('bot config error:', error?.message || error, error?.stack);
+    return NextResponse.json(
+      { success: false, error: String(error?.message || 'internal error').slice(0, 200) },
+      { status: 500, headers: corsHeaders },
+    );
   }
 }
