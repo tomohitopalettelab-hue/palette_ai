@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, use as usePromise } from 'react';
+import React, { useEffect, useState, useCallback, use as usePromise } from 'react';
 import Link from 'next/link';
 import {
   Bot, ArrowLeft, Save, Copy, Check, Plus, Trash2, MessageSquare, Code,
@@ -383,6 +383,88 @@ function Card({ title, children }: any) {
   );
 }
 
+function TagInput({ tags, onChange, placeholder }: { tags: string[]; onChange: (next: string[]) => void; placeholder?: string }) {
+  const [input, setInput] = useState('');
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const commitTag = (raw: string) => {
+    const val = String(raw || '').trim();
+    if (!val) return;
+    if (tags.includes(val)) {
+      setInput('');
+      return;
+    }
+    onChange([...tags, val]);
+    setInput('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // 確定中のIME変換はEnterでも無視
+    if ((e.nativeEvent as any).isComposing) return;
+
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      if (input.trim()) {
+        e.preventDefault();
+        commitTag(input);
+      }
+      return;
+    }
+    if (e.key === ',' || e.key === '、') {
+      e.preventDefault();
+      commitTag(input);
+      return;
+    }
+    if (e.key === 'Backspace' && !input && tags.length > 0) {
+      e.preventDefault();
+      onChange(tags.slice(0, -1));
+      return;
+    }
+  };
+
+  const handleBlur = () => {
+    if (input.trim()) commitTag(input);
+  };
+
+  const removeTag = (i: number) => {
+    const next = [...tags];
+    next.splice(i, 1);
+    onChange(next);
+  };
+
+  return (
+    <div
+      className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg border border-slate-200 bg-white focus-within:border-indigo-300 transition-colors"
+      onClick={() => inputRef.current?.focus()}
+    >
+      {tags.map((tag, i) => (
+        <span
+          key={`${tag}-${i}`}
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 text-xs font-bold"
+        >
+          {tag}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); removeTag(i); }}
+            className="text-indigo-400 hover:text-indigo-700"
+          >
+            ×
+          </button>
+        </span>
+      ))}
+      <input
+        ref={inputRef}
+        type="text"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
+        placeholder={tags.length === 0 ? (placeholder || 'タグを入力（Enterで確定）') : ''}
+        className="flex-1 min-w-[120px] px-1 py-0.5 bg-transparent outline-none text-sm"
+      />
+    </div>
+  );
+}
+
 // ─── Basic Tab ────────────────────────────────────
 
 function BasicTab({ config, update }: any) {
@@ -436,8 +518,22 @@ function ServicesTab({ services, onAdd, onChange, onSave, onDelete }: any) {
             <div><Label>所要時間</Label><TextInput value={s.duration} onChange={(v: string) => onChange(s.id, { duration: v })} placeholder="90分" /></div>
             <div><Label>表示順</Label><TextInput value={String(s.sortOrder ?? 0)} onChange={(v: string) => onChange(s.id, { sortOrder: Number(v) || 0 })} /></div>
             <div className="md:col-span-2"><Label>サービス概要</Label><TextArea value={s.description} onChange={(v: string) => onChange(s.id, { description: v })} /></div>
-            <div className="md:col-span-2"><Label>こんな方におすすめ（タグをカンマ区切り）</Label><TextInput value={(s.targetTags || []).join(',')} onChange={(v: string) => onChange(s.id, { targetTags: v.split(',').map((x) => x.trim()).filter(Boolean) })} placeholder="クセ毛,40代以降,広がり" /></div>
-            <div className="md:col-span-2"><Label>解決できる悩み（タグをカンマ区切り）</Label><TextInput value={(s.problemTags || []).join(',')} onChange={(v: string) => onChange(s.id, { problemTags: v.split(',').map((x) => x.trim()).filter(Boolean) })} placeholder="まとまらない,毎朝のセット" /></div>
+            <div className="md:col-span-2">
+              <Label>こんな方におすすめ（タグ）</Label>
+              <TagInput
+                tags={s.targetTags || []}
+                onChange={(next) => onChange(s.id, { targetTags: next })}
+                placeholder="例: クセ毛／40代以降／広がり（Enterで追加）"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Label>解決できる悩み（タグ）</Label>
+              <TagInput
+                tags={s.problemTags || []}
+                onChange={(next) => onChange(s.id, { problemTags: next })}
+                placeholder="例: まとまらない／毎朝のセット（Enterで追加）"
+              />
+            </div>
             <div className="md:col-span-2"><Label>アピールポイント</Label><TextArea value={s.features} onChange={(v: string) => onChange(s.id, { features: v })} /></div>
             <div className="md:col-span-2"><Label>お客様の声（任意）</Label><TextArea value={s.testimonial} onChange={(v: string) => onChange(s.id, { testimonial: v })} /></div>
           </div>
