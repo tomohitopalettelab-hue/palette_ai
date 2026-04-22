@@ -3,7 +3,7 @@ import { palDbGet } from '../../_lib/pal-db-client';
 
 export async function GET(req: NextRequest) {
   try {
-    const loginId = String(req.nextUrl.searchParams.get('paletteId') || '').trim().toUpperCase();
+    const loginId = String(req.nextUrl.searchParams.get('paletteId') || '').trim();
     if (!loginId) {
       return NextResponse.json({ success: false, error: 'loginId is required' }, { status: 400 });
     }

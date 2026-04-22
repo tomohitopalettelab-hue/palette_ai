@@ -3682,7 +3682,7 @@ ${currentHtml}
 
       try {
         if (authStep === 'askId') {
-          const paletteId = rawText.trim().toUpperCase();
+          const paletteId = rawText.trim();
           if (!paletteId) {
             setMessages([
               ...updatedMessages,

@@ -134,7 +134,7 @@ const extractServiceCards = (summary: any): ServiceCard[] => {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const loginId = String(body?.paletteId || '').trim().toUpperCase();
+    const loginId = String(body?.paletteId || '').trim();
     const password = String(body?.password || '');
 
     const verifyResponse = await palDbPost('/api/chat-auth/verify', {
