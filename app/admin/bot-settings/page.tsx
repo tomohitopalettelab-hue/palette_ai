@@ -12,11 +12,14 @@ type Account = {
   hasAixPlan: boolean;
 };
 
+type SortKey = 'all' | 'aix' | 'configured' | 'aix_configured' | 'aix_not_configured' | 'no_aix';
+
 export default function BotSettingsListPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
+  const [filterKey, setFilterKey] = useState<SortKey>('all');
 
   useEffect(() => {
     const load = async () => {
@@ -40,13 +43,40 @@ export default function BotSettingsListPage() {
 
   const filtered = useMemo(() => {
     const q = searchText.trim().toLowerCase();
-    if (!q) return accounts;
-    return accounts.filter((a) =>
-      a.paletteId.toLowerCase().includes(q) ||
-      a.name.toLowerCase().includes(q) ||
-      a.industry.toLowerCase().includes(q),
-    );
-  }, [accounts, searchText]);
+    let list = accounts;
+
+    // フィルタ
+    if (filterKey === 'aix') list = list.filter((a) => a.hasAixPlan);
+    else if (filterKey === 'configured') list = list.filter((a) => a.botConfigured);
+    else if (filterKey === 'aix_configured') list = list.filter((a) => a.hasAixPlan && a.botConfigured);
+    else if (filterKey === 'aix_not_configured') list = list.filter((a) => a.hasAixPlan && !a.botConfigured);
+    else if (filterKey === 'no_aix') list = list.filter((a) => !a.hasAixPlan);
+
+    // 検索
+    if (q) {
+      list = list.filter((a) =>
+        a.paletteId.toLowerCase().includes(q) ||
+        a.name.toLowerCase().includes(q) ||
+        a.industry.toLowerCase().includes(q),
+      );
+    }
+
+    // ソート: AIX契約 > 設定済み > paletteId
+    return [...list].sort((a, b) => {
+      if (a.hasAixPlan !== b.hasAixPlan) return a.hasAixPlan ? -1 : 1;
+      if (a.botConfigured !== b.botConfigured) return a.botConfigured ? -1 : 1;
+      return a.paletteId.localeCompare(b.paletteId);
+    });
+  }, [accounts, searchText, filterKey]);
+
+  const counts = useMemo(() => ({
+    all: accounts.length,
+    aix: accounts.filter((a) => a.hasAixPlan).length,
+    configured: accounts.filter((a) => a.botConfigured).length,
+    aix_configured: accounts.filter((a) => a.hasAixPlan && a.botConfigured).length,
+    aix_not_configured: accounts.filter((a) => a.hasAixPlan && !a.botConfigured).length,
+    no_aix: accounts.filter((a) => !a.hasAixPlan).length,
+  }), [accounts]);
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 md:p-10">
@@ -72,9 +102,30 @@ export default function BotSettingsListPage() {
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-300 outline-none text-sm"
             />
           </div>
-          <div className="mt-3 text-[11px] text-slate-500 flex items-center gap-3 flex-wrap">
-            <span className="flex items-center gap-1"><span className="px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 text-[9px] font-bold">AIX</span> Palette AIX 契約あり</span>
-            <span className="flex items-center gap-1"><span className="px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[9px] font-bold">設定済</span> Bot設定済み</span>
+          <div className="mt-3 flex items-center gap-1.5 flex-wrap">
+            {([
+              { key: 'all', label: 'すべて', color: 'slate' },
+              { key: 'aix', label: 'AIX契約', color: 'indigo' },
+              { key: 'aix_configured', label: 'AIX・設定済', color: 'emerald' },
+              { key: 'aix_not_configured', label: 'AIX・未設定', color: 'amber' },
+              { key: 'configured', label: '設定済', color: 'emerald' },
+              { key: 'no_aix', label: 'AIX未契約', color: 'slate' },
+            ] as const).map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setFilterKey(f.key as SortKey)}
+                className={`px-3 py-1 rounded-full text-[10px] font-bold transition-colors ${
+                  filterKey === f.key
+                    ? 'bg-slate-800 text-white'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {f.label} ({counts[f.key as SortKey]})
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 text-[10px] text-slate-400 flex items-center gap-3 flex-wrap">
+            <span>並び順: AIX契約あり → 設定済み → 顧客ID順</span>
           </div>
         </div>
 

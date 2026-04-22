@@ -43,6 +43,9 @@ export default function BotSettingsEditPage({ params }: { params: Promise<{ pale
   const [savedAt, setSavedAt] = useState<string>('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [autoUrl, setAutoUrl] = useState('');
+  const [autoRunning, setAutoRunning] = useState(false);
+  const [autoResult, setAutoResult] = useState<string>('');
 
   // Load everything
   const load = useCallback(async () => {
@@ -138,6 +141,29 @@ export default function BotSettingsEditPage({ params }: { params: Promise<{ pale
     if (!confirm('このFAQを削除しますか？')) return;
     await fetch(`/api/admin/bot-settings/${paletteId}/faqs/${id}`, { method: 'DELETE' });
     setFaqs((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const runAutoSetup = async () => {
+    if (!autoUrl.trim() || autoRunning) return;
+    setAutoRunning(true);
+    setAutoResult('');
+    setError('');
+    try {
+      const res = await fetch(`/api/admin/bot-settings/${paletteId}/auto-setup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: autoUrl.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'AI生成に失敗しました');
+      const { servicesCreated = 0, faqsCreated = 0, basic = {} } = data.summary || {};
+      setAutoResult(`✓ 生成完了: 基本情報「${basic.shopName || '-'}」／サービス${servicesCreated}件／FAQ${faqsCreated}件を追加しました。`);
+      await load();
+    } catch (err: any) {
+      setError(err?.message || 'error');
+    } finally {
+      setAutoRunning(false);
+    }
   };
 
   const embedCode = `<script src="${typeof window !== 'undefined' ? window.location.origin : ''}/widget.js?id=${paletteId}" async></script>`;
@@ -236,6 +262,39 @@ export default function BotSettingsEditPage({ params }: { params: Promise<{ pale
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-600">{error}</div>
         </div>
       )}
+
+      {/* HP自動セットアップ */}
+      <div className="max-w-7xl mx-auto px-6 mt-4">
+        <div className="bg-gradient-to-r from-indigo-50 via-fuchsia-50 to-pink-50 border border-indigo-200 rounded-2xl p-4 flex flex-col md:flex-row items-stretch md:items-center gap-3">
+          <div className="flex items-center gap-2 shrink-0">
+            <Sparkles className="w-4 h-4 text-indigo-500" />
+            <span className="text-xs font-black text-slate-700">HPから初期設定を自動生成</span>
+          </div>
+          <input
+            type="text"
+            value={autoUrl}
+            onChange={(e) => setAutoUrl(e.target.value)}
+            placeholder="https://example.com"
+            disabled={autoRunning}
+            className="flex-1 px-3 py-2 rounded-lg border border-slate-200 bg-white focus:border-indigo-300 outline-none text-sm disabled:opacity-60"
+          />
+          <button
+            type="button"
+            onClick={runAutoSetup}
+            disabled={autoRunning || !autoUrl.trim()}
+            className="px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white text-xs font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            {autoRunning ? 'AIが生成中...' : 'AIで生成'}
+          </button>
+        </div>
+        {autoResult && (
+          <div className="mt-2 text-xs text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2">{autoResult}</div>
+        )}
+        <p className="mt-2 text-[10px] text-slate-400">
+          ※ HPのURLを入れて「AIで生成」を押すと、基本情報・サービス・Q&A・トーンをまとめて自動入力します（既存の内容は残し、新規分のみ追加）。
+        </p>
+      </div>
 
       <div className="max-w-7xl mx-auto px-6 py-6">
         {tab === 'basic' && <BasicTab config={config} update={updateConfigField} />}
