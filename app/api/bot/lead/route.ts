@@ -26,6 +26,16 @@ const syncLeadToCrm = async (params: {
     return false;
   }
   try {
+    const noteLines = [
+      `【Bot経由リード】顧客ID: ${params.paletteId}`,
+      `買う気度スコア: ${params.score}/5`,
+      params.selectedServiceId ? `選択サービスID: ${params.selectedServiceId}` : '',
+      params.closedAction ? `クロージングアクション: ${params.closedAction}` : '',
+      params.lead.preferredTime ? `希望日時: ${params.lead.preferredTime}` : '',
+      params.lead.note ? `備考: ${params.lead.note}` : '',
+      `会話ログ: ${appUrl}/admin/bot-settings/${params.paletteId}/sessions/${params.sessionId}`,
+    ].filter(Boolean).join('\n');
+
     const res = await fetch(`${crmUrl.replace(/\/$/, '')}/api/crm/leads`, {
       method: 'POST',
       headers: {
@@ -33,18 +43,13 @@ const syncLeadToCrm = async (params: {
         ...(process.env.CRM_API_KEY ? { 'x-api-key': process.env.CRM_API_KEY } : {}),
       },
       body: JSON.stringify({
-        customerId: params.paletteId,
-        source: 'bot',
-        score: params.score,
-        name: params.lead.name || '',
+        companyName: params.lead.name || `Bot訪問者 (${params.paletteId})`,
+        contactName: params.lead.name || '',
         email: params.lead.email || '',
-        phone: params.lead.phone || '',
-        preferredTime: params.lead.preferredTime || '',
-        note: params.lead.note || '',
-        selectedServiceId: params.selectedServiceId || null,
-        closedAction: params.closedAction || null,
-        conversationUrl: `${appUrl}/admin/bot-settings/${params.paletteId}/sessions/${params.sessionId}`,
-        raw: params.lead,
+        phone1: params.lead.phone || '',
+        source: 'bot',
+        status: params.closedAction ? 'contacted' : 'new',
+        notes: noteLines,
       }),
     });
     return res.ok;
