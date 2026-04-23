@@ -262,9 +262,10 @@ export const sendBotNotifications = async (params: {
       }),
     );
   }
-  if (notify.lineChannelToken && notify.lineUserId) {
+  if (notify.lineChannelToken) {
+    // userIdが空ならBroadcast送信（sendLineMessage内で判定）
     tasks.push(
-      sendLineMessage(notify.lineChannelToken, notify.lineUserId, shopName, summary, lead, score).then((r) => {
+      sendLineMessage(notify.lineChannelToken, notify.lineUserId || '', shopName, summary, lead, score).then((r) => {
         result.line = r;
       }),
     );
