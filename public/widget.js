@@ -114,12 +114,26 @@
     .panel.right { right: 24px; transform-origin: bottom right; }
     .panel.left { left: 24px; transform-origin: bottom left; }
 
-    /* バブルのフワッと表示切替 */
+    /* バブルのフワッと表示切替（初期は非表示 → config読込後に.readyで表示）*/
     .bubble {
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(0.7) translateY(8px);
       transition:
-        transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
-        opacity 0.3s ease,
-        box-shadow 0.25s;
+        transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+        opacity 0.35s ease,
+        box-shadow 0.25s,
+        visibility 0s linear 0.35s;
+    }
+    .bubble.ready {
+      opacity: 1;
+      visibility: visible;
+      transform: scale(1) translateY(0);
+      transition:
+        transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+        opacity 0.35s ease,
+        box-shadow 0.25s,
+        visibility 0s linear 0s;
     }
     .bubble.hidden {
       opacity: 0;
@@ -397,9 +411,22 @@
     bubble.style.setProperty('--color', color);
     bubble.style.setProperty('--bubble-bg', bubbleBg);
     bubble.style.setProperty('--bubble-radius', bubbleRadius);
-    bubble.className = 'bubble ' + position;
-    panel.className = 'panel ' + position;
+    // 既存のready/hiddenクラスを保ちつつposition(right/left)を更新
+    var bubbleWasReady = bubble.classList.contains('ready');
+    var bubbleWasHidden = bubble.classList.contains('hidden');
+    bubble.className = 'bubble ' + position + (bubbleWasReady ? ' ready' : '') + (bubbleWasHidden ? ' hidden' : '');
+    var panelWasOpen = panel.classList.contains('open');
+    panel.className = 'panel ' + position + (panelWasOpen ? ' open' : '');
     bubble.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="' + iconPath + '"/></svg>';
+
+    // 設定が読み込まれて最初のrenderで表示を解禁（フワッと登場）
+    if (!bubbleWasReady && !state.open) {
+      requestAnimationFrame(function () { bubble.classList.add('ready'); });
+    } else if (state.open && !bubbleWasHidden) {
+      // パネル開いた状態でのrender → bubbleは非表示のまま
+    } else if (!state.open) {
+      bubble.classList.add('ready');
+    }
 
     panel.innerHTML = '';
 
