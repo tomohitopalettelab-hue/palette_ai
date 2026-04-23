@@ -419,6 +419,126 @@ function Card({ title, children }: any) {
   );
 }
 
+/** 数値セグメント選択（1〜Nの大きなボタン） */
+function SegmentedNumber({ value, onChange, min = 1, max = 3, labels }: { value: number; onChange: (v: number) => void; min?: number; max?: number; labels?: Record<number, string> }) {
+  const items = [];
+  for (let i = min; i <= max; i++) items.push(i);
+  return (
+    <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1 gap-1">
+      {items.map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          className={`px-5 py-2 rounded-lg text-sm font-black transition-all ${
+            value === n
+              ? 'bg-white text-indigo-600 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          {labels?.[n] || n}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** 絵文字＋ラベル付きチップ選択（単一） */
+function ChipSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { value: string; label: string; emoji?: string }[] }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          className={`px-3 py-2 rounded-full text-xs font-bold border transition-all ${
+            value === o.value
+              ? 'bg-indigo-500 text-white border-indigo-500 shadow-md'
+              : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+          }`}
+        >
+          {o.emoji && <span className="mr-1">{o.emoji}</span>}
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** 複数トグルチップ */
+function ChipToggle({ values, onToggle, options }: { values: Record<string, boolean>; onToggle: (key: string, next: boolean) => void; options: { value: string; label: string; emoji?: string }[] }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((o) => {
+        const on = Boolean(values[o.value]);
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onToggle(o.value, !on)}
+            className={`px-3 py-2 rounded-full text-xs font-bold border transition-all ${
+              on
+                ? 'bg-indigo-500 text-white border-indigo-500 shadow-md'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+            }`}
+          >
+            {o.emoji && <span className="mr-1">{o.emoji}</span>}
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** 見た目の良いトグルスイッチ */
+function ToggleSwitch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label?: string }) {
+  return (
+    <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`relative w-10 h-5.5 rounded-full transition-colors ${checked ? 'bg-indigo-500' : 'bg-slate-300'}`}
+        style={{ width: 40, height: 22 }}
+      >
+        <span
+          className="absolute top-0.5 left-0.5 w-[18px] h-[18px] bg-white rounded-full shadow-md transition-transform"
+          style={{ transform: checked ? 'translateX(18px)' : 'translateX(0)' }}
+        />
+      </button>
+      {label && <span className="text-xs font-bold text-slate-700">{label}</span>}
+    </label>
+  );
+}
+
+/** スライダー（数値範囲） */
+function SliderNumber({ value, onChange, min, max, label, hint }: { value: number; onChange: (v: number) => void; min: number; max: number; label?: string; hint?: string }) {
+  return (
+    <div>
+      {label && (
+        <div className="flex justify-between items-baseline mb-1">
+          <span className="text-xs font-bold text-slate-600">{label}</span>
+          <span className="text-lg font-black text-indigo-600">{value}<span className="text-[10px] text-slate-400 ml-1">回</span></span>
+        </div>
+      )}
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-indigo-500"
+      />
+      <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+        <span>{min}回</span>
+        <span>{max}回</span>
+      </div>
+      {hint && <p className="text-[10px] text-slate-400 mt-1">{hint}</p>}
+    </div>
+  );
+}
+
 const COLOR_PALETTE = [
   '#6366f1', '#8b5cf6', '#d946ef', '#ec4899', '#f43f5e',
   '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e',
@@ -704,143 +824,223 @@ function ConversationTab({ config, update }: any) {
 
   return (
     <>
-      <Card title="ウェルカム・ヒアリング">
-        <div className="space-y-4">
-          <div><Label>ウェルカムメッセージ（最初に表示）</Label><TextArea value={c.welcomeMessage} onChange={(v: string) => update(['conversation', 'welcomeMessage'], v)} /></div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><Label>ヒアリング最小往復数</Label><TextInput value={String(c.hearingMinTurns ?? 2)} onChange={(v: string) => update(['conversation', 'hearingMinTurns'], Number(v) || 2)} /></div>
-            <div><Label>ヒアリング最大往復数</Label><TextInput value={String(c.hearingMaxTurns ?? 5)} onChange={(v: string) => update(['conversation', 'hearingMaxTurns'], Number(v) || 5)} /></div>
-          </div>
-        </div>
-      </Card>
-
-      <Card title="サービス提案（カード形式）">
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div><Label>提示カード数（1-3）</Label><TextInput value={String(c.cardCount ?? 3)} onChange={(v: string) => update(['conversation', 'cardCount'], Math.max(1, Math.min(3, Number(v) || 3)))} /></div>
-            <div><Label>提示順の基準</Label>
-              <Select value={c.cardSortBy} onChange={(v: string) => update(['conversation', 'cardSortBy'], v)} options={[
-                { value: 'match', label: 'マッチ度' },
-                { value: 'price_asc', label: '価格昇順' },
-                { value: 'price_desc', label: '価格降順' },
-                { value: 'new', label: '新着順' },
-              ]} />
-            </div>
-          </div>
+      <Card title="① ウェルカム・ヒアリング">
+        <div className="space-y-5">
           <div>
-            <Label>カード表示項目</Label>
-            <div className="flex flex-wrap gap-3 text-xs">
-              {['price', 'duration', 'features', 'testimonial'].map((key) => (
-                <label key={key} className="flex items-center gap-1.5">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(show[key])}
-                    onChange={(e) => update(['conversation', 'cardShow', key], e.target.checked)}
-                  />
-                  {key === 'price' && '価格'}
-                  {key === 'duration' && '所要時間'}
-                  {key === 'features' && '特徴'}
-                  {key === 'testimonial' && 'お客様の声'}
-                </label>
-              ))}
-            </div>
+            <Label>ウェルカムメッセージ（訪問者が最初に見る）</Label>
+            <TextArea
+              value={c.welcomeMessage}
+              onChange={(v: string) => update(['conversation', 'welcomeMessage'], v)}
+              placeholder="こんにちは！何かお困りですか？"
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SliderNumber
+              label="最小ヒアリング回数"
+              value={Number(c.hearingMinTurns ?? 2)}
+              onChange={(v) => update(['conversation', 'hearingMinTurns'], v)}
+              min={1}
+              max={5}
+              hint="最低でもこの回数は深掘り質問をします"
+            />
+            <SliderNumber
+              label="最大ヒアリング回数"
+              value={Number(c.hearingMaxTurns ?? 5)}
+              onChange={(v) => update(['conversation', 'hearingMaxTurns'], v)}
+              min={2}
+              max={10}
+              hint="これを超えたらサービス提案へ強制遷移"
+            />
           </div>
         </div>
       </Card>
 
-      <Card title="クロージング（ゴール）設定">
-        <div className="space-y-4">
-          {goalKeys.map((gk) => {
+      <Card title="② サービス提案（カード形式）">
+        <div className="space-y-5">
+          <div>
+            <Label>提示カード数</Label>
+            <SegmentedNumber
+              value={Number(c.cardCount ?? 3)}
+              onChange={(v) => update(['conversation', 'cardCount'], v)}
+              min={1}
+              max={3}
+            />
+            <p className="text-[10px] text-slate-400 mt-1">1枚だけなら「これ！」と推す、3枚なら比較検討</p>
+          </div>
+
+          <div>
+            <Label>提示順の基準</Label>
+            <ChipSelect
+              value={String(c.cardSortBy || 'match')}
+              onChange={(v) => update(['conversation', 'cardSortBy'], v)}
+              options={[
+                { value: 'match', label: 'マッチ度', emoji: '🎯' },
+                { value: 'price_asc', label: '安い順', emoji: '💴' },
+                { value: 'price_desc', label: '高い順', emoji: '💎' },
+                { value: 'new', label: '新着順', emoji: '✨' },
+              ]}
+            />
+          </div>
+
+          <div>
+            <Label>カードに表示する項目</Label>
+            <ChipToggle
+              values={show}
+              onToggle={(key, next) => update(['conversation', 'cardShow', key], next)}
+              options={[
+                { value: 'price', label: '価格', emoji: '💴' },
+                { value: 'duration', label: '所要時間', emoji: '⏱' },
+                { value: 'features', label: '特徴', emoji: '⭐' },
+                { value: 'testimonial', label: 'お客様の声', emoji: '💬' },
+              ]}
+            />
+          </div>
+        </div>
+      </Card>
+
+      <Card title="③ クロージング先（ゴール）の準備">
+        <p className="text-xs text-slate-500 mb-4">
+          訪問者が最後にたどり着く「アクション」を設定。使うものだけONにして、URLや番号を入れてください。
+        </p>
+        <div className="space-y-3">
+          {([
+            { key: 'reservation', label: '予約', emoji: '📅', fieldLabel: '予約ページのURL', desc: '予約サイト・予約フォームに誘導' },
+            { key: 'inquiry', label: '問い合わせ', emoji: '💬', fieldLabel: '問い合わせフォームのURL', desc: '一般的な問い合わせフォーム' },
+            { key: 'phone', label: '電話', emoji: '📞', fieldLabel: '電話番号', desc: 'スマホならタップで発信' },
+            { key: 'line', label: 'LINE登録', emoji: '💚', fieldLabel: 'LINE友だち追加URL', desc: '関係維持・後日追客用' },
+            { key: 'document', label: '資料請求', emoji: '📄', fieldLabel: 'ダウンロードURL', desc: '資料PDFへの直接リンク' },
+          ] as const).map((gk) => {
             const goal = g[gk.key] || {};
+            const enabled = Boolean(goal.enabled);
             return (
-              <div key={gk.key} className="flex items-start gap-3 p-3 rounded-lg border border-slate-100">
-                <label className="flex items-center gap-2 pt-2">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(goal.enabled)}
-                    onChange={(e) => update(['goals', gk.key, 'enabled'], e.target.checked)}
-                  />
-                  <span className="text-xs font-bold">{gk.label}</span>
-                </label>
-                <div className="flex-1 grid grid-cols-2 gap-2">
-                  <TextInput
-                    value={goal.label}
-                    onChange={(v: string) => update(['goals', gk.key, 'label'], v)}
-                    placeholder="ボタンラベル"
-                  />
-                  <TextInput
-                    value={gk.key === 'phone' ? goal.number : goal.url}
-                    onChange={(v: string) => update(['goals', gk.key, gk.key === 'phone' ? 'number' : 'url'], v)}
-                    placeholder={gk.key === 'phone' ? '電話番号' : 'URL'}
+              <div
+                key={gk.key}
+                className={`rounded-xl border p-4 transition-all ${
+                  enabled ? 'bg-indigo-50/40 border-indigo-200' : 'bg-white border-slate-200'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{gk.emoji}</span>
+                    <div>
+                      <div className="text-sm font-black text-slate-800">{gk.label}</div>
+                      <div className="text-[10px] text-slate-500">{gk.desc}</div>
+                    </div>
+                  </div>
+                  <ToggleSwitch
+                    checked={enabled}
+                    onChange={(v) => update(['goals', gk.key, 'enabled'], v)}
                   />
                 </div>
+                {enabled && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-500 mb-1">ボタンに表示する文言</div>
+                      <TextInput
+                        value={goal.label}
+                        onChange={(v: string) => update(['goals', gk.key, 'label'], v)}
+                        placeholder={gk.label + 'する'}
+                      />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-500 mb-1">{gk.fieldLabel}</div>
+                      <TextInput
+                        value={gk.key === 'phone' ? goal.number : goal.url}
+                        onChange={(v: string) => update(['goals', gk.key, gk.key === 'phone' ? 'number' : 'url'], v)}
+                        placeholder={gk.key === 'phone' ? '03-xxxx-xxxx' : 'https://'}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       </Card>
 
-      <Card title="AIヒアリング通知（メール / LINE / Webhook）">
-        <p className="text-xs text-slate-500 mb-3">
-          訪問者がフォームを送信すると、AIが会話内容を要約して以下の宛先に送信します。外部URLへ遷移させずに見込み客情報を直接取得したい場合に使います。
+      <Card title="④ AIヒアリング通知（おすすめ）">
+        <p className="text-xs text-slate-500 mb-4">
+          訪問者が入力フォームを送信すると、AIが会話の要約と見込み客情報を担当者に直接通知します。
+          外部URLに飛ばす必要がなく、成約率が最も高いクロージング方法です。
         </p>
-        <div className="p-3 rounded-lg border border-slate-200 space-y-4">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
+
+        <div className={`rounded-xl border p-4 transition-all ${g.notify?.enabled ? 'bg-gradient-to-br from-indigo-50 to-fuchsia-50 border-indigo-200' : 'bg-white border-slate-200'}`}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">📬</span>
+              <div>
+                <div className="text-sm font-black text-slate-800">AIヒアリング通知を有効にする</div>
+                <div className="text-[10px] text-slate-500">有効にすると「ご相談内容を送信」ボタンが自動で選ばれます</div>
+              </div>
+            </div>
+            <ToggleSwitch
               checked={Boolean(g.notify?.enabled)}
-              onChange={(e) => update(['goals', 'notify', 'enabled'], e.target.checked)}
-            />
-            <span className="text-sm font-bold">AIヒアリング通知を有効にする</span>
-          </label>
-          <div>
-            <Label>ボタンラベル</Label>
-            <TextInput
-              value={g.notify?.label || ''}
-              onChange={(v: string) => update(['goals', 'notify', 'label'], v)}
-              placeholder="ご相談内容を送信する"
+              onChange={(v) => update(['goals', 'notify', 'enabled'], v)}
             />
           </div>
-          <div className="grid grid-cols-1 gap-4">
-            <div>
-              <Label>📧 通知先メールアドレス</Label>
-              <TextInput
-                value={g.notify?.emailAddress || ''}
-                onChange={(v: string) => update(['goals', 'notify', 'emailAddress'], v)}
-                placeholder="owner@example.com"
-              />
-              <p className="text-[10px] text-slate-400 mt-1">訪問者の情報＋AI要約が届きます（Resend経由）</p>
-            </div>
-            <div>
-              <Label>💬 LINE 通知（Messaging API）</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+
+          {g.notify?.enabled && (
+            <div className="space-y-4 mt-4 pt-4 border-t border-indigo-200">
+              <div>
+                <Label>訪問者に見せる送信ボタン名</Label>
                 <TextInput
-                  value={g.notify?.lineChannelToken || ''}
-                  onChange={(v: string) => update(['goals', 'notify', 'lineChannelToken'], v)}
-                  placeholder="Channel Access Token"
-                />
-                <TextInput
-                  value={g.notify?.lineUserId || ''}
-                  onChange={(v: string) => update(['goals', 'notify', 'lineUserId'], v)}
-                  placeholder="User ID (U1234...)"
+                  value={g.notify?.label || ''}
+                  onChange={(v: string) => update(['goals', 'notify', 'label'], v)}
+                  placeholder="ご相談内容を送信する"
                 />
               </div>
-              <p className="text-[10px] text-slate-400 mt-1">LINE Developersで公式アカウントを作り、Channel TokenとオーナーのUser IDを設定</p>
+
+              <div className="bg-white/70 rounded-lg p-3 border border-white">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">📧</span>
+                  <span className="text-xs font-black text-slate-700">メール通知</span>
+                </div>
+                <TextInput
+                  value={g.notify?.emailAddress || ''}
+                  onChange={(v: string) => update(['goals', 'notify', 'emailAddress'], v)}
+                  placeholder="owner@example.com"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">AI要約＋訪問者情報がこのアドレスに届きます</p>
+              </div>
+
+              <div className="bg-white/70 rounded-lg p-3 border border-white">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">💚</span>
+                  <span className="text-xs font-black text-slate-700">LINE通知</span>
+                </div>
+                <div className="grid grid-cols-1 gap-2">
+                  <TextInput
+                    value={g.notify?.lineChannelToken || ''}
+                    onChange={(v: string) => update(['goals', 'notify', 'lineChannelToken'], v)}
+                    placeholder="Channel Access Token（LINE Developers で発行）"
+                  />
+                  <TextInput
+                    value={g.notify?.lineUserId || ''}
+                    onChange={(v: string) => update(['goals', 'notify', 'lineUserId'], v)}
+                    placeholder="受信するUser ID（U1234...）"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">LINE公式アカウントからオーナーのLINEに通知が届きます</p>
+              </div>
+
+              <div className="bg-white/70 rounded-lg p-3 border border-white">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">🔗</span>
+                  <span className="text-xs font-black text-slate-700">その他（Slack / Discord / カスタム）</span>
+                </div>
+                <TextInput
+                  value={g.notify?.webhookUrl || ''}
+                  onChange={(v: string) => update(['goals', 'notify', 'webhookUrl'], v)}
+                  placeholder="https://hooks.slack.com/..."
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Webhook URLを貼るとJSON POSTで通知</p>
+              </div>
             </div>
-            <div>
-              <Label>🔗 Webhook URL（Slack / Discord / カスタム）</Label>
-              <TextInput
-                value={g.notify?.webhookUrl || ''}
-                onChange={(v: string) => update(['goals', 'notify', 'webhookUrl'], v)}
-                placeholder="https://hooks.slack.com/..."
-              />
-              <p className="text-[10px] text-slate-400 mt-1">JSON POST（text, shopName, lead, summary 等を送信）</p>
-            </div>
-          </div>
+          )}
         </div>
       </Card>
 
-      <Card title="買う気度 × クロージング先の優先順位">
+      <Card title="⑤ 買う気度 × クロージング先の優先順位">
         <p className="text-xs text-slate-500 mb-4">
           訪問者の <b>買う気度</b>（会話から自動判定）に応じて、どのクロージング方法を優先するかを設定します。<br />
           ゴールをクリックして選択順に並べてください（番号が優先順位）。
@@ -934,7 +1134,7 @@ function ConversationTab({ config, update }: any) {
         </p>
       </Card>
 
-      <Card title="リード取得項目">
+      <Card title="⑥ リード取得項目">
         <div className="space-y-2">
           {(c.leadFields || []).map((field: any, i: number) => (
             <div key={i} className="flex items-center gap-2">
