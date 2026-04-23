@@ -3407,7 +3407,7 @@ ${currentHtml}
         actionButtons: [
           { key: 'aix-reports', label: 'Botの成果レポートを見る' },
           { key: 'aix-embed-code', label: '埋め込みコードを取得' },
-          { key: 'aix-contact-setup', label: 'Bot内容の設定を相談する' },
+          { key: 'aix-contact-setup', label: 'Bot設定画面を開く' },
         ],
       });
       return;
@@ -3598,7 +3598,7 @@ ${currentHtml}
         actionButtons: [
           { key: 'aix-reports', label: '📊 成果レポート' },
           { key: 'aix-embed-code', label: '📋 埋め込みコード' },
-          { key: 'aix-contact-setup', label: '💬 設定を相談' },
+          { key: 'aix-contact-setup', label: '⚙️ 設定画面' },
           { key: 'aix-bot-intro', label: '🤖 Botとは？' },
         ],
       });
@@ -3611,9 +3611,9 @@ ${currentHtml}
       return;
     }
     if (button.key === 'aix-contact-setup') {
-      appendAiMessage({
-        content: `Botの初期設定（サービス登録・会話トーン・クロージング先URLなど）はPalette Labが設定いたします。\n\nご要望があれば、以下のチャットで続けてお伝えください。\n担当者が確認後、1〜2営業日以内に設定してご連絡いたします。`,
-      });
+      if (typeof window !== 'undefined') {
+        window.open('/main/bot-settings', '_blank', 'noopener');
+      }
       return;
     }
     if (button.key === 'aix-reports') {
