@@ -416,8 +416,13 @@
     inputArea.appendChild(inputInner);
     panel.appendChild(inputArea);
 
-    // Auto scroll
-    setTimeout(function () { msgs.scrollTop = msgs.scrollHeight; }, 10);
+    // Auto scroll + 入力欄へフォーカス維持
+    setTimeout(function () {
+      msgs.scrollTop = msgs.scrollHeight;
+      if (!state.sending) {
+        try { input.focus({ preventScroll: true }); } catch (e) { input.focus(); }
+      }
+    }, 20);
   }
 
   function renderMessage(m) {

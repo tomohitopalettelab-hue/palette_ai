@@ -174,6 +174,7 @@ ${buildGoalsBlock(config)}
 - replyは短く「おすすめがあります。気になるのを選んでくださいね。」程度
 - ui_hint = 'cards'
 - 押し売り禁止
+- **既に一度 introduction を出した後は、絶対に introduction に戻らない**（同じカードを繰り返し出さない）
 
 ### closing（クロージング）
 - 訪問者が「気になる」「予約したい」等を言ったら発動
@@ -215,7 +216,13 @@ ${forbidden ? `## 絶対に言わないこと\n${forbidden}` : ''}
 ## 重要な注意
 - replyには具体的な価格・住所・電話番号を勝手に作らない（設定データに明記されたもののみ）
 - HTMLやMarkdownは使わない（プレーンテキスト）
-- 返答はJSONのみ、余計な文字列をつけない`;
+- 返答はJSONのみ、余計な文字列をつけない
+
+## 会話フロー厳守ルール
+- 訪問者が具体サービス名や「気になる/お願いしたい/詳しく/見積もり/予約/相談」等を言ったら、next_stage='closing' へ
+- 一度 introduction でカードを出した後は、もう一度 introduction に戻らない（カードを繰り返さない）
+- closing 中は、不安解消の質問→リードフォーム提出（ui_hint='lead_form' or 'closing_cta'）へ流れる
+- ヒアリングの深掘りが必要な場合でも、stageは closing のまま、ヒアリングの質問内容だけを reply に含める`;
 };
 
 // ============================================================
@@ -246,6 +253,15 @@ const findMatchingServices = (services: BotService[], userText: string): { id: s
 // Stage transition rules (hybrid)
 // ============================================================
 
+const STAGE_ORDER: Record<BotStage, number> = {
+  hearing: 0,
+  introduction: 1,
+  nurture: 1,
+  closing: 2,
+  fallback: 2,
+  closed: 3,
+};
+
 const applyRuleBasedTransition = (
   aiStage: BotStage,
   session: BotSession,
@@ -256,8 +272,33 @@ const applyRuleBasedTransition = (
   const minTurns = config.conversation?.hearingMinTurns ?? 2;
   const maxTurns = config.conversation?.hearingMaxTurns ?? 5;
 
-  // 強制 introduction: マッチ2つ以上 & 最小ヒアリング済
-  if (session.stage === 'hearing' && allMatched.length >= 2 && userTurns >= minTurns) {
+  // 既にcardsを提示した履歴があるか
+  const alreadyShownCards = session.messages.some(
+    (m) => m.role === 'bot' && Array.isArray(m.cards) && m.cards.length > 0,
+  );
+
+  // 強制 closing: cards提示済み かつ 直近ユーザー発言がサービス選択/興味表明
+  const lastVisitor = [...session.messages].reverse().find((m) => m.role === 'visitor');
+  const lastText = String(lastVisitor?.content || '');
+  const isServicePickSignal = /気になります|これ|お願いしたい|検討|詳しく|知りたい|教えて|見積|予約|相談|申し込み|興味/.test(lastText);
+  if (alreadyShownCards && isServicePickSignal && session.stage !== 'closed') {
+    return { stage: 'closing', force: true, reason: 'カード提示済 + 選択シグナル検出' };
+  }
+
+  // 退行禁止: 既に introduction 以上のstageなら、introduction/hearing への戻りを禁止
+  if (STAGE_ORDER[session.stage] >= STAGE_ORDER.introduction) {
+    if (aiStage === 'hearing' || aiStage === 'introduction') {
+      // 既にカード提示済みなら closing へ
+      if (alreadyShownCards) {
+        return { stage: 'closing', force: true, reason: '退行禁止: カード提示済のためclosing維持' };
+      }
+      // まだカード未提示なら現stage維持
+      return { stage: session.stage, force: true, reason: '退行禁止: 現stage維持' };
+    }
+  }
+
+  // 強制 introduction: マッチ2つ以上 & 最小ヒアリング済 & まだcards未提示
+  if (session.stage === 'hearing' && allMatched.length >= 2 && userTurns >= minTurns && !alreadyShownCards) {
     return { stage: 'introduction', force: true, reason: `タグマッチ${allMatched.length}件 & ${userTurns}ターン到達` };
   }
 
