@@ -70,11 +70,40 @@
       color: #fff; border: none; cursor: pointer;
       box-shadow: 0 10px 30px rgba(99,102,241,0.35), 0 2px 6px rgba(0,0,0,0.08);
       display: flex; align-items: center; justify-content: center;
-      transition: transform 0.25s cubic-bezier(.2,.7,.2,1), box-shadow 0.25s; z-index: 2147483647;
+      z-index: 2147483647;
+      /* 初期非表示。config取得完了後に .ready クラスを付与して表示 */
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(0.7) translateY(8px);
+      transition:
+        transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+        opacity 0.35s ease,
+        box-shadow 0.25s,
+        visibility 0s linear 0.35s;
     }
     .bubble.right { right: 24px; }
     .bubble.left { left: 24px; }
-    .bubble:hover { transform: scale(1.08) translateY(-2px); box-shadow: 0 14px 36px rgba(99,102,241,0.45), 0 2px 6px rgba(0,0,0,0.1); }
+    .bubble.ready {
+      opacity: 1;
+      visibility: visible;
+      transform: scale(1) translateY(0);
+      transition:
+        transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+        opacity 0.35s ease,
+        box-shadow 0.25s,
+        visibility 0s linear 0s;
+    }
+    .bubble:hover {
+      transform: scale(1.08) translateY(-2px);
+      box-shadow: 0 14px 36px rgba(99,102,241,0.45), 0 2px 6px rgba(0,0,0,0.1);
+    }
+    /* パネル開いている間はバブルを隠す */
+    .bubble.hidden {
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(0.4) rotate(-20deg);
+      pointer-events: none;
+    }
     .bubble svg { width: 26px; height: 26px; }
 
     /* Main panel */
@@ -113,33 +142,6 @@
     }
     .panel.right { right: 24px; transform-origin: bottom right; }
     .panel.left { left: 24px; transform-origin: bottom left; }
-
-    /* バブルのフワッと表示切替（初期は非表示 → config読込後に.readyで表示）*/
-    .bubble {
-      opacity: 0;
-      visibility: hidden;
-      transform: scale(0.7) translateY(8px);
-      transition:
-        transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
-        opacity 0.35s ease,
-        box-shadow 0.25s,
-        visibility 0s linear 0.35s;
-    }
-    .bubble.ready {
-      opacity: 1;
-      visibility: visible;
-      transform: scale(1) translateY(0);
-      transition:
-        transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
-        opacity 0.35s ease,
-        box-shadow 0.25s,
-        visibility 0s linear 0s;
-    }
-    .bubble.hidden {
-      opacity: 0;
-      transform: scale(0.4) rotate(-20deg);
-      pointer-events: none;
-    }
 
     /* 新規メッセージの軽いフェードイン */
     .msg {
@@ -413,22 +415,12 @@
     bubble.style.setProperty('--color', color);
     bubble.style.setProperty('--bubble-bg', bubbleBg);
     bubble.style.setProperty('--bubble-radius', bubbleRadius);
-    // 既存のready/hiddenクラスを保ちつつposition(right/left)を更新
-    var bubbleWasReady = bubble.classList.contains('ready');
-    var bubbleWasHidden = bubble.classList.contains('hidden');
-    bubble.className = 'bubble ' + position + (bubbleWasReady ? ' ready' : '') + (bubbleWasHidden ? ' hidden' : '');
-    var panelWasOpen = panel.classList.contains('open');
-    panel.className = 'panel ' + position + (panelWasOpen ? ' open' : '');
+    // position (left/right) のみ更新。ready / hidden / open クラスは init と togglePanel が管理
+    bubble.classList.remove('left', 'right');
+    bubble.classList.add(position);
+    panel.classList.remove('left', 'right');
+    panel.classList.add(position);
     bubble.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="' + iconPath + '"/></svg>';
-
-    // 設定が読み込まれて最初のrenderで表示を解禁（フワッと登場）
-    if (!bubbleWasReady && !state.open) {
-      requestAnimationFrame(function () { bubble.classList.add('ready'); });
-    } else if (state.open && !bubbleWasHidden) {
-      // パネル開いた状態でのrender → bubbleは非表示のまま
-    } else if (!state.open) {
-      bubble.classList.add('ready');
-    }
 
     panel.innerHTML = '';
 
@@ -680,9 +672,11 @@
       return;
     }
     state.config = res.config;
-    var delay = (res.config && res.config.appearance && res.config.appearance.welcomeDelay) || 0;
+    var delay = Number((res.config && res.config.appearance && res.config.appearance.welcomeDelay) || 0) || 0;
     setTimeout(function () {
       render();
+      // 初回render直後にバブルをフワッと登場させる
+      requestAnimationFrame(function () { bubble.classList.add('ready'); });
     }, delay * 1000);
   }).catch(function (err) {
     console.warn('[palette-bot] init error:', err);
