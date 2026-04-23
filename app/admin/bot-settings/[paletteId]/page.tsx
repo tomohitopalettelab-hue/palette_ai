@@ -840,21 +840,98 @@ function ConversationTab({ config, update }: any) {
         </div>
       </Card>
 
-      <Card title="買う気度×ゴール マトリクス">
-        <p className="text-xs text-slate-500 mb-3">買う気度スコア別に、どのクロージング先を使うか優先順位で指定</p>
-        <div className="space-y-2">
-          {['5', '4', '3', '2', '1'].map((score) => (
-            <div key={score} className="flex items-center gap-3">
-              <div className="w-20 shrink-0 text-xs font-bold">スコア{score}</div>
-              <TextInput
-                value={(matrix[score] || []).join(',')}
-                onChange={(v: string) => update(['conversation', 'closingMatrix', score], v.split(',').map((x) => x.trim()).filter(Boolean))}
-                placeholder="reservation,phone"
-              />
-            </div>
-          ))}
+      <Card title="買う気度 × クロージング先の優先順位">
+        <p className="text-xs text-slate-500 mb-4">
+          訪問者の <b>買う気度</b>（会話から自動判定）に応じて、どのクロージング方法を優先するかを設定します。<br />
+          ゴールをクリックして選択順に並べてください（番号が優先順位）。
+        </p>
+
+        {/* 凡例 */}
+        <div className="flex flex-wrap gap-2 mb-4 text-[10px]">
+          <div className="flex items-center gap-1"><span className="text-base">🔥</span>熱い＝積極的にクロージング</div>
+          <div className="flex items-center gap-1"><span className="text-base">🟡</span>検討中＝不安解消してから</div>
+          <div className="flex items-center gap-1"><span className="text-base">⚪</span>冷＝関係維持を優先</div>
         </div>
-        <p className="text-[10px] text-slate-400 mt-2">※使えるキー: reservation / inquiry / phone / line / document / notify</p>
+
+        <div className="space-y-3">
+          {([
+            { score: '5', emoji: '🔥', label: '即決', desc: '「予約したい」「今すぐ」等', tone: 'bg-red-50 border-red-200' },
+            { score: '4', emoji: '🔥', label: '前向き', desc: '「いいね」「やってみたい」等', tone: 'bg-orange-50 border-orange-200' },
+            { score: '3', emoji: '🟡', label: '検討中', desc: '質問が多い／比較検討', tone: 'bg-amber-50 border-amber-200' },
+            { score: '2', emoji: '😐', label: '迷い', desc: '「考えます」「また今度」等', tone: 'bg-slate-50 border-slate-200' },
+            { score: '1', emoji: '❄️', label: '冷やかし', desc: '軽い情報収集のみ', tone: 'bg-blue-50 border-blue-200' },
+          ] as const).map((row) => {
+            const list: string[] = Array.isArray(matrix[row.score]) ? matrix[row.score] : [];
+            const GOAL_OPTIONS: { key: string; label: string; emoji: string }[] = [
+              { key: 'notify', label: 'AIヒアリング通知', emoji: '📬' },
+              { key: 'reservation', label: '予約', emoji: '📅' },
+              { key: 'inquiry', label: '問い合わせ', emoji: '💬' },
+              { key: 'phone', label: '電話', emoji: '📞' },
+              { key: 'line', label: 'LINE登録', emoji: '💚' },
+              { key: 'document', label: '資料請求', emoji: '📄' },
+            ];
+            const toggleGoal = (key: string) => {
+              const pos = list.indexOf(key);
+              let next: string[];
+              if (pos >= 0) {
+                next = list.filter((k) => k !== key);
+              } else {
+                next = [...list, key];
+              }
+              update(['conversation', 'closingMatrix', row.score], next);
+            };
+            return (
+              <div key={row.score} className={`rounded-xl border p-3 ${row.tone}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">{row.emoji}</span>
+                  <div>
+                    <div className="text-sm font-black text-slate-800">スコア{row.score}・{row.label}</div>
+                    <div className="text-[10px] text-slate-500">{row.desc}</div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {GOAL_OPTIONS.map((opt) => {
+                    const pos = list.indexOf(opt.key);
+                    const selected = pos >= 0;
+                    const enabled = Boolean((g as any)[opt.key]?.enabled);
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => toggleGoal(opt.key)}
+                        disabled={!enabled}
+                        title={!enabled ? 'このゴールは無効です。上のクロージング設定で有効にしてください' : ''}
+                        className={`relative px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all ${
+                          selected
+                            ? 'bg-indigo-500 text-white border-indigo-500 shadow-md'
+                            : enabled
+                              ? 'bg-white text-slate-600 border-slate-300 hover:border-indigo-300'
+                              : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-50'
+                        }`}
+                      >
+                        {selected && (
+                          <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white text-indigo-600 text-[9px] font-black flex items-center justify-center border-2 border-indigo-500">
+                            {pos + 1}
+                          </span>
+                        )}
+                        <span className="mr-1">{opt.emoji}</span>
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {list.length === 0 && (
+                  <div className="text-[10px] text-slate-400 mt-2">⚠ 未設定（AIが判断します）</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <p className="text-[10px] text-slate-400 mt-3">
+          ※ クリック順が優先順位（1が最優先）。もう一度クリックで解除。<br />
+          ※ グレーアウトしているゴールは上の「クロージング（ゴール）設定」で有効化してください。
+        </p>
       </Card>
 
       <Card title="リード取得項目">
