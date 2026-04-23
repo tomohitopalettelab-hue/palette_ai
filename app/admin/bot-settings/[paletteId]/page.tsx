@@ -419,6 +419,73 @@ function Card({ title, children }: any) {
   );
 }
 
+const COLOR_PALETTE = [
+  '#6366f1', '#8b5cf6', '#d946ef', '#ec4899', '#f43f5e',
+  '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e',
+  '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6',
+  '#1e3a8a', '#334155', '#64748b', '#1a1a1a', '#ffffff',
+  '#c59500', '#7c2d12', '#881337', '#166534', '#1e40af',
+];
+
+function ColorPicker({ value, onChange, label }: { value: string; onChange: (v: string) => void; label?: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="w-10 h-10 rounded-lg border border-slate-200 shadow-sm hover:scale-105 transition-transform shrink-0"
+          style={{ background: value || '#6366f1' }}
+          aria-label="色を選択"
+        />
+        <input
+          type="text"
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="#6366f1"
+          className="flex-1 px-3 py-2 rounded-lg border border-slate-200 bg-white focus:border-indigo-300 outline-none text-sm font-mono"
+        />
+      </div>
+      {open && (
+        <div className="absolute z-50 mt-2 p-3 bg-white rounded-xl shadow-xl border border-slate-200 w-[280px]">
+          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">パレット</div>
+          <div className="grid grid-cols-5 gap-2 mb-3">
+            {COLOR_PALETTE.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => { onChange(c); setOpen(false); }}
+                className={`w-full aspect-square rounded-lg border transition-all hover:scale-110 ${value === c ? 'ring-2 ring-indigo-500 ring-offset-1' : 'border-slate-200'}`}
+                style={{ background: c }}
+                title={c}
+              />
+            ))}
+          </div>
+          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">カスタム</div>
+          <input
+            type="color"
+            value={value || '#6366f1'}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full h-10 rounded-lg cursor-pointer"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TagInput({ tags, onChange, placeholder }: { tags: string[]; onChange: (next: string[]) => void; placeholder?: string }) {
   const [input, setInput] = useState('');
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -929,10 +996,42 @@ function AppearanceTab({ config, update, embedCode, onCopy, copied, paletteId }:
       </Card>
 
       <Card title="個別カスタマイズ">
+        {/* ライブプレビュー */}
+        <div className="mb-5 p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-4">
+          <div
+            className="w-14 h-14 flex items-center justify-center text-white shadow-lg shrink-0"
+            style={{
+              background: a.gradient && a.gradientTo
+                ? `linear-gradient(135deg, ${a.primaryColor || '#6366f1'} 0%, ${a.gradientTo} 100%)`
+                : (a.primaryColor || '#6366f1'),
+              borderRadius: a.bubbleShape === 'square' ? '12px' : a.bubbleShape === 'rounded' ? '20px' : '50%',
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+              <path d={ICON_SVG_PATHS[(a.iconStyle || 'chat') as keyof typeof ICON_SVG_PATHS]} />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <div className="text-xs font-bold text-slate-600">{a.botName || 'AIアシスタント'}</div>
+            <div className="text-[10px] text-slate-400">実際のバブルのイメージ</div>
+          </div>
+          <div
+            className="px-4 py-2 rounded-full text-xs font-bold text-white shadow-md"
+            style={{
+              background: a.gradient && a.gradientTo
+                ? `linear-gradient(135deg, ${a.primaryColor || '#6366f1'} 0%, ${a.gradientTo} 100%)`
+                : (a.primaryColor || '#6366f1'),
+            }}
+          >
+            ボタン色
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div><Label>Bot名（チャット画面ヘッダー）</Label><TextInput value={a.botName} onChange={(v: string) => update(['appearance', 'botName'], v)} placeholder="AIアシスタント" /></div>
-          <div><Label>プライマリカラー</Label><TextInput value={a.primaryColor} onChange={(v: string) => update(['appearance', 'primaryColor'], v)} placeholder="#6366f1" /></div>
-          <div><Label>グラデーション終点色（任意）</Label><TextInput value={a.gradientTo} onChange={(v: string) => update(['appearance', 'gradientTo'], v)} placeholder="#d946ef" /></div>
+          <div />
+          <div><Label>プライマリカラー</Label><ColorPicker value={a.primaryColor} onChange={(v: string) => update(['appearance', 'primaryColor'], v)} /></div>
+          <div><Label>グラデーション終点色（任意）</Label><ColorPicker value={a.gradientTo} onChange={(v: string) => update(['appearance', 'gradientTo'], v)} /></div>
           <div>
             <Label>グラデーションON/OFF</Label>
             <Select value={a.gradient ? 'true' : 'false'} onChange={(v: string) => update(['appearance', 'gradient'], v === 'true')} options={[
