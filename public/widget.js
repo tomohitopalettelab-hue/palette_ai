@@ -89,9 +89,52 @@
       box-shadow: 0 30px 60px -15px rgba(0,0,0,0.25), 0 15px 30px -10px rgba(0,0,0,0.1);
       display: flex; flex-direction: column; overflow: hidden;
       z-index: 2147483647;
+
+      /* 初期: 非表示（下からフワッと）*/
+      opacity: 0;
+      transform: translateY(24px) scale(0.92);
+      transform-origin: bottom right;
+      visibility: hidden;
+      pointer-events: none;
+      transition:
+        opacity 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+        transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1),
+        visibility 0s linear 0.35s;
     }
-    .panel.right { right: 24px; }
-    .panel.left { left: 24px; }
+    .panel.open {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      visibility: visible;
+      pointer-events: auto;
+      transition:
+        opacity 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+        transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1),
+        visibility 0s linear 0s;
+    }
+    .panel.right { right: 24px; transform-origin: bottom right; }
+    .panel.left { left: 24px; transform-origin: bottom left; }
+
+    /* バブルのフワッと表示切替 */
+    .bubble {
+      transition:
+        transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+        opacity 0.3s ease,
+        box-shadow 0.25s;
+    }
+    .bubble.hidden {
+      opacity: 0;
+      transform: scale(0.4) rotate(-20deg);
+      pointer-events: none;
+    }
+
+    /* 新規メッセージの軽いフェードイン */
+    .msg {
+      animation: msgIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    }
+    @keyframes msgIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
 
     /* Header */
     .header {
@@ -314,7 +357,6 @@
 
   var panel = document.createElement('div');
   panel.className = 'panel right';
-  panel.style.display = 'none';
   shadow.appendChild(panel);
 
   document.body.appendChild(host);
@@ -533,16 +575,21 @@
 
   function togglePanel() {
     state.open = !state.open;
-    panel.style.display = state.open ? 'flex' : 'none';
-    bubble.style.display = state.open ? 'none' : 'flex';
-    if (state.open && state.messages.length === 0) {
-      // Show welcome
-      var welcome = (state.config && state.config.conversation && state.config.conversation.welcomeMessage) ||
-        'こんにちは！何かお困りですか？';
-      state.messages.push({ role: 'bot', content: welcome });
+    if (state.open) {
+      if (state.messages.length === 0) {
+        var welcome = (state.config && state.config.conversation && state.config.conversation.welcomeMessage) ||
+          'こんにちは！何かお困りですか？';
+        state.messages.push({ role: 'bot', content: welcome });
+      }
       render();
+      // 次のフレームでopenクラスを付けてトランジションを発火
+      requestAnimationFrame(function () {
+        panel.classList.add('open');
+        bubble.classList.add('hidden');
+      });
     } else {
-      render();
+      panel.classList.remove('open');
+      bubble.classList.remove('hidden');
     }
   }
 
