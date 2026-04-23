@@ -3,9 +3,13 @@
 import { Suspense, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+type Role = 'admin' | 'customer';
+
 function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const initialRole: Role = (searchParams.get('role') === 'admin' ? 'admin' : 'customer');
+  const [role, setRole] = useState<Role>(initialRole);
   const [id, setId] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -21,14 +25,14 @@ function LoginPageInner() {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: 'admin', id, password, next }),
+        body: JSON.stringify({ role, id, password, next }),
       });
       const data = await res.json();
       if (!res.ok || !data?.success) {
         setError(data?.error || 'ログインに失敗しました。');
         return;
       }
-      router.push(data.redirectTo || '/admin');
+      router.push(data.redirectTo || (role === 'admin' ? '/admin' : '/main'));
       router.refresh();
     } catch {
       setError('通信エラーが発生しました。');
@@ -37,11 +41,40 @@ function LoginPageInner() {
     }
   };
 
+  const switchRole = (r: Role) => {
+    setRole(r);
+    setError('');
+    setId('');
+    setPassword('');
+  };
+
   return (
     <main className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
         <h1 className="text-xl font-black text-slate-800 mb-1">Palette Login</h1>
-        <p className="text-xs text-slate-500 mb-5">管理者ログイン</p>
+        <p className="text-xs text-slate-500 mb-4">{role === 'admin' ? '管理者ログイン' : 'お客様ログイン'}</p>
+
+        {/* ロール切替タブ */}
+        <div className="flex mb-5 bg-slate-100 rounded-lg p-1 gap-1">
+          <button
+            type="button"
+            onClick={() => switchRole('customer')}
+            className={`flex-1 py-2 rounded-md text-xs font-bold transition ${
+              role === 'customer' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            お客様
+          </button>
+          <button
+            type="button"
+            onClick={() => switchRole('admin')}
+            className={`flex-1 py-2 rounded-md text-xs font-bold transition ${
+              role === 'admin' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            管理者
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
@@ -50,7 +83,7 @@ function LoginPageInner() {
               value={id}
               onChange={(e) => setId(e.target.value)}
               className="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="admin id"
+              placeholder={role === 'admin' ? 'admin id' : 'login ID'}
             />
           </div>
 

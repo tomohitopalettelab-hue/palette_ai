@@ -32,9 +32,15 @@ type Faq = {
 
 type TabKey = 'basic' | 'services' | 'faqs' | 'conversation' | 'nurture' | 'appearance';
 
-export default function BotSettingsEditPage({ params }: { params: Promise<{ paletteId: string }> }) {
-  const { paletteId } = usePromise(params);
-
+export function BotSettingsEditor({
+  paletteId,
+  backHref = '/admin/bot-settings',
+  sessionsHref,
+}: {
+  paletteId: string;
+  backHref?: string;
+  sessionsHref?: string;
+}) {
   const [tab, setTab] = useState<TabKey>('basic');
   const [config, setConfig] = useState<Config | null>(null);
   const [services, setServices] = useState<Service[]>([]);
@@ -207,7 +213,7 @@ export default function BotSettingsEditPage({ params }: { params: Promise<{ pale
       <div className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/admin/bot-settings" className="text-slate-400 hover:text-slate-600">
+            <Link href={backHref} className="text-slate-400 hover:text-slate-600">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div className="flex items-center gap-2">
@@ -228,12 +234,14 @@ export default function BotSettingsEditPage({ params }: { params: Promise<{ pale
               <PlayCircle className="w-3.5 h-3.5" />
               チャットを試す
             </button>
-            <Link
-              href={`/admin/bot-settings/${paletteId}/sessions`}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
-            >
-              会話ログ
-            </Link>
+            {sessionsHref && (
+              <Link
+                href={sessionsHref}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+              >
+                会話ログ
+              </Link>
+            )}
             <button
               onClick={saveConfig}
               disabled={saving}
@@ -1649,5 +1657,20 @@ function BubblePreview({ appearance: a }: { appearance: any }) {
         <span>アニメ: <b className="text-slate-700">{animation === 'none' ? 'なし' : animation}</b> / 吹き出し: <b className="text-slate-700">{tooltipStyle}</b></span>
       </div>
     </div>
+  );
+}
+
+// ────────────────────────────────────────────────
+// Default export: admin ルーティング用のラッパー
+// /main/bot-settings 側は BotSettingsEditor を直接使う
+// ────────────────────────────────────────────────
+export default function BotSettingsEditPage({ params }: { params: Promise<{ paletteId: string }> }) {
+  const { paletteId } = usePromise(params);
+  return (
+    <BotSettingsEditor
+      paletteId={paletteId}
+      backHref="/admin/bot-settings"
+      sessionsHref={`/admin/bot-settings/${paletteId}/sessions`}
+    />
   );
 }

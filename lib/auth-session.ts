@@ -3,6 +3,7 @@ export type SessionRole = 'admin' | 'customer';
 export type SessionPayload = {
   role: SessionRole;
   customerId?: string;
+  paletteId?: string;
   exp: number;
 };
 
