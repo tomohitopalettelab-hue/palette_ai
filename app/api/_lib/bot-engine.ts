@@ -121,7 +121,7 @@ const buildGoalsBlock = (config: BotConfig): string => {
   if (g.phone?.enabled) parts.push('phone（電話）');
   if (g.line?.enabled) parts.push('line（LINE登録）');
   if (g.document?.enabled) parts.push('document（資料請求）');
-  if (g.notify?.enabled) parts.push('notify（ヒアリング内容を担当者に通知）');
+  if (g.notify?.enabled) parts.push('notify（ヒアリング内容を担当者に通知・最優先で検討）');
   return parts.length ? parts.join(' / ') : '（未設定）';
 };
 
@@ -223,7 +223,13 @@ ${forbidden ? `## 絶対に言わないこと\n${forbidden}` : ''}
 - 訪問者が具体サービス名や「気になる/お願いしたい/詳しく/見積もり/予約/相談」等を言ったら、next_stage='closing' へ
 - 一度 introduction でカードを出した後は、もう一度 introduction に戻らない（カードを繰り返さない）
 - closing 中は、不安解消の質問→リードフォーム提出（ui_hint='lead_form' or 'closing_cta'）へ流れる
-- ヒアリングの深掘りが必要な場合でも、stageは closing のまま、ヒアリングの質問内容だけを reply に含める`;
+- ヒアリングの深掘りが必要な場合でも、stageは closing のまま、ヒアリングの質問内容だけを reply に含める
+
+## クロージング先キー選択ルール（closing_cta_key）
+- notify が有効なら、買う気度3以上の場合は **notify を最優先**（ヒアリング内容を担当者に通知する仕組みが最も成約率が高い）
+- notifyは訪問者からすると「ご相談内容を送信する」ボタンとして表示される
+- 次点: reservation（予約可能な場合）、inquiry（一般問い合わせ）、line（気軽に相談）
+- 買う気度が低い（1-2）の場合は line（LINE登録）で関係維持`;
 };
 
 // ============================================================
@@ -330,11 +336,33 @@ const pickClosingCta = (config: BotConfig, score: number, preferredKey?: string 
   const matrix = config.conversation?.closingMatrix || {};
   const goals = config.goals || {};
 
-  const scoreKeys = matrix[String(score)] || [];
+  let scoreKeys = matrix[String(score)] || [];
+
+  // notifyが有効でmatrixに全く含まれていない場合、スコア3以上で先頭に自動追加
+  // （ユーザーがmatrixをカスタマイズしていない場合のフォールバック）
+  const notifyEnabled = goals.notify?.enabled;
+  const matrixHasNotify = Object.values(matrix).some(
+    (arr: any) => Array.isArray(arr) && arr.includes('notify'),
+  );
+  if (notifyEnabled && !matrixHasNotify && score >= 3) {
+    scoreKeys = ['notify', ...scoreKeys];
+  }
+
   // preferredKey優先、なければmatrixから順に
   const tryKeys = [preferredKey, ...scoreKeys].filter(Boolean) as string[];
 
   for (const key of tryKeys) {
+    const goal = (goals as any)[key];
+    if (goal && goal.enabled) {
+      if (key === 'phone') return { key, label: goal.label || '電話する', number: goal.number || '' };
+      if (key === 'notify') return { key, label: goal.label || 'ご相談内容を送信する' };
+      return { key, label: goal.label || key, url: goal.url || '' };
+    }
+  }
+
+  // 最終フォールバック: enabled なgoalから1つ選ぶ（優先順位: notify > reservation > inquiry > line > document > phone）
+  const fallbackOrder = ['notify', 'reservation', 'inquiry', 'line', 'document', 'phone'];
+  for (const key of fallbackOrder) {
     const goal = (goals as any)[key];
     if (goal && goal.enabled) {
       if (key === 'phone') return { key, label: goal.label || '電話する', number: goal.number || '' };
