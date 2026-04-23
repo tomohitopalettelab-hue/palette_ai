@@ -53,7 +53,7 @@ export type BotUiResponse =
   | { type: 'text' }
   | { type: 'cards'; cards: ServiceCard[] }
   | { type: 'closing_cta'; cta: ClosingCta; extraCta?: ClosingCta }
-  | { type: 'lead_form'; fields: LeadAsk[]; context?: 'meeting' | null }
+  | { type: 'lead_form'; fields: LeadAsk[]; context?: 'meeting' | 'inquiry' | 'reservation' | null }
   | { type: 'nurture_options'; options: NurtureOption[] }
   | { type: 'meeting_proposal'; label: string; acceptLabel: string; declineLabel: string }
   | { type: 'meeting_calendar'; label: string; url: string; buttonLabel: string };
@@ -119,12 +119,16 @@ const buildGoalsBlock = (config: BotConfig): string => {
   const g = config.goals || {};
   const parts: string[] = [];
   if (g.reservation?.enabled) parts.push('reservation（予約）');
-  if (g.inquiry?.enabled) parts.push('inquiry（問い合わせ）');
+  if (g.inquiry?.enabled) {
+    parts.push(g.inquiry.url
+      ? 'inquiry（問い合わせ・外部フォーム遷移）'
+      : 'inquiry（問い合わせ・Bot内で完結。lead_form で情報収集→自動要約通知）');
+  }
   if (g.phone?.enabled) parts.push('phone（電話）');
   if (g.line?.enabled) parts.push('line（LINE登録）');
   if (g.document?.enabled) parts.push('document（資料請求）');
-  if (g.notify?.enabled) parts.push('notify（ヒアリング内容を担当者に通知・最優先で検討）');
   if (g.meeting?.enabled) parts.push(`meeting（${g.meeting.label || 'ミーティング'}・最終ゴール）`);
+  // notify は CTA ではなくバックグラウンド自動通知なのでここには含めない
   return parts.length ? parts.join(' / ') : '（未設定）';
 };
 
@@ -308,10 +312,11 @@ ${ngBlock}
 - ヒアリングの深掘りが必要な場合でも、stageは closing のまま、ヒアリングの質問内容だけを reply に含める
 
 ## クロージング先キー選択ルール（closing_cta_key）
-- notify が有効なら、買う気度3以上の場合は **notify を最優先**（ヒアリング内容を担当者に通知する仕組みが最も成約率が高い）
-- notifyは訪問者からすると「ご相談内容を送信する」ボタンとして表示される
-- 次点: reservation（予約可能な場合）、inquiry（一般問い合わせ）、line（気軽に相談）
-- 買う気度が低い（1-2）の場合は line（LINE登録）で関係維持`;
+- meeting が有効な場合は最終ゴールとして meeting_proposal/lead_form/calendar の流れ（最終ゴール ブロック参照）
+- meeting が無効なら: reservation (予約) / inquiry (問い合わせ) / line / document / phone から選ぶ
+- inquiry は url が空のとき Bot 内で lead_form を出して完結する（外部遷移しない）
+- 買う気度が低い（1-2）場合は line（LINE登録）で関係維持
+- notify は AI要約通知として**バックグラウンドで自動送信**されるため、closing_cta_key としては選ばない`;
 };
 
 // ============================================================
@@ -418,49 +423,38 @@ const pickClosingCta = (config: BotConfig, score: number, preferredKey?: string 
   const matrix = config.conversation?.closingMatrix || {};
   const goals = config.goals || {};
 
-  let scoreKeys = Array.isArray(matrix[String(score)]) ? [...matrix[String(score)]] : [];
-
-  // notifyが有効でmatrixに全く含まれていない場合、スコア3以上で先頭に自動追加
-  // （ユーザーがmatrixをカスタマイズしていない場合のフォールバック）
-  const notifyEnabled = goals.notify?.enabled;
-  const matrixHasNotify = Object.values(matrix).some(
-    (arr: any) => Array.isArray(arr) && arr.includes('notify'),
-  );
-  if (notifyEnabled && !matrixHasNotify && score >= 3) {
-    scoreKeys = ['notify', ...scoreKeys];
-  }
+  // notify は CTA ではなくバックグラウンド通知なので選択肢から除外
+  let scoreKeys = (Array.isArray(matrix[String(score)]) ? [...matrix[String(score)]] : [])
+    .filter((k) => k !== 'notify');
 
   const isValidGoal = (key: string): boolean => {
     const goal = (goals as any)[key];
     return !!(goal && goal.enabled);
   };
   const buildCta = (key: string): ClosingCta | null => {
+    if (key === 'notify') return null;
     const goal = (goals as any)[key];
     if (!goal || !goal.enabled) return null;
     if (key === 'phone') return { key, label: goal.label || '電話する', number: goal.number || '' };
-    if (key === 'notify') return { key, label: goal.label || 'ご相談内容を送信する' };
     return { key, label: goal.label || key, url: goal.url || '' };
   };
 
-  // ユーザー設定(closingMatrix)を最優先。matrix に有効なkeyがあれば必ずそこから選ぶ。
-  // preferredKey (AIの提案) は matrix 内にあれば位置を前に上げる、matrix が空のときだけ単独で使う。
+  // ユーザー設定(closingMatrix)を最優先
   if (scoreKeys.length > 0) {
-    // preferredKey が matrix に含まれていれば先頭に持ってくる、含まれていなければ無視
-    if (preferredKey && scoreKeys.includes(preferredKey)) {
+    if (preferredKey && preferredKey !== 'notify' && scoreKeys.includes(preferredKey)) {
       scoreKeys = [preferredKey, ...scoreKeys.filter((k) => k !== preferredKey)];
     }
     for (const key of scoreKeys) {
       const cta = buildCta(key);
       if (cta) return cta;
     }
-  } else if (preferredKey && isValidGoal(preferredKey)) {
-    // matrix 未設定時のみ AI の提案に従う
+  } else if (preferredKey && preferredKey !== 'notify' && isValidGoal(preferredKey)) {
     const cta = buildCta(preferredKey);
     if (cta) return cta;
   }
 
-  // 最終フォールバック: enabled なgoalから1つ選ぶ（優先順位: notify > reservation > inquiry > line > document > phone）
-  const fallbackOrder = ['notify', 'reservation', 'inquiry', 'line', 'document', 'phone'];
+  // 最終フォールバック（notify は除外）
+  const fallbackOrder = ['reservation', 'inquiry', 'line', 'document', 'phone'];
   for (const key of fallbackOrder) {
     const cta = buildCta(key);
     if (cta) return cta;
@@ -475,30 +469,27 @@ const buildLeadFields = (config: BotConfig, onlyFields?: string[]): LeadAsk[] =>
 };
 
 /**
- * meeting 用のリードフィールド: 名前・メール・電話を必ず含める（全て必須）
- * 既存 conversation.leadFields にそれらが無い場合は補完
+ * meeting のデフォルト リードフィールド: 名前・メール・電話 全て必須
  */
-const buildMeetingLeadFields = (config: BotConfig): LeadAsk[] => {
-  const baseFields = config.conversation?.leadFields || [];
-  const byKey = new Map(baseFields.map((f) => [f.key, f]));
-  const required = ['name', 'email', 'phone'];
-  const result: LeadAsk[] = [];
-  // 必須3項目 (既存のlabelがあれば流用、無ければデフォルト)
-  const defaultLabels: Record<string, string> = {
-    name: 'お名前',
-    email: 'メールアドレス',
-    phone: '電話番号',
-  };
-  for (const key of required) {
-    const f = byKey.get(key);
-    result.push({ field: key, label: f?.label || defaultLabels[key], required: true });
+const buildMeetingDefaultLeadFields = (): LeadAsk[] => [
+  { field: 'name', label: 'お名前', required: true },
+  { field: 'email', label: 'メールアドレス', required: true },
+  { field: 'phone', label: '電話番号', required: true },
+];
+
+/**
+ * goal ごとの lead_form フィールドを解決
+ * - goal.leadFields が設定されていればそれを優先
+ * - 未設定なら meeting はデフォルト3項目、他は conversation.leadFields
+ */
+const buildGoalLeadFields = (config: BotConfig, goalKey: 'inquiry' | 'reservation' | 'meeting'): LeadAsk[] => {
+  const goal = (config.goals as any)?.[goalKey];
+  if (goal?.leadFields && Array.isArray(goal.leadFields) && goal.leadFields.length > 0) {
+    return goal.leadFields.map((f: any) => ({ field: String(f.key), label: String(f.label || f.key), required: !!f.required }));
   }
-  // 任意項目: name/email/phone以外の既存項目をそのまま追加
-  for (const f of baseFields) {
-    if (required.includes(f.key)) continue;
-    result.push({ field: f.key, label: f.label, required: f.required });
-  }
-  return result;
+  if (goalKey === 'meeting') return buildMeetingDefaultLeadFields();
+  // inquiry/reservation はグローバル conversation.leadFields を継承
+  return buildLeadFields(config);
 };
 
 const buildNurtureOptions = (config: BotConfig): NurtureOption[] => {
@@ -530,9 +521,9 @@ const buildUiResponse = (
     };
   }
 
-  // meeting_lead_form: 名前・メール・電話のフォーム
+  // meeting_lead_form: goal.leadFields があればそれを、なければ名前・メール・電話のデフォルト
   if (aiResp.ui_hint === 'meeting_lead_form' && meeting && meeting.enabled) {
-    const fields = buildMeetingLeadFields(config);
+    const fields = buildGoalLeadFields(config, 'meeting');
     return { type: 'lead_form', fields, context: 'meeting' };
   }
 
@@ -586,10 +577,15 @@ const buildUiResponse = (
   // closing_cta
   if (aiResp.ui_hint === 'closing_cta' || stage === 'closing') {
     const cta = pickClosingCta(config, aiResp.buy_intent_score, aiResp.closing_cta_key);
-    // 'notify' CTAの場合は、URL遷移ではなくインラインでリードフォームを表示して通知送信
-    if (cta && cta.key === 'notify') {
-      const fields = buildLeadFields(config);
-      if (fields.length) return { type: 'lead_form', fields };
+    // inquiry で url 空 → Bot 内で lead_form を出して完結
+    if (cta && cta.key === 'inquiry' && !cta.url) {
+      const fields = buildGoalLeadFields(config, 'inquiry');
+      if (fields.length) return { type: 'lead_form', fields, context: 'inquiry' };
+    }
+    // reservation で url 空 → 同様に Bot 内完結
+    if (cta && cta.key === 'reservation' && !cta.url) {
+      const fields = buildGoalLeadFields(config, 'reservation');
+      if (fields.length) return { type: 'lead_form', fields, context: 'inquiry' };
     }
     if (cta) return { type: 'closing_cta', cta };
   }

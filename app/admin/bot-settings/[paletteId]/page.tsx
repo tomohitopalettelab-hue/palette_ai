@@ -983,24 +983,46 @@ function ConversationTab({ config, update, paletteId }: any) {
                   />
                 </div>
                 {enabled && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
-                    <div>
-                      <div className="text-[10px] font-bold text-slate-500 mb-1">ボタンに表示する文言</div>
-                      <TextInput
-                        value={goal.label}
-                        onChange={(v: string) => update(['goals', gk.key, 'label'], v)}
-                        placeholder={gk.label + 'する'}
-                      />
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+                      <div>
+                        <div className="text-[10px] font-bold text-slate-500 mb-1">ボタンに表示する文言</div>
+                        <TextInput
+                          value={goal.label}
+                          onChange={(v: string) => update(['goals', gk.key, 'label'], v)}
+                          placeholder={gk.label + 'する'}
+                        />
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-bold text-slate-500 mb-1">{gk.fieldLabel}</div>
+                        <TextInput
+                          value={gk.key === 'phone' ? goal.number : goal.url}
+                          onChange={(v: string) => update(['goals', gk.key, gk.key === 'phone' ? 'number' : 'url'], v)}
+                          placeholder={gk.key === 'phone' ? '03-xxxx-xxxx' : 'https://'}
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-[10px] font-bold text-slate-500 mb-1">{gk.fieldLabel}</div>
-                      <TextInput
-                        value={gk.key === 'phone' ? goal.number : goal.url}
-                        onChange={(v: string) => update(['goals', gk.key, gk.key === 'phone' ? 'number' : 'url'], v)}
-                        placeholder={gk.key === 'phone' ? '03-xxxx-xxxx' : 'https://'}
-                      />
-                    </div>
-                  </div>
+                    {/* inquiry / reservation: URL 空なら Bot 内 lead_form モード */}
+                    {(gk.key === 'inquiry' || gk.key === 'reservation') && !goal.url && (
+                      <div className="mt-3 p-3 rounded-lg bg-emerald-50 border border-emerald-200 space-y-3">
+                        <div className="text-[11px] text-emerald-800">
+                          <b>🤖 Bot 内で完結モード</b>: URL が空欄のため、訪問者に直接 lead_form を出して情報を収集します。
+                          送信後は AI要約通知が自動で飛びます。
+                        </div>
+                        <GoalLeadFieldsEditor
+                          fields={
+                            Array.isArray(goal.leadFields) && goal.leadFields.length > 0
+                              ? goal.leadFields
+                              : []
+                          }
+                          onChange={(v: LeadField[]) => update(['goals', gk.key, 'leadFields'], v)}
+                        />
+                        <div className="text-[10px] text-slate-500">
+                          未設定の場合は「会話設計」タブのリード項目を使用します。
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             );
@@ -1094,17 +1116,40 @@ function ConversationTab({ config, update, paletteId }: any) {
                 />
               </div>
             </div>
-            <div className="text-[11px] text-slate-600 p-3 rounded bg-white border border-fuchsia-200">
-              <b>💡 リード収集</b>: 訪問者が承諾したら、<b>お名前・メールアドレス・電話番号</b>を必須で収集します（会話設計タブのリードフィールド以外もそのまま併用）。
+            <div className="p-3 rounded bg-white border border-fuchsia-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-black text-slate-800">💡 承諾後に収集する項目</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">
+                    訪問者が「はい、お願いします」と承諾したら、この順で情報収集します。
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => update(['goals', 'meeting', 'leadFields'], [...DEFAULT_MEETING_LEAD_FIELDS])}
+                  className="text-[10px] text-fuchsia-600 hover:text-fuchsia-700 font-bold"
+                >
+                  デフォルトに戻す
+                </button>
+              </div>
+              <GoalLeadFieldsEditor
+                fields={
+                  Array.isArray(g.meeting?.leadFields) && g.meeting.leadFields.length > 0
+                    ? g.meeting.leadFields
+                    : DEFAULT_MEETING_LEAD_FIELDS
+                }
+                onChange={(v: LeadField[]) => update(['goals', 'meeting', 'leadFields'], v)}
+                accent="fuchsia"
+              />
             </div>
           </div>
         )}
       </Card>
 
-      <Card title="④ AIヒアリング通知（おすすめ）">
+      <Card title="④ AI要約通知（自動・バックグラウンド）">
         <p className="text-xs text-slate-500 mb-4">
-          訪問者が入力フォームを送信すると、AIが会話の要約と見込み客情報を担当者に直接通知します。
-          外部URLに飛ばす必要がなく、成約率が最も高いクロージング方法です。
+          Bot が訪問者への対応を完了すると（問い合わせフォーム送信・CTA クリック・商談確定など）、
+          <b>AI が会話を要約して担当者に自動で通知</b>します。訪問者側のUIには何も表示されません。
         </p>
 
         <div className={`rounded-xl border p-4 transition-all ${g.notify?.enabled ? 'bg-gradient-to-br from-indigo-50 to-fuchsia-50 border-indigo-200' : 'bg-white border-slate-200'}`}>
@@ -1112,8 +1157,8 @@ function ConversationTab({ config, update, paletteId }: any) {
             <div className="flex items-center gap-2">
               <span className="text-xl">📬</span>
               <div>
-                <div className="text-sm font-black text-slate-800">AIヒアリング通知を有効にする</div>
-                <div className="text-[10px] text-slate-500">有効にすると「ご相談内容を送信」ボタンが自動で選ばれます</div>
+                <div className="text-sm font-black text-slate-800">AI要約通知を有効にする</div>
+                <div className="text-[10px] text-slate-500">会話完了時に担当者へバックグラウンド送信</div>
               </div>
             </div>
             <ToggleSwitch
@@ -1124,15 +1169,6 @@ function ConversationTab({ config, update, paletteId }: any) {
 
           {g.notify?.enabled && (
             <div className="space-y-4 mt-4 pt-4 border-t border-indigo-200">
-              <div>
-                <Label>訪問者に見せる送信ボタン名</Label>
-                <TextInput
-                  value={g.notify?.label || ''}
-                  onChange={(v: string) => update(['goals', 'notify', 'label'], v)}
-                  placeholder="ご相談内容を送信する"
-                />
-              </div>
-
               <div className="bg-white/70 rounded-lg p-3 border border-white">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-lg">📧</span>
@@ -1228,8 +1264,8 @@ function ConversationTab({ config, update, paletteId }: any) {
             { score: '1', emoji: '❄️', label: '冷やかし', desc: '軽い情報収集のみ', tone: 'bg-blue-50 border-blue-200' },
           ] as const).map((row) => {
             const list: string[] = Array.isArray(matrix[row.score]) ? matrix[row.score] : [];
+            // AI要約通知(notify)はバックグラウンド自動通知になったため選択肢から除外
             const GOAL_OPTIONS: { key: string; label: string; emoji: string }[] = [
-              { key: 'notify', label: 'AIヒアリング通知', emoji: '📬' },
               { key: 'reservation', label: '予約', emoji: '📅' },
               { key: 'inquiry', label: '問い合わせ', emoji: '💬' },
               { key: 'phone', label: '電話', emoji: '📞' },
@@ -1448,6 +1484,76 @@ function NurtureTab({ config, update }: any) {
     </>
   );
 }
+
+// ─── ゴール別リード項目エディタ（共通） ───────────────────
+
+type LeadField = { key: string; label: string; required: boolean };
+
+function GoalLeadFieldsEditor({
+  fields,
+  onChange,
+  accent = 'indigo',
+}: {
+  fields: LeadField[];
+  onChange: (v: LeadField[]) => void;
+  accent?: 'indigo' | 'fuchsia';
+}) {
+  const accentCls = accent === 'fuchsia' ? 'text-fuchsia-600 hover:text-fuchsia-700' : 'text-indigo-600 hover:text-indigo-700';
+  const updateRow = (idx: number, patch: Partial<LeadField>) => {
+    onChange(fields.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
+  };
+  const removeRow = (idx: number) => onChange(fields.filter((_, i) => i !== idx));
+  const addRow = () => onChange([...fields, { key: '', label: '', required: false }]);
+  return (
+    <div className="space-y-2">
+      {fields.map((f, i) => (
+        <div key={i} className="flex gap-2 items-center bg-white/70 rounded p-2 border border-slate-200">
+          <input
+            value={f.key}
+            onChange={(e) => updateRow(i, { key: e.target.value })}
+            placeholder="key (例: name, email, phone, budget)"
+            className="w-40 p-1.5 border border-slate-200 rounded text-xs outline-none focus:ring-2 focus:ring-indigo-400"
+          />
+          <input
+            value={f.label}
+            onChange={(e) => updateRow(i, { label: e.target.value })}
+            placeholder="表示ラベル"
+            className="flex-1 p-1.5 border border-slate-200 rounded text-xs outline-none focus:ring-2 focus:ring-indigo-400"
+          />
+          <label className="flex items-center gap-1 text-[10px] font-bold text-slate-600 select-none shrink-0">
+            <input
+              type="checkbox"
+              checked={f.required}
+              onChange={(e) => updateRow(i, { required: e.target.checked })}
+            />
+            必須
+          </label>
+          <button
+            type="button"
+            onClick={() => removeRow(i)}
+            className="text-slate-400 hover:text-red-500 shrink-0"
+            aria-label="削除"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={addRow}
+        className={`text-xs font-bold ${accentCls}`}
+      >
+        + 項目を追加
+      </button>
+    </div>
+  );
+}
+
+const DEFAULT_MEETING_LEAD_FIELDS: LeadField[] = [
+  { key: 'name', label: 'お名前', required: true },
+  { key: 'email', label: 'メールアドレス', required: true },
+  { key: 'phone', label: '電話番号', required: true },
+];
 
 // ─── Rules Tab (NG・運用ルール) ────────────────────────────
 

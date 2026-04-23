@@ -707,13 +707,16 @@
         });
         var sub = document.createElement('button');
         sub.textContent = '送信する';
-        var isMeeting = m.ui.context === 'meeting';
+        var ctx = m.ui.context || null; // 'meeting' | 'inquiry' | 'reservation' | null
         sub.addEventListener('click', function () {
-          // meeting コンテキストなら closedAction=meeting で送信（後続でカレンダー案内が来る）
-          submitLead(leadData, isMeeting ? 'meeting' : null);
-          form.innerHTML = '<div style="text-align:center;color:#10b981;font-weight:bold;">' +
-            (isMeeting ? '送信完了。続けて日時選択にお進みください！' : '送信しました。ありがとうございます！') + '</div>';
-          if (isMeeting) {
+          // closedAction: meeting / inquiry / reservation / null (既存どおり)
+          submitLead(leadData, ctx);
+          var doneMsg;
+          if (ctx === 'meeting') doneMsg = '送信完了。続けて日時選択にお進みください！';
+          else if (ctx === 'inquiry' || ctx === 'reservation') doneMsg = '送信しました。担当者よりご連絡いたします。ありがとうございました！';
+          else doneMsg = '送信しました。ありがとうございます！';
+          form.innerHTML = '<div style="text-align:center;color:#10b981;font-weight:bold;">' + doneMsg + '</div>';
+          if (ctx === 'meeting') {
             // AI に「リード送信完了」を伝えて次のステップ (meeting_calendar) を引き出す
             setTimeout(function () { sendMessage('送信しました。日時選択をお願いします。'); }, 400);
           }

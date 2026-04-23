@@ -44,8 +44,13 @@ export type BotConfig = {
     leadFields?: Array<{ key: string; label: string; required: boolean }>;
   };
   goals: {
-    reservation?: { enabled: boolean; url?: string; label?: string };
-    inquiry?: { enabled: boolean; url?: string; label?: string };
+    reservation?: { enabled: boolean; url?: string; label?: string; leadFields?: Array<{ key: string; label: string; required: boolean }> };
+    /**
+     * 問い合わせゴール:
+     * - url が空なら Bot 内で lead_form を出して完結 (送信すると goals.notify で自動通知)
+     * - url が設定されていれば外部 URL に遷移
+     */
+    inquiry?: { enabled: boolean; url?: string; label?: string; leadFields?: Array<{ key: string; label: string; required: boolean }> };
     phone?: { enabled: boolean; number?: string; label?: string };
     line?: { enabled: boolean; url?: string; label?: string };
     document?: { enabled: boolean; url?: string; label?: string };
@@ -73,6 +78,8 @@ export type BotConfig = {
       buttonLabel?: string;
       /** 訪問者が「もう少し考える」等で拒否したときのフォールバック先 */
       declineFallback?: 'nurture' | 'document' | 'line';
+      /** 承諾時に収集するリード項目 (未指定なら name/email/phone が必須のデフォルト) */
+      leadFields?: Array<{ key: string; label: string; required: boolean }>;
     };
   };
   nurture: {

@@ -100,10 +100,13 @@ export async function POST(req: Request) {
       syncedToCrm: synced,
     });
 
-    // Palette AIX: ヒアリング完了通知（メール/LINE/Webhook）
+    // AI要約通知: Bot が対応完了したら自動でメール/LINE/Webhook で要約を通知
+    // - リード情報が入った (hasMeaningfulLead) -> 通知
+    // - または closedAction がある (meeting/inquiry/reservation等 CTA クリック) -> 通知
     let notifyResult: Record<string, { ok: boolean; error?: string }> | null = null;
     try {
-      if (updatedSession && hasMeaningfulLead) {
+      const shouldNotify = hasMeaningfulLead || Boolean(closedAction);
+      if (updatedSession && shouldNotify) {
         const config = await getBotConfigOrDefault(session.paletteId);
         if (config.goals?.notify?.enabled) {
           const appUrl = process.env.APP_URL?.trim() || 'https://ai.palette-lab.com';
