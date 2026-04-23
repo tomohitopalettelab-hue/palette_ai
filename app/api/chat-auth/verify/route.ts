@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { palDbGet, palDbPost } from '../../_lib/pal-db-client';
 import { hasPaletteAiService } from '../../_lib/palette-ai-accounts';
+import { createSessionValue, SESSION_COOKIE_NAME } from '../../../../lib/auth-session';
 
 type ServiceCard = {
   key: string;
@@ -216,18 +217,37 @@ export async function POST(req: NextRequest) {
     const response = await palDbGet(`/api/palette-summary?${params.toString()}`);
     const summary = await response.json().catch(() => ({}));
 
+    // 顧客セッション cookie を発行 (/main/bot-settings 等への再ログインを不要にする)
+    const setCustomerCookie = (res: NextResponse) => {
+      res.cookies.set({
+        name: SESSION_COOKIE_NAME,
+        value: createSessionValue({
+          role: 'customer',
+          customerId: String(verifyData?.accountId || ''),
+          paletteId,
+          exp: Date.now() + 1000 * 60 * 60 * 12,
+        }),
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 12,
+      });
+      return res;
+    };
+
     if (!response.ok || summary?.success === false) {
-      return NextResponse.json({
+      return setCustomerCookie(NextResponse.json({
         success: true,
         paletteId,
         summaryText: `認証が完了しました。\n顧客ID ${paletteId} のサービス情報は取得できませんでした。\n続けて、要件を教えてください。`,
-      });
+      }));
     }
 
     const serviceCards = await extractServiceCards(summary);
     const hasAgency = serviceCards.some((card) => card.key === 'agency');
 
-    return NextResponse.json({
+    return setCustomerCookie(NextResponse.json({
       success: true,
       paletteId,
       accountName: summary?.account?.name || verifyData?.accountName || null,
@@ -235,7 +255,7 @@ export async function POST(req: NextRequest) {
       serviceCards: serviceCards.filter((card) => card.key !== 'agency'),
       hasAgency,
       summary,
-    });
+    }));
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal Server Error';
     return NextResponse.json({ success: false, error: message }, { status: 400 });

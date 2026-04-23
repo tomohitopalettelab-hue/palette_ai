@@ -34,12 +34,14 @@ type TabKey = 'basic' | 'services' | 'faqs' | 'conversation' | 'nurture' | 'appe
 
 export function BotSettingsEditor({
   paletteId,
-  backHref = '/admin/bot-settings',
+  backHref,
   sessionsHref,
+  reportsHref,
 }: {
   paletteId: string;
   backHref?: string;
   sessionsHref?: string;
+  reportsHref?: string;
 }) {
   const [tab, setTab] = useState<TabKey>('basic');
   const [config, setConfig] = useState<Config | null>(null);
@@ -213,9 +215,11 @@ export function BotSettingsEditor({
       <div className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href={backHref} className="text-slate-400 hover:text-slate-600">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
+            {backHref && (
+              <Link href={backHref} className="text-slate-400 hover:text-slate-600">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+            )}
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-fuchsia-500 flex items-center justify-center">
                 <Bot className="w-4 h-4 text-white" />
@@ -234,6 +238,14 @@ export function BotSettingsEditor({
               <PlayCircle className="w-3.5 h-3.5" />
               チャットを試す
             </button>
+            {reportsHref && (
+              <Link
+                href={reportsHref}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+              >
+                成果レポート
+              </Link>
+            )}
             {sessionsHref && (
               <Link
                 href={sessionsHref}

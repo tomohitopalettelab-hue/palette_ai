@@ -15,5 +15,5 @@ export default async function MyBotSettingsPage() {
     redirect('/login?role=customer&next=/main/bot-settings');
   }
 
-  return <BotSettingsEditor paletteId={paletteId} backHref="/main" />;
+  return <BotSettingsEditor paletteId={paletteId} reportsHref="/main/reports" />;
 }
