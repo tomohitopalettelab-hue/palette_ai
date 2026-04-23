@@ -62,21 +62,26 @@
     :host { all: initial; }
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; }
     .bubble {
-      position: fixed; bottom: 24px; right: 24px; width: 60px; height: 60px;
-      border-radius: 50%; background: var(--color, #6366f1);
-      color: #fff; border: none; cursor: pointer; box-shadow: 0 10px 30px rgba(99,102,241,0.35);
+      position: fixed; bottom: 24px; width: 60px; height: 60px;
+      border-radius: var(--bubble-radius, 50%); background: var(--bubble-bg, var(--color, #6366f1));
+      color: #fff; border: none; cursor: pointer; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
       display: flex; align-items: center; justify-content: center;
       transition: transform 0.2s; z-index: 2147483647;
     }
+    .bubble.right { right: 24px; }
+    .bubble.left { left: 24px; }
     .bubble:hover { transform: scale(1.1); }
     .bubble svg { width: 24px; height: 24px; }
     .panel {
-      position: fixed; bottom: 100px; right: 24px; width: 380px; max-width: calc(100vw - 32px);
+      position: fixed; bottom: 100px; width: 380px; max-width: calc(100vw - 32px);
       height: 580px; max-height: calc(100vh - 140px);
       background: #fff; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
       display: flex; flex-direction: column; overflow: hidden;
       z-index: 2147483647;
     }
+    .panel.right { right: 24px; }
+    .panel.left { left: 24px; }
+    .header { background: var(--bubble-bg, var(--color, #6366f1)); }
     .header { padding: 16px; background: var(--color, #6366f1); color: #fff; display: flex; align-items: center; gap: 10px; }
     .header-title { font-weight: bold; font-size: 14px; flex: 1; }
     .header-close { background: rgba(255,255,255,0.2); border: none; color: #fff; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 16px; }
@@ -148,14 +153,22 @@
   styleEl.textContent = STYLE;
   shadow.appendChild(styleEl);
 
+  var ICON_PATHS = {
+    chat: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z',
+    ai: 'M12 2a10 10 0 100 20 10 10 0 000-20zm0 3a2 2 0 110 4 2 2 0 010-4zm-1 6h2v6h-2v-6zm-3 3h8v2H8v-2z',
+    sparkle: 'M12 2l2.4 5.6L20 10l-5.6 2.4L12 18l-2.4-5.6L4 10l5.6-2.4L12 2z',
+    heart: 'M12 21s-7-4.5-9-9c-1.5-3.5 1-7 5-7 2 0 3 1 4 2 1-1 2-2 4-2 4 0 6.5 3.5 5 7-2 4.5-9 9-9 9z',
+    robot: 'M20 5h-3V3a1 1 0 00-2 0v2H9V3a1 1 0 00-2 0v2H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V7a2 2 0 00-2-2zM8 15a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm8 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3z',
+  };
+
   var bubble = document.createElement('button');
-  bubble.className = 'bubble';
-  bubble.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>';
+  bubble.className = 'bubble right';
+  bubble.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="' + ICON_PATHS.chat + '"/></svg>';
   bubble.addEventListener('click', togglePanel);
   shadow.appendChild(bubble);
 
   var panel = document.createElement('div');
-  panel.className = 'panel';
+  panel.className = 'panel right';
   panel.style.display = 'none';
   shadow.appendChild(panel);
 
@@ -180,9 +193,26 @@
   // ────────────────────────────────────────────────
   function render() {
     var cfg = state.config || {};
-    var color = (cfg.appearance && cfg.appearance.primaryColor) || '#6366f1';
+    var appearance = cfg.appearance || {};
+    var color = appearance.primaryColor || '#6366f1';
+    var gradientTo = appearance.gradientTo || '';
+    var bubbleBg = (appearance.gradient && gradientTo)
+      ? 'linear-gradient(135deg, ' + color + ' 0%, ' + gradientTo + ' 100%)'
+      : color;
+    var bubbleShape = appearance.bubbleShape || 'circle';
+    var bubbleRadius = bubbleShape === 'square' ? '12px' : bubbleShape === 'rounded' ? '20px' : '50%';
+    var iconStyle = appearance.iconStyle || 'chat';
+    var iconPath = ICON_PATHS[iconStyle] || ICON_PATHS.chat;
+    var position = appearance.bubblePosition === 'left' ? 'left' : 'right';
+
     panel.style.setProperty('--color', color);
+    panel.style.setProperty('--bubble-bg', bubbleBg);
     bubble.style.setProperty('--color', color);
+    bubble.style.setProperty('--bubble-bg', bubbleBg);
+    bubble.style.setProperty('--bubble-radius', bubbleRadius);
+    bubble.className = 'bubble ' + position;
+    panel.className = 'panel ' + position;
+    bubble.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="' + iconPath + '"/></svg>';
 
     panel.innerHTML = '';
 

@@ -57,10 +57,16 @@ export type BotConfig = {
   };
   appearance: {
     primaryColor?: string;
+    gradientTo?: string;
     botIcon?: string;
     welcomeDelay?: number;
     showPages?: string;
     botName?: string;
+    templateId?: string;
+    bubbleShape?: 'circle' | 'rounded' | 'square';
+    iconStyle?: 'chat' | 'ai' | 'sparkle' | 'heart' | 'robot';
+    bubblePosition?: 'right' | 'left';
+    gradient?: boolean;
   };
   ngRules: {
     forbiddenTopics?: string[];
@@ -174,10 +180,16 @@ export const DEFAULT_CONFIG: Omit<BotConfig, 'paletteId' | 'updatedAt'> = {
   },
   appearance: {
     primaryColor: '#6366f1',
+    gradientTo: '#d946ef',
     botIcon: '',
     welcomeDelay: 0,
     showPages: 'all',
     botName: 'AIアシスタント',
+    templateId: 'indigo',
+    bubbleShape: 'circle',
+    iconStyle: 'chat',
+    bubblePosition: 'right',
+    gradient: true,
   },
   ngRules: {
     forbiddenTopics: [],

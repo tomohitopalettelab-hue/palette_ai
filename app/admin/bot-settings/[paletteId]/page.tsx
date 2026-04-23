@@ -4,8 +4,9 @@ import React, { useEffect, useState, useCallback, use as usePromise } from 'reac
 import Link from 'next/link';
 import {
   Bot, ArrowLeft, Save, Copy, Check, Plus, Trash2, MessageSquare, Code,
-  Sparkles, Settings2, HelpCircle, Palette, Heart, Package,
+  Sparkles, Settings2, HelpCircle, Palette, Heart, Package, PlayCircle, X,
 } from 'lucide-react';
+import { WIDGET_TEMPLATES, ICON_SVG_PATHS, getBubbleRadius, getBubbleGradient, type WidgetTemplate } from '../_lib/widget-templates';
 
 type Config = any;
 type Service = {
@@ -46,6 +47,7 @@ export default function BotSettingsEditPage({ params }: { params: Promise<{ pale
   const [autoUrl, setAutoUrl] = useState('');
   const [autoRunning, setAutoRunning] = useState(false);
   const [autoResult, setAutoResult] = useState<string>('');
+  const [showLiveChat, setShowLiveChat] = useState(false);
 
   // Load everything
   const load = useCallback(async () => {
@@ -219,6 +221,13 @@ export default function BotSettingsEditPage({ params }: { params: Promise<{ pale
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowLiveChat(true)}
+              className="px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-700 hover:bg-emerald-100 flex items-center gap-1.5"
+            >
+              <PlayCircle className="w-3.5 h-3.5" />
+              チャットを試す
+            </button>
             <Link
               href={`/admin/bot-settings/${paletteId}/sessions`}
               className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
@@ -325,9 +334,36 @@ export default function BotSettingsEditPage({ params }: { params: Promise<{ pale
             embedCode={embedCode}
             onCopy={copyEmbed}
             copied={copied}
+            paletteId={paletteId}
           />
         )}
       </div>
+
+      {/* Live Chat Modal */}
+      {showLiveChat && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50" onClick={() => setShowLiveChat(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <PlayCircle className="w-4 h-4 text-emerald-500" />
+                <h2 className="text-sm font-black text-slate-800">チャットBot プレビュー</h2>
+                <span className="text-[10px] text-slate-400">右下のバブルをクリックして会話を開始</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] text-amber-600">※ 保存後の設定が反映されます</p>
+                <button onClick={() => setShowLiveChat(false)} className="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center">
+                  <X className="w-4 h-4 text-slate-500" />
+                </button>
+              </div>
+            </div>
+            <iframe
+              src={`/bot-preview?id=${paletteId}&t=${Date.now()}`}
+              className="flex-1 w-full bg-slate-50 border-0"
+              title="Bot Preview"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -841,17 +877,97 @@ function NurtureTab({ config, update }: any) {
 
 // ─── Appearance Tab ────────────────────────────────────
 
-function AppearanceTab({ config, update, embedCode, onCopy, copied }: any) {
+function AppearanceTab({ config, update, embedCode, onCopy, copied, paletteId }: any) {
   const a = config.appearance || {};
+
+  const applyTemplate = (t: WidgetTemplate) => {
+    update(['appearance', 'templateId'], t.id);
+    update(['appearance', 'primaryColor'], t.primaryColor);
+    update(['appearance', 'gradientTo'], t.gradientTo || '');
+    update(['appearance', 'bubbleShape'], t.bubbleShape);
+    update(['appearance', 'iconStyle'], t.iconStyle);
+    update(['appearance', 'gradient'], t.gradient);
+  };
+
   return (
     <>
-      <Card title="見た目">
+      <Card title="テンプレートを選ぶ">
+        <p className="text-xs text-slate-500 mb-4">テンプレートを選ぶと、色・形・アイコンが一括で反映されます。あとから個別調整も可能です。</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {WIDGET_TEMPLATES.map((t) => {
+            const isActive = (a.templateId || 'indigo') === t.id;
+            const bg = getBubbleGradient(t);
+            const radius = getBubbleRadius(t.bubbleShape);
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => applyTemplate(t)}
+                className={`relative rounded-2xl border-2 p-4 transition-all text-left ${
+                  isActive ? 'border-indigo-500 shadow-lg' : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div
+                    className="w-12 h-12 flex items-center justify-center text-white shadow-lg"
+                    style={{ background: bg, borderRadius: radius }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <path d={ICON_SVG_PATHS[t.iconStyle]} />
+                    </svg>
+                  </div>
+                  {isActive && (
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-100 text-indigo-600">選択中</span>
+                  )}
+                </div>
+                <div className="text-sm font-bold text-slate-800">{t.name}</div>
+                <div className="text-[10px] text-slate-500 mt-1 line-clamp-2">{t.description}</div>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card title="個別カスタマイズ">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div><Label>Bot名</Label><TextInput value={a.botName} onChange={(v: string) => update(['appearance', 'botName'], v)} placeholder="AIアシスタント" /></div>
+          <div><Label>Bot名（チャット画面ヘッダー）</Label><TextInput value={a.botName} onChange={(v: string) => update(['appearance', 'botName'], v)} placeholder="AIアシスタント" /></div>
           <div><Label>プライマリカラー</Label><TextInput value={a.primaryColor} onChange={(v: string) => update(['appearance', 'primaryColor'], v)} placeholder="#6366f1" /></div>
-          <div><Label>Botアイコン（URL）</Label><TextInput value={a.botIcon} onChange={(v: string) => update(['appearance', 'botIcon'], v)} /></div>
-          <div><Label>表示タイミング</Label>
-            <Select value={a.welcomeDelay} onChange={(v: string) => update(['appearance', 'welcomeDelay'], Number(v))} options={[
+          <div><Label>グラデーション終点色（任意）</Label><TextInput value={a.gradientTo} onChange={(v: string) => update(['appearance', 'gradientTo'], v)} placeholder="#d946ef" /></div>
+          <div>
+            <Label>グラデーションON/OFF</Label>
+            <Select value={a.gradient ? 'true' : 'false'} onChange={(v: string) => update(['appearance', 'gradient'], v === 'true')} options={[
+              { value: 'true', label: 'グラデーション使用' },
+              { value: 'false', label: '単色' },
+            ]} />
+          </div>
+          <div>
+            <Label>バブル形状</Label>
+            <Select value={a.bubbleShape} onChange={(v: string) => update(['appearance', 'bubbleShape'], v)} options={[
+              { value: 'circle', label: '丸（円形）' },
+              { value: 'rounded', label: '角丸' },
+              { value: 'square', label: '正方形' },
+            ]} />
+          </div>
+          <div>
+            <Label>アイコンスタイル</Label>
+            <Select value={a.iconStyle} onChange={(v: string) => update(['appearance', 'iconStyle'], v)} options={[
+              { value: 'chat', label: '💬 吹き出し' },
+              { value: 'ai', label: '🤖 AI' },
+              { value: 'sparkle', label: '✨ キラキラ' },
+              { value: 'heart', label: '❤️ ハート' },
+              { value: 'robot', label: '👾 ロボット' },
+            ]} />
+          </div>
+          <div>
+            <Label>表示位置</Label>
+            <Select value={a.bubblePosition} onChange={(v: string) => update(['appearance', 'bubblePosition'], v)} options={[
+              { value: 'right', label: '右下' },
+              { value: 'left', label: '左下' },
+            ]} />
+          </div>
+          <div>
+            <Label>表示タイミング</Label>
+            <Select value={String(a.welcomeDelay || 0)} onChange={(v: string) => update(['appearance', 'welcomeDelay'], Number(v))} options={[
               { value: '0', label: '即座' },
               { value: '10', label: '10秒後' },
               { value: '30', label: '30秒後' },
