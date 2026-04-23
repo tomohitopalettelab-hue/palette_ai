@@ -336,7 +336,7 @@ const pickClosingCta = (config: BotConfig, score: number, preferredKey?: string 
   const matrix = config.conversation?.closingMatrix || {};
   const goals = config.goals || {};
 
-  let scoreKeys = matrix[String(score)] || [];
+  let scoreKeys = Array.isArray(matrix[String(score)]) ? [...matrix[String(score)]] : [];
 
   // notifyが有効でmatrixに全く含まれていない場合、スコア3以上で先頭に自動追加
   // （ユーザーがmatrixをカスタマイズしていない場合のフォールバック）
@@ -348,27 +348,40 @@ const pickClosingCta = (config: BotConfig, score: number, preferredKey?: string 
     scoreKeys = ['notify', ...scoreKeys];
   }
 
-  // preferredKey優先、なければmatrixから順に
-  const tryKeys = [preferredKey, ...scoreKeys].filter(Boolean) as string[];
-
-  for (const key of tryKeys) {
+  const isValidGoal = (key: string): boolean => {
     const goal = (goals as any)[key];
-    if (goal && goal.enabled) {
-      if (key === 'phone') return { key, label: goal.label || '電話する', number: goal.number || '' };
-      if (key === 'notify') return { key, label: goal.label || 'ご相談内容を送信する' };
-      return { key, label: goal.label || key, url: goal.url || '' };
+    return !!(goal && goal.enabled);
+  };
+  const buildCta = (key: string): ClosingCta | null => {
+    const goal = (goals as any)[key];
+    if (!goal || !goal.enabled) return null;
+    if (key === 'phone') return { key, label: goal.label || '電話する', number: goal.number || '' };
+    if (key === 'notify') return { key, label: goal.label || 'ご相談内容を送信する' };
+    return { key, label: goal.label || key, url: goal.url || '' };
+  };
+
+  // ユーザー設定(closingMatrix)を最優先。matrix に有効なkeyがあれば必ずそこから選ぶ。
+  // preferredKey (AIの提案) は matrix 内にあれば位置を前に上げる、matrix が空のときだけ単独で使う。
+  if (scoreKeys.length > 0) {
+    // preferredKey が matrix に含まれていれば先頭に持ってくる、含まれていなければ無視
+    if (preferredKey && scoreKeys.includes(preferredKey)) {
+      scoreKeys = [preferredKey, ...scoreKeys.filter((k) => k !== preferredKey)];
     }
+    for (const key of scoreKeys) {
+      const cta = buildCta(key);
+      if (cta) return cta;
+    }
+  } else if (preferredKey && isValidGoal(preferredKey)) {
+    // matrix 未設定時のみ AI の提案に従う
+    const cta = buildCta(preferredKey);
+    if (cta) return cta;
   }
 
   // 最終フォールバック: enabled なgoalから1つ選ぶ（優先順位: notify > reservation > inquiry > line > document > phone）
   const fallbackOrder = ['notify', 'reservation', 'inquiry', 'line', 'document', 'phone'];
   for (const key of fallbackOrder) {
-    const goal = (goals as any)[key];
-    if (goal && goal.enabled) {
-      if (key === 'phone') return { key, label: goal.label || '電話する', number: goal.number || '' };
-      if (key === 'notify') return { key, label: goal.label || 'ご相談内容を送信する' };
-      return { key, label: goal.label || key, url: goal.url || '' };
-    }
+    const cta = buildCta(key);
+    if (cta) return cta;
   }
   return null;
 };
