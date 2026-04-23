@@ -824,9 +824,9 @@ function ConversationTab({ config, update, paletteId }: any) {
       }
       const lines: string[] = [];
       const r = data.result || {};
-      if (r.email) lines.push(`📧 メール: ${r.email.ok ? '✓ 送信成功' : '✗ ' + (r.email.error || 'error')}`);
-      if (r.line) lines.push(`💚 LINE: ${r.line.ok ? '✓ 送信成功' : '✗ ' + (r.line.error || 'error')}`);
-      if (r.webhook) lines.push(`🔗 Webhook: ${r.webhook.ok ? '✓ 送信成功' : '✗ ' + (r.webhook.error || 'error')}`);
+      if (r.email) lines.push(`📧 メール: ${r.email.ok ? '✓ ' + (r.email.error || '送信成功') : '✗ ' + (r.email.error || 'error')}`);
+      if (r.line) lines.push(`💚 LINE: ${r.line.ok ? '✓ ' + (r.line.error || '送信成功') : '✗ ' + (r.line.error || 'error')}`);
+      if (r.webhook) lines.push(`🔗 Webhook: ${r.webhook.ok ? '✓ ' + (r.webhook.error || '送信成功') : '✗ ' + (r.webhook.error || 'error')}`);
       if (!lines.length) lines.push('どの通知先も設定されていません（メール/LINE/Webhookいずれかを入力してください）');
       setTestResult(lines.join('\n'));
     } catch (err: any) {
