@@ -1388,36 +1388,10 @@ function AppearanceTab({ config, update, embedCode, onCopy, copied, paletteId }:
       </Card>
 
       <Card title="個別カスタマイズ">
-        {/* ライブプレビュー */}
-        <div className="mb-5 p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-4">
-          <div
-            className="w-14 h-14 flex items-center justify-center text-white shadow-lg shrink-0"
-            style={{
-              background: a.gradient && a.gradientTo
-                ? `linear-gradient(135deg, ${a.primaryColor || '#6366f1'} 0%, ${a.gradientTo} 100%)`
-                : (a.primaryColor || '#6366f1'),
-              borderRadius: a.bubbleShape === 'square' ? '12px' : a.bubbleShape === 'rounded' ? '20px' : '50%',
-            }}
-          >
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-              <path d={ICON_SVG_PATHS[(a.iconStyle || 'chat') as keyof typeof ICON_SVG_PATHS]} />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <div className="text-xs font-bold text-slate-600">{a.botName || 'AIアシスタント'}</div>
-            <div className="text-[10px] text-slate-400">実際のバブルのイメージ</div>
-          </div>
-          <div
-            className="px-4 py-2 rounded-full text-xs font-bold text-white shadow-md"
-            style={{
-              background: a.gradient && a.gradientTo
-                ? `linear-gradient(135deg, ${a.primaryColor || '#6366f1'} 0%, ${a.gradientTo} 100%)`
-                : (a.primaryColor || '#6366f1'),
-            }}
-          >
-            ボタン色
-          </div>
-        </div>
+        <BubblePreview appearance={a} />
+        </Card>
+        <Card title="設定項目">
+        {/* 旧ライブプレビューは上部の BubblePreview に統合済み */}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div><Label>Bot名（チャット画面ヘッダー）</Label><TextInput value={a.botName} onChange={(v: string) => update(['appearance', 'botName'], v)} placeholder="AIアシスタント" /></div>
@@ -1520,5 +1494,160 @@ function AppearanceTab({ config, update, embedCode, onCopy, copied, paletteId }:
         </div>
       </Card>
     </>
+  );
+}
+
+// ────────────────────────────────────────────────
+// BubblePreview — 外観タブ上部のライブプレビュー
+// widget.js 側のCSSと一致する見た目でバブル・吹き出し・アニメーションを再現
+// ────────────────────────────────────────────────
+function BubblePreview({ appearance: a }: { appearance: any }) {
+  const color = a.primaryColor || '#6366f1';
+  const gradientTo = a.gradientTo || '';
+  const bg = a.gradient && gradientTo
+    ? `linear-gradient(135deg, ${color} 0%, ${gradientTo} 100%)`
+    : color;
+  const sizePx = a.bubbleSize === 'small' ? 48 : a.bubbleSize === 'large' ? 72 : 60;
+  const radius = a.bubbleShape === 'square' ? '12px' : a.bubbleShape === 'rounded' ? '20px' : '50%';
+  const iconPath = ICON_SVG_PATHS[(a.iconStyle || 'chat') as keyof typeof ICON_SVG_PATHS];
+  const animation = a.bubbleAnimation || 'none';
+  const position = a.bubblePosition === 'left' ? 'left' : 'right';
+  const tooltipText = typeof a.bubbleTooltipText === 'string' ? a.bubbleTooltipText : 'AIに相談する';
+  const tooltipStyle = a.bubbleTooltipStyle || 'speech';
+  const showPagesLabel = a.showPages === 'top' ? 'TOPページのみ' : '全ページ';
+
+  const tooltipBase: React.CSSProperties = {
+    padding: '10px 16px',
+    fontSize: 13,
+    fontWeight: 700,
+    color: '#1e293b',
+    background: '#fff',
+    whiteSpace: 'nowrap',
+    position: 'relative',
+  };
+  const tooltipStyles: Record<string, React.CSSProperties> = {
+    speech: { borderRadius: 18, boxShadow: '0 10px 26px rgba(0,0,0,0.12), 0 3px 8px rgba(0,0,0,0.06)' },
+    pill: { borderRadius: 999, boxShadow: '0 6px 18px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)' },
+    card: { borderRadius: 12, padding: '12px 18px', boxShadow: '0 18px 40px rgba(0,0,0,0.18), 0 6px 14px rgba(0,0,0,0.08)' },
+    neon: {
+      borderRadius: 999,
+      background: '#fff',
+      color,
+      boxShadow: `0 0 0 2px ${color}, 0 0 18px 2px ${color}, 0 0 32px ${color}55`,
+    },
+    minimal: {
+      background: 'transparent',
+      borderBottom: `2px solid ${color}`,
+      borderRadius: 0,
+      padding: '6px 4px',
+      color,
+      fontWeight: 800,
+      boxShadow: 'none',
+    },
+  };
+
+  return (
+    <div className="mb-5 p-6 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 overflow-hidden">
+      <style>{`
+        @keyframes pvPulse {
+          0%, 100% { transform: scale(1) translateY(0); }
+          50% { transform: scale(1.07) translateY(-1px); box-shadow: 0 16px 40px rgba(99,102,241,0.55), 0 4px 10px rgba(0,0,0,0.1); }
+        }
+        @keyframes pvWobble {
+          0%, 100% { transform: rotate(0deg); }
+          25% { transform: rotate(-6deg); }
+          75% { transform: rotate(6deg); }
+        }
+        @keyframes pvBounce {
+          0%, 30%, 60%, 100% { transform: translateY(0); }
+          45% { transform: translateY(-12px); }
+          70% { transform: translateY(-5px); }
+        }
+        @keyframes pvShimmer {
+          0%, 100% { box-shadow: 0 10px 30px rgba(99,102,241,0.35), 0 0 0 rgba(99,102,241,0); }
+          50% { box-shadow: 0 14px 36px rgba(99,102,241,0.5), 0 0 26px rgba(99,102,241,0.65); }
+        }
+        .pv-anim-pulse { animation: pvPulse 2.2s ease-in-out infinite; }
+        .pv-anim-wobble { animation: pvWobble 3s ease-in-out infinite; }
+        .pv-anim-bounce { animation: pvBounce 2.4s cubic-bezier(0.2, 0.8, 0.2, 1) infinite; }
+        .pv-anim-shimmer { animation: pvShimmer 2.8s ease-in-out infinite; }
+        .pv-tooltip-arrow-right::after {
+          content: ''; position: absolute; top: 50%; right: -8px;
+          width: 0; height: 0; border-style: solid;
+          border-width: 7px 0 7px 10px; border-color: transparent transparent transparent #fff;
+          transform: translateY(-50%);
+        }
+        .pv-tooltip-arrow-left::after {
+          content: ''; position: absolute; top: 50%; left: -8px;
+          width: 0; height: 0; border-style: solid;
+          border-width: 7px 10px 7px 0; border-color: transparent #fff transparent transparent;
+          transform: translateY(-50%);
+        }
+      `}</style>
+
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <div className="text-xs font-bold text-slate-700">ライブプレビュー</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">設定変更が即時反映されます</div>
+        </div>
+        <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold">
+          <span className="px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-600">位置: {position === 'right' ? '右下' : '左下'}</span>
+          <span className="px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-600">サイズ: {sizePx}px</span>
+          <span className="px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-600">表示: {showPagesLabel}</span>
+        </div>
+      </div>
+
+      {/* バブル＋吹き出しの配置エリア */}
+      <div
+        className="relative rounded-lg bg-white border border-slate-200 flex items-center"
+        style={{
+          minHeight: 140,
+          padding: '24px',
+          flexDirection: position === 'right' ? 'row' : 'row-reverse',
+          justifyContent: position === 'right' ? 'flex-end' : 'flex-start',
+          gap: 14,
+        }}
+      >
+        {/* tooltip */}
+        {tooltipText && (
+          <div
+            className={
+              tooltipStyle === 'speech'
+                ? (position === 'right' ? 'pv-tooltip-arrow-right' : 'pv-tooltip-arrow-left')
+                : ''
+            }
+            style={{ ...tooltipBase, ...tooltipStyles[tooltipStyle] }}
+          >
+            {tooltipText}
+          </div>
+        )}
+        {/* bubble */}
+        <div
+          className={animation && animation !== 'none' ? `pv-anim-${animation}` : ''}
+          style={{
+            width: sizePx,
+            height: sizePx,
+            borderRadius: radius,
+            background: bg,
+            color: '#fff',
+            boxShadow: '0 10px 30px rgba(99,102,241,0.35), 0 2px 6px rgba(0,0,0,0.08)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: sizePx * 0.43, height: sizePx * 0.43 }}>
+            <path d={iconPath} />
+          </svg>
+        </div>
+      </div>
+
+      {/* 補足情報 */}
+      <div className="mt-3 flex items-center justify-between text-[10px] text-slate-500">
+        <span>Bot名: <b className="text-slate-700">{a.botName || 'AIアシスタント'}</b></span>
+        <span>アニメ: <b className="text-slate-700">{animation === 'none' ? 'なし' : animation}</b> / 吹き出し: <b className="text-slate-700">{tooltipStyle}</b></span>
+      </div>
+    </div>
   );
 }
