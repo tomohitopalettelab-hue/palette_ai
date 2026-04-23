@@ -121,7 +121,10 @@ const sendEmail = async (
 };
 
 /**
- * LINE Push Message送信（Messaging API）
+ * LINE Message送信（Messaging API）
+ * userId指定あり → Push Message（1人宛）
+ * userId空       → Broadcast（全友だち宛）※Bot所有者が自分に届けたい時の回避策
+ * push失敗で "yourself" エラー時は broadcast にフォールバック
  */
 const sendLineMessage = async (
   channelToken: string,
@@ -131,7 +134,7 @@ const sendLineMessage = async (
   lead: Record<string, any>,
   score: number,
 ): Promise<{ ok: boolean; error?: string }> => {
-  if (!channelToken || !userId) return { ok: false, error: 'LINE設定不足' };
+  if (!channelToken) return { ok: false, error: 'LINE Channel Token未設定' };
 
   const leadLines = Object.entries(lead)
     .filter(([, v]) => v)
@@ -148,26 +151,51 @@ ${leadLines || '(詳細未入力)'}
 ${summary.slice(0, 800)}
 `.slice(0, 4900);
 
-  try {
-    const res = await fetch('https://api.line.me/v2/bot/message/push', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${channelToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to: userId,
-        messages: [{ type: 'text', text }],
-      }),
-    });
-    if (!res.ok) {
+  const callLine = async (endpoint: 'push' | 'broadcast'): Promise<{ ok: boolean; error?: string; status?: number; body?: string }> => {
+    const url = endpoint === 'push'
+      ? 'https://api.line.me/v2/bot/message/push'
+      : 'https://api.line.me/v2/bot/message/broadcast';
+    const payload: any = { messages: [{ type: 'text', text }] };
+    if (endpoint === 'push') payload.to = userId;
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${channelToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) return { ok: true };
       const errText = await res.text().catch(() => '');
-      return { ok: false, error: `LINE ${res.status}: ${errText.slice(0, 200)}` };
+      return { ok: false, status: res.status, body: errText, error: `LINE ${res.status}: ${errText.slice(0, 200)}` };
+    } catch (err: any) {
+      return { ok: false, error: err?.message || 'line error' };
     }
-    return { ok: true };
-  } catch (err: any) {
-    return { ok: false, error: err?.message || 'line error' };
+  };
+
+  // userId未設定 → 直接Broadcast
+  if (!userId) {
+    const r = await callLine('broadcast');
+    return r.ok ? { ok: true } : { ok: false, error: r.error };
   }
+
+  // まずPushを試す
+  const pushResult = await callLine('push');
+  if (pushResult.ok) return { ok: true };
+
+  // "yourself" エラーならBroadcastにフォールバック
+  const isSelfError =
+    pushResult.status === 400 &&
+    /yourself|to yourself/i.test(pushResult.body || '');
+  if (isSelfError) {
+    const broadcastResult = await callLine('broadcast');
+    if (broadcastResult.ok) return { ok: true, error: '(Broadcastで送信: Push自分宛制限のため)' };
+    return { ok: false, error: `Push失敗→Broadcastも失敗: ${broadcastResult.error}` };
+  }
+
+  return { ok: false, error: pushResult.error };
 };
 
 /**
