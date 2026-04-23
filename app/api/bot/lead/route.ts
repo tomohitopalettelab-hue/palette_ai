@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getSession, updateSession } from '../../_lib/bot-store';
+import { getSession, updateSession, getBotConfigOrDefault } from '../../_lib/bot-store';
+import { sendBotNotifications } from '../../_lib/notification-sender';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -92,15 +93,33 @@ export async function POST(req: Request) {
       });
     }
 
-    await updateSession(sessionId, {
+    const updatedSession = await updateSession(sessionId, {
       lead: mergedLead,
       closedAction,
       closed: Boolean(closedAction) || session.closed,
       syncedToCrm: synced,
     });
 
+    // Palette AIX: ヒアリング完了通知（メール/LINE/Webhook）
+    let notifyResult: Record<string, { ok: boolean; error?: string }> | null = null;
+    try {
+      if (updatedSession && hasMeaningfulLead) {
+        const config = await getBotConfigOrDefault(session.paletteId);
+        if (config.goals?.notify?.enabled) {
+          const appUrl = process.env.APP_URL?.trim() || 'https://ai.palette-lab.com';
+          notifyResult = await sendBotNotifications({
+            config,
+            session: updatedSession,
+            conversationUrl: `${appUrl}/admin/bot-settings/${session.paletteId}/sessions/${sessionId}`,
+          });
+        }
+      }
+    } catch (err: any) {
+      console.warn('notification error:', err?.message || err);
+    }
+
     return NextResponse.json(
-      { success: true, syncedToCrm: synced, sessionId },
+      { success: true, syncedToCrm: synced, sessionId, notify: notifyResult },
       { headers: corsHeaders },
     );
   } catch (error: any) {

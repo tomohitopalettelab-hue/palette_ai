@@ -49,6 +49,14 @@ export type BotConfig = {
     phone?: { enabled: boolean; number?: string; label?: string };
     line?: { enabled: boolean; url?: string; label?: string };
     document?: { enabled: boolean; url?: string; label?: string };
+    notify?: {
+      enabled: boolean;
+      label?: string;
+      emailAddress?: string;
+      lineChannelToken?: string;
+      lineUserId?: string;
+      webhookUrl?: string;
+    };
   };
   nurture: {
     enabled?: boolean;
@@ -172,6 +180,14 @@ export const DEFAULT_CONFIG: Omit<BotConfig, 'paletteId' | 'updatedAt'> = {
     phone: { enabled: false, number: '', label: '電話する' },
     line: { enabled: false, url: '', label: 'LINE友だち追加' },
     document: { enabled: false, url: '', label: '資料請求' },
+    notify: {
+      enabled: false,
+      label: 'ご相談内容を送信',
+      emailAddress: '',
+      lineChannelToken: '',
+      lineUserId: '',
+      webhookUrl: '',
+    },
   },
   nurture: {
     enabled: true,

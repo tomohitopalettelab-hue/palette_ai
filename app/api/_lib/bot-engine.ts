@@ -121,6 +121,7 @@ const buildGoalsBlock = (config: BotConfig): string => {
   if (g.phone?.enabled) parts.push('phone（電話）');
   if (g.line?.enabled) parts.push('line（LINE登録）');
   if (g.document?.enabled) parts.push('document（資料請求）');
+  if (g.notify?.enabled) parts.push('notify（ヒアリング内容を担当者に通知）');
   return parts.length ? parts.join(' / ') : '（未設定）';
 };
 
@@ -205,7 +206,7 @@ ${buildGoalsBlock(config)}
   "matched_service_ids": ["svc-xxx", ...],
   "ui_hint": "text|cards|closing_cta|lead_form|nurture_options",
   "lead_ask": null | "name" | "phone" | "email" | "preferredTime",
-  "closing_cta_key": null | "reservation" | "inquiry" | "phone" | "line" | "document",
+  "closing_cta_key": null | "reservation" | "inquiry" | "phone" | "line" | "document" | "notify",
   "reasoning": "なぜこの判定か短く"
 }
 
@@ -295,6 +296,7 @@ const pickClosingCta = (config: BotConfig, score: number, preferredKey?: string 
     const goal = (goals as any)[key];
     if (goal && goal.enabled) {
       if (key === 'phone') return { key, label: goal.label || '電話する', number: goal.number || '' };
+      if (key === 'notify') return { key, label: goal.label || 'ご相談内容を送信する' };
       return { key, label: goal.label || key, url: goal.url || '' };
     }
   }
@@ -350,6 +352,11 @@ const buildUiResponse = (
   // closing_cta
   if (aiResp.ui_hint === 'closing_cta' || stage === 'closing') {
     const cta = pickClosingCta(config, aiResp.buy_intent_score, aiResp.closing_cta_key);
+    // 'notify' CTAの場合は、URL遷移ではなくインラインでリードフォームを表示して通知送信
+    if (cta && cta.key === 'notify') {
+      const fields = buildLeadFields(config);
+      if (fields.length) return { type: 'lead_form', fields };
+    }
     if (cta) return { type: 'closing_cta', cta };
   }
 

@@ -780,6 +780,66 @@ function ConversationTab({ config, update }: any) {
         </div>
       </Card>
 
+      <Card title="AIヒアリング通知（メール / LINE / Webhook）">
+        <p className="text-xs text-slate-500 mb-3">
+          訪問者がフォームを送信すると、AIが会話内容を要約して以下の宛先に送信します。外部URLへ遷移させずに見込み客情報を直接取得したい場合に使います。
+        </p>
+        <div className="p-3 rounded-lg border border-slate-200 space-y-4">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={Boolean(g.notify?.enabled)}
+              onChange={(e) => update(['goals', 'notify', 'enabled'], e.target.checked)}
+            />
+            <span className="text-sm font-bold">AIヒアリング通知を有効にする</span>
+          </label>
+          <div>
+            <Label>ボタンラベル</Label>
+            <TextInput
+              value={g.notify?.label || ''}
+              onChange={(v: string) => update(['goals', 'notify', 'label'], v)}
+              placeholder="ご相談内容を送信する"
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <Label>📧 通知先メールアドレス</Label>
+              <TextInput
+                value={g.notify?.emailAddress || ''}
+                onChange={(v: string) => update(['goals', 'notify', 'emailAddress'], v)}
+                placeholder="owner@example.com"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">訪問者の情報＋AI要約が届きます（Resend経由）</p>
+            </div>
+            <div>
+              <Label>💬 LINE 通知（Messaging API）</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <TextInput
+                  value={g.notify?.lineChannelToken || ''}
+                  onChange={(v: string) => update(['goals', 'notify', 'lineChannelToken'], v)}
+                  placeholder="Channel Access Token"
+                />
+                <TextInput
+                  value={g.notify?.lineUserId || ''}
+                  onChange={(v: string) => update(['goals', 'notify', 'lineUserId'], v)}
+                  placeholder="User ID (U1234...)"
+                />
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">LINE Developersで公式アカウントを作り、Channel TokenとオーナーのUser IDを設定</p>
+            </div>
+            <div>
+              <Label>🔗 Webhook URL（Slack / Discord / カスタム）</Label>
+              <TextInput
+                value={g.notify?.webhookUrl || ''}
+                onChange={(v: string) => update(['goals', 'notify', 'webhookUrl'], v)}
+                placeholder="https://hooks.slack.com/..."
+              />
+              <p className="text-[10px] text-slate-400 mt-1">JSON POST（text, shopName, lead, summary 等を送信）</p>
+            </div>
+          </div>
+        </div>
+      </Card>
+
       <Card title="買う気度×ゴール マトリクス">
         <p className="text-xs text-slate-500 mb-3">買う気度スコア別に、どのクロージング先を使うか優先順位で指定</p>
         <div className="space-y-2">
@@ -794,7 +854,7 @@ function ConversationTab({ config, update }: any) {
             </div>
           ))}
         </div>
-        <p className="text-[10px] text-slate-400 mt-2">※使えるキー: reservation / inquiry / phone / line / document</p>
+        <p className="text-[10px] text-slate-400 mt-2">※使えるキー: reservation / inquiry / phone / line / document / notify</p>
       </Card>
 
       <Card title="リード取得項目">
