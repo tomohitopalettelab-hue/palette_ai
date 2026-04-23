@@ -128,6 +128,58 @@ const buildGoalsBlock = (config: BotConfig): string => {
   return parts.length ? parts.join(' / ') : '（未設定）';
 };
 
+const buildNgRulesBlock = (config: BotConfig): string => {
+  const ng = config.ngRules || {};
+  const lines: string[] = [];
+
+  if (Array.isArray(ng.forbiddenTopics) && ng.forbiddenTopics.length > 0) {
+    lines.push(`### 🚫 禁止トピック (絶対に触れない)\n- ${ng.forbiddenTopics.join('\n- ')}`);
+  }
+  if (Array.isArray(ng.forbiddenWords) && ng.forbiddenWords.length > 0) {
+    lines.push(`### 🚫 禁止ワード (reply に絶対含めない)\n- ${ng.forbiddenWords.join('\n- ')}`);
+  }
+  if (Array.isArray(ng.mustSayPhrases) && ng.mustSayPhrases.length > 0) {
+    lines.push(`### ✅ 必ず伝えるべき内容 (適切なタイミングで自然に盛り込む)\n- ${ng.mustSayPhrases.join('\n- ')}`);
+  }
+  if (Array.isArray(ng.avoidPhrases) && ng.avoidPhrases.length > 0) {
+    lines.push(`### ⚠️ 使用を避ける表現\n- ${ng.avoidPhrases.join('\n- ')}`);
+  }
+
+  if (ng.competitorPolicy && ng.competitorPolicy !== 'no_comment') {
+    const map: Record<string, string> = {
+      neutral: '競合サービスの話題が出たら、批判せず中立的に対応。比較には踏み込まない。',
+      redirect: '競合サービスの話題が出たら、自社サービスのメリットに話題を戻す。',
+    };
+    lines.push(`### 競合サービス対応\n${map[ng.competitorPolicy] || ''}`);
+  } else if (ng.competitorPolicy === 'no_comment') {
+    lines.push('### 競合サービス対応\n競合サービスについては一切コメントしない。聞かれたら「当サービスのことのみお答えできます」と返す。');
+  }
+
+  if (ng.priceDisclosure) {
+    const map: Record<string, string> = {
+      as_listed: '料金は登録されたサービスカタログ通りに正確に伝える。カタログにない料金は勝手に作らない。',
+      estimate_only: '具体的な金額は伝えず、「担当者から見積もりをお出しします」と案内する。',
+      ask_first: '料金を聞かれたら、まず用途・規模をヒアリングしてから登録データを元に回答。不明なら「見積もりをお出しします」。',
+    };
+    lines.push(`### 料金提示ルール\n${map[ng.priceDisclosure] || ''}`);
+  }
+
+  if (ng.businessHoursStart && ng.businessHoursEnd && ng.outOfHoursMessage) {
+    lines.push(`### 営業時間外対応\n営業時間: ${ng.businessHoursStart} 〜 ${ng.businessHoursEnd}\n時間外の返答冒頭には次を添える: "${ng.outOfHoursMessage}"`);
+  }
+
+  if (ng.maxReplyLength && Number(ng.maxReplyLength) > 0) {
+    lines.push(`### 返答文字数制限\n1ターンの reply は最大 ${ng.maxReplyLength} 文字以内に収める。`);
+  }
+
+  if (ng.customRules && String(ng.customRules).trim()) {
+    lines.push(`### その他のルール\n${String(ng.customRules).trim()}`);
+  }
+
+  if (lines.length === 0) return '';
+  return `## 🛑 運用ルール (最優先・必ず守る)\n${lines.join('\n\n')}\n`;
+};
+
 const buildMeetingGoalBlock = (config: BotConfig): string => {
   const m = config.goals?.meeting;
   if (!m || !m.enabled) return '';
@@ -162,7 +214,7 @@ const buildSystemPrompt = (
   const basic = config.basic || {};
   const conv = config.conversation || {};
   const ng = config.ngRules || {};
-  const forbidden = Array.isArray(ng.forbiddenTopics) ? ng.forbiddenTopics.join(' / ') : '';
+  const ngBlock = buildNgRulesBlock(config);
 
   return `あなたは ${basic.shopName || 'お店'} のウェブサイトに設置された営業アシスタントAIです。
 業種: ${basic.industry || '未設定'}
@@ -242,7 +294,7 @@ ${buildMeetingGoalBlock(config)}
   "reasoning": "なぜこの判定か短く"
 }
 
-${forbidden ? `## 絶対に言わないこと\n${forbidden}` : ''}
+${ngBlock}
 
 ## 重要な注意
 - replyには具体的な価格・住所・電話番号を勝手に作らない（設定データに明記されたもののみ）

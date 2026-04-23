@@ -98,7 +98,28 @@ export type BotConfig = {
     bubbleTooltipStyle?: 'speech' | 'pill' | 'card' | 'neon' | 'minimal';
   };
   ngRules: {
+    /** 禁止トピック (既存: 話題レベルでブロック) */
     forbiddenTopics?: string[];
+    /** 禁止ワード (特定の単語・フレーズを出力しない) */
+    forbiddenWords?: string[];
+    /** 必ず伝えるべき内容 (適切なタイミングで盛り込む) */
+    mustSayPhrases?: string[];
+    /** 使うのを避けるべき表現 (断定調/過度な約束/煽り等) */
+    avoidPhrases?: string[];
+    /** 競合サービスへの対応方針 */
+    competitorPolicy?: 'no_comment' | 'neutral' | 'redirect';
+    /** 料金提示ルール */
+    priceDisclosure?: 'as_listed' | 'estimate_only' | 'ask_first';
+    /** 営業時間 (HH:MM形式) */
+    businessHoursStart?: string;
+    businessHoursEnd?: string;
+    /** 営業時間外のメッセージ (空なら通常対応) */
+    outOfHoursMessage?: string;
+    /** 1ターンの最大文字数 */
+    maxReplyLength?: number;
+    /** 自由記述の追加ルール (AIへ直接指示) */
+    customRules?: string;
+    /** 困った時のフォールバック先 (既存) */
     fallbackAction?: 'inquiry' | 'phone' | 'email';
   };
   updatedAt: string;
@@ -243,6 +264,16 @@ export const DEFAULT_CONFIG: Omit<BotConfig, 'paletteId' | 'updatedAt'> = {
   },
   ngRules: {
     forbiddenTopics: [],
+    forbiddenWords: [],
+    mustSayPhrases: [],
+    avoidPhrases: [],
+    competitorPolicy: 'no_comment',
+    priceDisclosure: 'as_listed',
+    businessHoursStart: '',
+    businessHoursEnd: '',
+    outOfHoursMessage: '',
+    maxReplyLength: 0,
+    customRules: '',
     fallbackAction: 'inquiry',
   },
 };

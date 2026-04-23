@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, use as usePromise } from 'reac
 import Link from 'next/link';
 import {
   Bot, ArrowLeft, Save, Copy, Check, Plus, Trash2, MessageSquare, Code,
-  Sparkles, Settings2, HelpCircle, Palette, Heart, Package, PlayCircle, X,
+  Sparkles, Settings2, HelpCircle, Palette, Heart, Package, PlayCircle, X, AlertTriangle,
 } from 'lucide-react';
 import { WIDGET_TEMPLATES, ICON_SVG_PATHS, getBubbleRadius, getBubbleGradient, type WidgetTemplate } from '../_lib/widget-templates';
 
@@ -30,7 +30,7 @@ type Faq = {
   priority: number;
 };
 
-type TabKey = 'basic' | 'services' | 'faqs' | 'conversation' | 'nurture' | 'appearance';
+type TabKey = 'basic' | 'services' | 'faqs' | 'conversation' | 'nurture' | 'rules' | 'appearance';
 
 export function BotSettingsEditor({
   paletteId,
@@ -206,6 +206,7 @@ export function BotSettingsEditor({
     { key: 'faqs', label: 'Q&A', icon: HelpCircle },
     { key: 'conversation', label: '会話設計', icon: MessageSquare },
     { key: 'nurture', label: '追客', icon: Heart },
+    { key: 'rules', label: 'NG・ルール', icon: AlertTriangle },
     { key: 'appearance', label: '見た目・埋込', icon: Palette },
   ];
 
@@ -347,6 +348,7 @@ export function BotSettingsEditor({
         )}
         {tab === 'conversation' && <ConversationTab config={config} update={updateConfigField} paletteId={paletteId} />}
         {tab === 'nurture' && <NurtureTab config={config} update={updateConfigField} />}
+        {tab === 'rules' && <RulesTab config={config} update={updateConfigField} />}
         {tab === 'appearance' && (
           <AppearanceTab
             config={config}
@@ -1441,6 +1443,213 @@ function NurtureTab({ config, update }: any) {
             onClick={() => update(['nurture', 'options'], [...options, { type: '', label: '', url: '', message: '' }])}
             className="text-xs text-indigo-500 hover:underline flex items-center gap-1"
           ><Plus className="w-3 h-3" />オプション追加</button>
+        </div>
+      </Card>
+    </>
+  );
+}
+
+// ─── Rules Tab (NG・運用ルール) ────────────────────────────
+
+function RulesTab({ config, update }: any) {
+  const ng = config.ngRules || {};
+  const toArray = (v: any): string[] => Array.isArray(v) ? v : [];
+  const arrayUpdate = (key: string, list: string[]) => {
+    update(['ngRules', key], list.filter((x) => x != null));
+  };
+
+  const TagListEditor = ({ list, onChange, placeholder }: { list: string[]; onChange: (v: string[]) => void; placeholder: string }) => {
+    const [draft, setDraft] = useState('');
+    return (
+      <div>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {list.map((item, i) => (
+            <span key={i} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs">
+              <span>{item}</span>
+              <button
+                type="button"
+                onClick={() => onChange(list.filter((_, j) => j !== i))}
+                className="text-slate-400 hover:text-red-500"
+                aria-label="削除"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && draft.trim()) {
+                e.preventDefault();
+                onChange([...list, draft.trim()]);
+                setDraft('');
+              }
+            }}
+            placeholder={placeholder}
+            className="flex-1 p-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (draft.trim()) {
+                onChange([...list, draft.trim()]);
+                setDraft('');
+              }
+            }}
+            className="px-3 py-2 rounded-lg bg-indigo-500 text-white text-xs font-bold hover:bg-indigo-600"
+          >
+            追加
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <Card title="🚫 言ってはいけないこと">
+        <p className="text-xs text-slate-500 mb-4">
+          AI が絶対に話題にしない／出力しない内容を設定します。
+        </p>
+        <div className="space-y-5">
+          <div>
+            <Label>禁止トピック（話題レベルで避ける）</Label>
+            <p className="text-[10px] text-slate-400 mb-2">例: 政治、宗教、芸能ゴシップ、他社の悪口など</p>
+            <TagListEditor
+              list={toArray(ng.forbiddenTopics)}
+              onChange={(v) => arrayUpdate('forbiddenTopics', v)}
+              placeholder="禁止トピックを入力して Enter"
+            />
+          </div>
+          <div>
+            <Label>禁止ワード（reply に絶対含めない単語）</Label>
+            <p className="text-[10px] text-slate-400 mb-2">例: 絶対、確実、必ず、保証、競合他社名など</p>
+            <TagListEditor
+              list={toArray(ng.forbiddenWords)}
+              onChange={(v) => arrayUpdate('forbiddenWords', v)}
+              placeholder="禁止ワードを入力して Enter"
+            />
+          </div>
+          <div>
+            <Label>使用を避ける表現</Label>
+            <p className="text-[10px] text-slate-400 mb-2">禁止ほど強くないが、極力使わせたくない言い回し</p>
+            <TagListEditor
+              list={toArray(ng.avoidPhrases)}
+              onChange={(v) => arrayUpdate('avoidPhrases', v)}
+              placeholder="避けたい表現を入力して Enter"
+            />
+          </div>
+        </div>
+      </Card>
+
+      <Card title="✅ 必ず伝えたいこと">
+        <p className="text-xs text-slate-500 mb-4">
+          会話の中で AI が自然に盛り込む内容を設定します（例: キャンペーン告知、初回相談無料、返金保証など）。
+        </p>
+        <Label>必ず伝えるフレーズ</Label>
+        <TagListEditor
+          list={toArray(ng.mustSayPhrases)}
+          onChange={(v) => arrayUpdate('mustSayPhrases', v)}
+          placeholder="例: 初回相談は無料です"
+        />
+      </Card>
+
+      <Card title="💬 対応ポリシー">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label>競合サービスへの対応</Label>
+            <Select
+              value={ng.competitorPolicy || 'no_comment'}
+              onChange={(v: string) => update(['ngRules', 'competitorPolicy'], v)}
+              options={[
+                { value: 'no_comment', label: 'コメントしない（聞かれても返答拒否）' },
+                { value: 'neutral', label: '中立的に対応（批判せず話題は広げない）' },
+                { value: 'redirect', label: '自社サービスのメリットに話題を戻す' },
+              ]}
+            />
+          </div>
+          <div>
+            <Label>料金提示ルール</Label>
+            <Select
+              value={ng.priceDisclosure || 'as_listed'}
+              onChange={(v: string) => update(['ngRules', 'priceDisclosure'], v)}
+              options={[
+                { value: 'as_listed', label: 'カタログ通り正確に伝える' },
+                { value: 'estimate_only', label: '具体額は出さず見積もり案内' },
+                { value: 'ask_first', label: 'ヒアリング後に回答' },
+              ]}
+            />
+          </div>
+        </div>
+      </Card>
+
+      <Card title="🕐 営業時間外対応">
+        <p className="text-xs text-slate-500 mb-4">
+          設定した時間外に会話が始まったら、AI の返答冒頭に指定メッセージを添えます。
+          すべて空欄なら時間外対応はOFF。
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <Label>営業開始 (HH:MM)</Label>
+            <TextInput
+              value={ng.businessHoursStart || ''}
+              onChange={(v: string) => update(['ngRules', 'businessHoursStart'], v)}
+              placeholder="09:00"
+            />
+          </div>
+          <div>
+            <Label>営業終了 (HH:MM)</Label>
+            <TextInput
+              value={ng.businessHoursEnd || ''}
+              onChange={(v: string) => update(['ngRules', 'businessHoursEnd'], v)}
+              placeholder="18:00"
+            />
+          </div>
+        </div>
+        <Label>営業時間外メッセージ</Label>
+        <TextArea
+          value={ng.outOfHoursMessage || ''}
+          onChange={(v: string) => update(['ngRules', 'outOfHoursMessage'], v)}
+          placeholder="ただいま営業時間外のため、お返事は翌営業日以降になります。"
+        />
+      </Card>
+
+      <Card title="⚙️ その他のルール">
+        <div className="space-y-5">
+          <div>
+            <Label>1ターンの最大文字数（0 = 制限なし）</Label>
+            <TextInput
+              value={String(ng.maxReplyLength ?? 0)}
+              onChange={(v: string) => update(['ngRules', 'maxReplyLength'], Number(v) || 0)}
+              placeholder="0"
+            />
+            <p className="text-[10px] text-slate-400 mt-1">長文を避けたい場合は 150〜250 文字程度が目安</p>
+          </div>
+          <div>
+            <Label>困った時のフォールバック先</Label>
+            <Select
+              value={ng.fallbackAction || 'inquiry'}
+              onChange={(v: string) => update(['ngRules', 'fallbackAction'], v)}
+              options={[
+                { value: 'inquiry', label: '問い合わせフォームへ誘導' },
+                { value: 'phone', label: '電話へ誘導' },
+                { value: 'email', label: 'メールへ誘導' },
+              ]}
+            />
+          </div>
+          <div>
+            <Label>自由記述の追加ルール（AIへ直接指示）</Label>
+            <TextArea
+              value={ng.customRules || ''}
+              onChange={(v: string) => update(['ngRules', 'customRules'], v)}
+              placeholder="例: 医療行為に関する断定的な発言は禁止。詳しい診断は医師にご相談と必ず添える。"
+            />
+            <p className="text-[10px] text-slate-400 mt-1">AIプロンプトに直接追加されます。業種固有のコンプラ要件などをここに書いてください。</p>
+          </div>
         </div>
       </Card>
     </>
