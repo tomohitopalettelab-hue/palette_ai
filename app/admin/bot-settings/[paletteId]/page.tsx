@@ -1006,6 +1006,99 @@ function ConversationTab({ config, update, paletteId }: any) {
         </div>
       </Card>
 
+      <Card title="③-2 🎯 商談ゴール（AI がクロージングで誘導する目的）">
+        <p className="text-xs text-slate-500 mb-4">
+          ヒアリング後、AI が「ぴったりです。一度ご相談しませんか？」のように誘導し、
+          承諾されたら名前・メール・電話を収集して、Google カレンダーの予約ページへ案内します。
+        </p>
+        <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200 mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-fuchsia-100 flex items-center justify-center">🎯</div>
+            <div>
+              <div className="text-sm font-black text-slate-800">商談ゴールを有効にする</div>
+              <div className="text-[10px] text-slate-500">WEBミーティング / 見積もり / 相談など最終ゴールに誘導</div>
+            </div>
+          </div>
+          <ToggleSwitch
+            checked={Boolean(g.meeting?.enabled)}
+            onChange={(v: boolean) => update(['goals', 'meeting', 'enabled'], v)}
+          />
+        </div>
+        {g.meeting?.enabled && (
+          <div className="space-y-4 p-4 rounded-lg bg-fuchsia-50 border border-fuchsia-100">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>ゴールの種類</Label>
+                <Select
+                  value={g.meeting?.kind || 'web_mtg'}
+                  onChange={(v: string) => update(['goals', 'meeting', 'kind'], v)}
+                  options={[
+                    { value: 'web_mtg', label: 'WEBミーティング' },
+                    { value: 'in_person', label: '対面ミーティング' },
+                    { value: 'estimate', label: '見積もり提出' },
+                    { value: 'consultation', label: '無料相談' },
+                    { value: 'demo', label: 'デモ・体験' },
+                    { value: 'trial', label: '無料トライアル' },
+                    { value: 'custom', label: 'カスタム' },
+                  ]}
+                />
+              </div>
+              <div>
+                <Label>ゴール名（会話で使う呼び方）</Label>
+                <TextInput
+                  value={g.meeting?.label || ''}
+                  onChange={(v: string) => update(['goals', 'meeting', 'label'], v)}
+                  placeholder="WEBミーティング"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>誘導文言（AI がヒアリング後に提示）</Label>
+              <TextArea
+                value={g.meeting?.invitationPrompt || ''}
+                onChange={(v: string) => update(['goals', 'meeting', 'invitationPrompt'], v)}
+                placeholder="ヒアリング内容的に、御社のお悩みにぴったりの解決策がありそうです。一度、担当と30分のWEBミーティングで詳しくお聞かせいただけませんか？"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">AI はこの文章をベースに、自然な日本語で誘導します。</p>
+            </div>
+            <div>
+              <Label>Google カレンダー 予約ページURL</Label>
+              <TextInput
+                value={g.meeting?.calendarUrl || ''}
+                onChange={(v: string) => update(['goals', 'meeting', 'calendarUrl'], v)}
+                placeholder="https://calendar.app.google/..."
+              />
+              <p className="text-[10px] text-slate-400 mt-1">Google カレンダーの予約ページURL（Appointment Schedule）を貼ってください。訪問者はこのページで日時を選びます。</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>日時選択ボタンのラベル</Label>
+                <TextInput
+                  value={g.meeting?.buttonLabel || ''}
+                  onChange={(v: string) => update(['goals', 'meeting', 'buttonLabel'], v)}
+                  placeholder="日時を選ぶ"
+                />
+              </div>
+              <div>
+                <Label>「もう少し考える」を押された時の分岐</Label>
+                <Select
+                  value={g.meeting?.declineFallback || 'nurture'}
+                  onChange={(v: string) => update(['goals', 'meeting', 'declineFallback'], v)}
+                  options={[
+                    { value: 'nurture', label: '追客オプションを提示' },
+                    { value: 'document', label: '資料請求に切り替え' },
+                    { value: 'line', label: 'LINE登録に切り替え' },
+                  ]}
+                />
+              </div>
+            </div>
+            <div className="text-[11px] text-slate-600 p-3 rounded bg-white border border-fuchsia-200">
+              <b>💡 リード収集</b>: 訪問者が承諾したら、<b>お名前・メールアドレス・電話番号</b>を必須で収集します（会話設計タブのリードフィールド以外もそのまま併用）。
+            </div>
+          </div>
+        )}
+      </Card>
+
       <Card title="④ AIヒアリング通知（おすすめ）">
         <p className="text-xs text-slate-500 mb-4">
           訪問者が入力フォームを送信すると、AIが会話の要約と見込み客情報を担当者に直接通知します。

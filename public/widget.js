@@ -707,12 +707,50 @@
         });
         var sub = document.createElement('button');
         sub.textContent = '送信する';
+        var isMeeting = m.ui.context === 'meeting';
         sub.addEventListener('click', function () {
-          submitLead(leadData, null);
-          form.innerHTML = '<div style="text-align:center;color:#10b981;font-weight:bold;">送信しました。ありがとうございます！</div>';
+          // meeting コンテキストなら closedAction=meeting で送信（後続でカレンダー案内が来る）
+          submitLead(leadData, isMeeting ? 'meeting' : null);
+          form.innerHTML = '<div style="text-align:center;color:#10b981;font-weight:bold;">' +
+            (isMeeting ? '送信完了。続けて日時選択にお進みください！' : '送信しました。ありがとうございます！') + '</div>';
+          if (isMeeting) {
+            // AI に「リード送信完了」を伝えて次のステップ (meeting_calendar) を引き出す
+            setTimeout(function () { sendMessage('送信しました。日時選択をお願いします。'); }, 400);
+          }
         });
         form.appendChild(sub);
         bubbleWrap.appendChild(form);
+      } else if (m.ui.type === 'meeting_proposal') {
+        var proposalWrap = document.createElement('div');
+        proposalWrap.className = 'nurture-opts';
+        var acceptBtn = document.createElement('button');
+        acceptBtn.className = 'cta-btn';
+        acceptBtn.style.marginTop = '0';
+        acceptBtn.textContent = m.ui.acceptLabel || 'はい、お願いします';
+        acceptBtn.addEventListener('click', function () {
+          sendMessage(m.ui.acceptLabel || 'はい、お願いします');
+        });
+        var declineBtn = document.createElement('button');
+        declineBtn.className = 'cta-btn';
+        declineBtn.style.cssText = 'background:rgba(255,255,255,0.6);color:#475569;border:1px solid rgba(255,255,255,0.9);box-shadow:4px 4px 12px rgba(163,177,198,0.3), -2px -2px 8px rgba(255,255,255,0.9);margin-top:8px;';
+        declineBtn.textContent = m.ui.declineLabel || 'もう少し考える';
+        declineBtn.addEventListener('click', function () {
+          sendMessage(m.ui.declineLabel || 'もう少し考える');
+        });
+        proposalWrap.appendChild(acceptBtn);
+        proposalWrap.appendChild(declineBtn);
+        bubbleWrap.appendChild(proposalWrap);
+      } else if (m.ui.type === 'meeting_calendar' && m.ui.url) {
+        var calBtn = document.createElement('a');
+        calBtn.className = 'cta-btn';
+        calBtn.setAttribute('href', m.ui.url);
+        calBtn.setAttribute('target', '_blank');
+        calBtn.setAttribute('rel', 'noopener noreferrer');
+        calBtn.textContent = m.ui.buttonLabel || '日時を選ぶ';
+        calBtn.addEventListener('click', function () {
+          submitLead({}, 'meeting');
+        });
+        bubbleWrap.appendChild(calBtn);
       }
     }
 

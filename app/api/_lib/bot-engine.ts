@@ -53,8 +53,10 @@ export type BotUiResponse =
   | { type: 'text' }
   | { type: 'cards'; cards: ServiceCard[] }
   | { type: 'closing_cta'; cta: ClosingCta; extraCta?: ClosingCta }
-  | { type: 'lead_form'; fields: LeadAsk[] }
-  | { type: 'nurture_options'; options: NurtureOption[] };
+  | { type: 'lead_form'; fields: LeadAsk[]; context?: 'meeting' | null }
+  | { type: 'nurture_options'; options: NurtureOption[] }
+  | { type: 'meeting_proposal'; label: string; acceptLabel: string; declineLabel: string }
+  | { type: 'meeting_calendar'; label: string; url: string; buttonLabel: string };
 
 export type BotTurnResult = {
   sessionId: string;
@@ -73,7 +75,7 @@ type AiResponse = {
   next_stage: BotStage;
   buy_intent_score: number;        // 1-5
   matched_service_ids: string[];
-  ui_hint: 'text' | 'cards' | 'closing_cta' | 'lead_form' | 'nurture_options';
+  ui_hint: 'text' | 'cards' | 'closing_cta' | 'lead_form' | 'nurture_options' | 'meeting_proposal' | 'meeting_lead_form' | 'meeting_calendar' | 'meeting_declined';
   lead_ask: string | null;         // 'name' | 'phone' | 'email' | 'preferredTime'
   closing_cta_key: string | null;  // 'reservation' etc
   reasoning?: string;
@@ -122,7 +124,33 @@ const buildGoalsBlock = (config: BotConfig): string => {
   if (g.line?.enabled) parts.push('line（LINE登録）');
   if (g.document?.enabled) parts.push('document（資料請求）');
   if (g.notify?.enabled) parts.push('notify（ヒアリング内容を担当者に通知・最優先で検討）');
+  if (g.meeting?.enabled) parts.push(`meeting（${g.meeting.label || 'ミーティング'}・最終ゴール）`);
   return parts.length ? parts.join(' / ') : '（未設定）';
+};
+
+const buildMeetingGoalBlock = (config: BotConfig): string => {
+  const m = config.goals?.meeting;
+  if (!m || !m.enabled) return '';
+  const label = m.label || 'ミーティング';
+  const prompt = m.invitationPrompt || `一度、担当と30分の${label}で詳しくお聞かせいただけませんか？`;
+  return `
+## 🎯 最終ゴール: ${label}
+このBotの最終ゴールは「${label}」への誘導です。
+ヒアリングが十分進んだら（2-3ターン以降、またはサービスが明確にマッチしたら）、以下の趣旨で訪問者を誘導してください：
+
+> ${prompt}
+
+### 誘導フロー
+1. ヒアリングが進んだら → reply に上記の誘導文言を自然な日本語で入れ、ui_hint='meeting_proposal' を返す
+2. 訪問者が「はい」「ぜひ」「お願いします」「予約します」等の承諾 → reply に「ありがとうございます！日程調整のため、お名前とご連絡先を教えてください」を入れ、ui_hint='meeting_lead_form' を返す
+3. lead が送信された後の次のターン → reply に「ありがとうございます。下のボタンから日時をお選びください」を入れ、ui_hint='meeting_calendar' を返す
+4. 訪問者が「もう少し考える」「検討します」等の拒否 → ui_hint='meeting_declined' を返す（後で自動で fallback に振り分けられる）
+
+### ルール
+- 一度 meeting_proposal を出したら、訪問者の返答を待たずに何度も meeting_proposal を繰り返さない
+- meeting_calendar を出した後は、closed 状態にして追加の営業は控える
+- ヒアリング不足のまま proposal を急がない（最低1-2ターンは深掘りヒアリング）
+`;
 };
 
 const buildSystemPrompt = (
@@ -152,6 +180,8 @@ ${faqs.length ? `## FAQ\n${buildFaqBlock(faqs)}\n` : ''}
 
 ## 利用可能なゴール（クロージング先）
 ${buildGoalsBlock(config)}
+
+${buildMeetingGoalBlock(config)}
 
 ## 現在の会話状態
 - stage: ${session.stage}
@@ -206,9 +236,9 @@ ${buildGoalsBlock(config)}
   "next_stage": "hearing|introduction|closing|nurture|fallback|closed",
   "buy_intent_score": 1-5の整数,
   "matched_service_ids": ["svc-xxx", ...],
-  "ui_hint": "text|cards|closing_cta|lead_form|nurture_options",
+  "ui_hint": "text|cards|closing_cta|lead_form|nurture_options|meeting_proposal|meeting_lead_form|meeting_calendar|meeting_declined",
   "lead_ask": null | "name" | "phone" | "email" | "preferredTime",
-  "closing_cta_key": null | "reservation" | "inquiry" | "phone" | "line" | "document" | "notify",
+  "closing_cta_key": null | "reservation" | "inquiry" | "phone" | "line" | "document" | "notify" | "meeting",
   "reasoning": "なぜこの判定か短く"
 }
 
@@ -392,6 +422,33 @@ const buildLeadFields = (config: BotConfig, onlyFields?: string[]): LeadAsk[] =>
   return filtered.map((f) => ({ field: f.key, label: f.label, required: f.required }));
 };
 
+/**
+ * meeting 用のリードフィールド: 名前・メール・電話を必ず含める（全て必須）
+ * 既存 conversation.leadFields にそれらが無い場合は補完
+ */
+const buildMeetingLeadFields = (config: BotConfig): LeadAsk[] => {
+  const baseFields = config.conversation?.leadFields || [];
+  const byKey = new Map(baseFields.map((f) => [f.key, f]));
+  const required = ['name', 'email', 'phone'];
+  const result: LeadAsk[] = [];
+  // 必須3項目 (既存のlabelがあれば流用、無ければデフォルト)
+  const defaultLabels: Record<string, string> = {
+    name: 'お名前',
+    email: 'メールアドレス',
+    phone: '電話番号',
+  };
+  for (const key of required) {
+    const f = byKey.get(key);
+    result.push({ field: key, label: f?.label || defaultLabels[key], required: true });
+  }
+  // 任意項目: name/email/phone以外の既存項目をそのまま追加
+  for (const f of baseFields) {
+    if (required.includes(f.key)) continue;
+    result.push({ field: f.key, label: f.label, required: f.required });
+  }
+  return result;
+};
+
 const buildNurtureOptions = (config: BotConfig): NurtureOption[] => {
   const opts = config.nurture?.options || [];
   return opts.map((o) => ({
@@ -409,6 +466,48 @@ const buildUiResponse = (
   services: BotService[],
   session: BotSession,
 ): BotUiResponse => {
+  const meeting = config.goals?.meeting;
+
+  // meeting_proposal: AI誘導メッセージ + 承諾/検討ボタン
+  if (aiResp.ui_hint === 'meeting_proposal' && meeting && meeting.enabled) {
+    return {
+      type: 'meeting_proposal',
+      label: meeting.label || 'ミーティング',
+      acceptLabel: 'はい、お願いします',
+      declineLabel: 'もう少し考える',
+    };
+  }
+
+  // meeting_lead_form: 名前・メール・電話のフォーム
+  if (aiResp.ui_hint === 'meeting_lead_form' && meeting && meeting.enabled) {
+    const fields = buildMeetingLeadFields(config);
+    return { type: 'lead_form', fields, context: 'meeting' };
+  }
+
+  // meeting_calendar: Google Calendar URL へ遷移するボタン
+  if (aiResp.ui_hint === 'meeting_calendar' && meeting && meeting.enabled) {
+    return {
+      type: 'meeting_calendar',
+      label: meeting.label || 'ミーティング',
+      url: meeting.calendarUrl || '',
+      buttonLabel: meeting.buttonLabel || '日時を選ぶ',
+    };
+  }
+
+  // meeting_declined: 拒否された → declineFallback に沿って振り分け
+  if (aiResp.ui_hint === 'meeting_declined' && meeting && meeting.enabled) {
+    const fb = meeting.declineFallback || 'nurture';
+    if (fb === 'nurture') {
+      const options = buildNurtureOptions(config);
+      if (options.length) return { type: 'nurture_options', options };
+    }
+    const goal = (config.goals as any)[fb];
+    if (goal && goal.enabled) {
+      const cta: ClosingCta = { key: fb, label: goal.label || fb, url: goal.url || '' };
+      return { type: 'closing_cta', cta };
+    }
+  }
+
   // cards (introduction)
   if (stage === 'introduction' || aiResp.ui_hint === 'cards') {
     const cardCount = config.conversation?.cardCount ?? 3;

@@ -57,6 +57,23 @@ export type BotConfig = {
       lineUserId?: string;
       webhookUrl?: string;
     };
+    /**
+     * 商談ゴール: ヒアリング → 提案 → 日時予約 までを AI にクロージングさせる
+     * 例: WEBミーティング / 見積もり / 対面商談 / デモ / 体験 など
+     */
+    meeting?: {
+      enabled: boolean;
+      kind: 'web_mtg' | 'in_person' | 'estimate' | 'consultation' | 'demo' | 'trial' | 'custom';
+      label?: string;
+      /** AIが訪問者に提示する誘導文言のベース */
+      invitationPrompt?: string;
+      /** Google Calendar Appointment Schedule URL (https://calendar.app.google/...) */
+      calendarUrl?: string;
+      /** 日時選択ボタンのラベル */
+      buttonLabel?: string;
+      /** 訪問者が「もう少し考える」等で拒否したときのフォールバック先 */
+      declineFallback?: 'nurture' | 'document' | 'line';
+    };
   };
   nurture: {
     enabled?: boolean;
@@ -191,6 +208,15 @@ export const DEFAULT_CONFIG: Omit<BotConfig, 'paletteId' | 'updatedAt'> = {
       lineChannelToken: '',
       lineUserId: '',
       webhookUrl: '',
+    },
+    meeting: {
+      enabled: false,
+      kind: 'web_mtg',
+      label: 'WEBミーティング',
+      invitationPrompt: 'ヒアリング内容的に、御社のお悩みにぴったりの解決策がありそうです。一度、担当と30分のWEBミーティングで詳しくお聞かせいただけませんか？',
+      calendarUrl: '',
+      buttonLabel: '日時を選ぶ',
+      declineFallback: 'nurture',
     },
   },
   nurture: {
