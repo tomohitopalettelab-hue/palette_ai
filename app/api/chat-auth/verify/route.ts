@@ -19,7 +19,7 @@ const formatDate = (raw?: string | null): string => {
   return date.toLocaleDateString('ja-JP');
 };
 
-const buildServiceSummaryText = (summary: any, paletteId: string): string => {
+const buildServiceSummaryText = async (summary: any, paletteId: string): Promise<string> => {
   const accountName = summary?.account?.name || '顧客名未設定';
   const contracts: any[] = Array.isArray(summary?.contracts) ? summary.contracts : [];
   const plans: any[] = Array.isArray(summary?.plans) ? summary.plans : [];
@@ -29,16 +29,22 @@ const buildServiceSummaryText = (summary: any, paletteId: string): string => {
   }
 
   const planMap = new Map<string, any>(plans.map((plan) => [String(plan.id), plan]));
-  const lines = contracts.map((contract, index) => {
-    const plan = planMap.get(String(contract.planId));
-    const planName = plan?.name || '不明なプラン';
-    const phase = contract?.phase || '未設定';
-    const status = contract?.status || '未設定';
-    const startDate = formatDate(contract?.startDate);
-    const endDate = contract?.endDate ? formatDate(contract.endDate) : '継続中';
-    const price = Number(contract?.priceYen || 0).toLocaleString('ja-JP');
-    return `${index + 1}. ${planName} / フェーズ: ${phase} / ステータス: ${status} / 期間: ${startDate}〜${endDate} / 月額: ¥${price}`;
-  });
+  const lines = await Promise.all(
+    contracts.map(async (contract, index) => {
+      const plan = planMap.get(String(contract.planId));
+      let planName = plan?.name || contract?.planName || '';
+      if (!planName && contract.planId) {
+        planName = (await fetchCrmProductName(String(contract.planId))) || '';
+      }
+      if (!planName) planName = '不明なプラン';
+      const phase = contract?.phase || '未設定';
+      const status = contract?.status || '未設定';
+      const startDate = formatDate(contract?.startDate);
+      const endDate = contract?.endDate ? formatDate(contract.endDate) : '継続中';
+      const price = Number(contract?.priceYen || 0).toLocaleString('ja-JP');
+      return `${index + 1}. ${planName} / フェーズ: ${phase} / ステータス: ${status} / 期間: ${startDate}〜${endDate} / 月額: ¥${price}`;
+    }),
+  );
 
   return [
     `認証が完了しました。顧客ID ${paletteId} の契約サービス内容です。`,
@@ -82,9 +88,11 @@ const isPaletteAixPlanCode = (code: string): boolean => {
   );
 };
 
-const resolveServiceKey = (plan: any): string => {
-  const code = String(plan?.code || '').toLowerCase();
-  const normalized = code.replace(/-/g, '_');
+const normalizeNameToCode = (name: string): string =>
+  String(name || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+
+const resolveServiceKeyFromCode = (code: string): string => {
+  const normalized = String(code || '').toLowerCase().replace(/-/g, '_');
   if (isPalStudioPlanCode(normalized)) return 'pal_studio';
   if (isPalVideoPlanCode(normalized)) return 'pal_video';
   if (isPalOptPlanCode(normalized)) return 'pal_opt';
@@ -94,6 +102,20 @@ const resolveServiceKey = (plan: any): string => {
   if (normalized.includes('pal_trust') || normalized === 'trust' || normalized.startsWith('trust_')) return 'pal_trust';
   if (isAgencyPlanCode(normalized)) return 'agency';
   return 'other';
+};
+
+const fetchCrmProductName = async (productId: string): Promise<string | null> => {
+  try {
+    const base = String(process.env.PAL_DB_BASE_URL || '').trim().replace(/\/$/, '');
+    if (!base) return null;
+    const res = await fetch(`${base}/api/crm/products/${encodeURIComponent(productId)}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const body = await res.json().catch(() => ({}));
+    const name = body?.data?.name;
+    return name ? String(name) : null;
+  } catch {
+    return null;
+  }
 };
 
 const getServiceMeta = (serviceKey: string) => {
@@ -118,30 +140,47 @@ const getServiceMeta = (serviceKey: string) => {
   return { title: 'Other Service', description: '契約サービス' };
 };
 
-const extractServiceCards = (summary: any): ServiceCard[] => {
+const extractServiceCards = async (summary: any): Promise<ServiceCard[]> => {
   const contracts: any[] = Array.isArray(summary?.contracts) ? summary.contracts : [];
   const plans: any[] = Array.isArray(summary?.plans) ? summary.plans : [];
   const planMap = new Map<string, any>(plans.map((plan) => [String(plan.id), plan]));
 
   const byService = new Map<string, ServiceCard>();
-  contracts.forEach((contract) => {
-    const plan = planMap.get(String(contract.planId));
-    if (!plan) return;
 
-    const serviceKey = resolveServiceKey(plan);
+  // 各契約の code/name を解決 (service_plans JOIN > contract.planCode > contract.planName >
+  // crm_products フォールバック) して service key に束ねる
+  for (const contract of contracts) {
+    const plan = planMap.get(String(contract.planId));
+    let code = plan?.code || contract?.planCode || '';
+    let planName = plan?.name || contract?.planName || '';
+
+    if (!code && !planName && contract.planId) {
+      // crm_products からフォールバック取得
+      const name = await fetchCrmProductName(String(contract.planId));
+      if (name) {
+        planName = name;
+        code = normalizeNameToCode(name);
+      }
+    } else if (!code && planName) {
+      code = normalizeNameToCode(planName);
+    }
+
+    if (!code && !planName) continue;
+
+    const serviceKey = resolveServiceKeyFromCode(code || normalizeNameToCode(planName));
     const meta = getServiceMeta(serviceKey);
     if (!byService.has(serviceKey)) {
       byService.set(serviceKey, {
         key: serviceKey,
         title: meta.title,
         description: meta.description,
-        planName: String(plan?.name || '未設定プラン'),
-        planCode: String(plan?.code || ''),
+        planName: String(planName || '未設定プラン'),
+        planCode: String(code || ''),
         phase: String(contract?.phase || '未設定'),
         status: String(contract?.status || '未設定'),
       });
     }
-  });
+  }
 
   return Array.from(byService.values());
 };
@@ -185,14 +224,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const serviceCards = extractServiceCards(summary);
+    const serviceCards = await extractServiceCards(summary);
     const hasAgency = serviceCards.some((card) => card.key === 'agency');
 
     return NextResponse.json({
       success: true,
       paletteId,
       accountName: summary?.account?.name || verifyData?.accountName || null,
-      summaryText: buildServiceSummaryText(summary, paletteId),
+      summaryText: await buildServiceSummaryText(summary, paletteId),
       serviceCards: serviceCards.filter((card) => card.key !== 'agency'),
       hasAgency,
       summary,
