@@ -205,8 +205,10 @@
     .msg.user .msg-avatar svg { color: #94a3b8; }
 
     .msg-bubble {
-      max-width: 78%; padding: 12px 16px; font-size: 13.5px; line-height: 1.6;
-      white-space: pre-wrap; word-wrap: break-word; font-weight: 500;
+      padding: 12px 16px; font-size: 13.5px; line-height: 1.6;
+      white-space: pre-wrap; overflow-wrap: anywhere; word-break: normal;
+      font-weight: 500;
+      width: fit-content; max-width: 100%;
     }
     .msg.bot .msg-bubble {
       background: rgba(255,255,255,0.3);
@@ -511,8 +513,11 @@
     var bubbleWrap = document.createElement('div');
     bubbleWrap.style.display = 'flex';
     bubbleWrap.style.flexDirection = 'column';
+    bubbleWrap.style.flex = '1 1 auto';
+    bubbleWrap.style.minWidth = '0';
     bubbleWrap.style.maxWidth = 'calc(100% - 38px)';
     bubbleWrap.style.alignItems = m.role === 'visitor' ? 'flex-end' : 'flex-start';
+    bubbleWrap.style.gap = '6px';
 
     var bubbleEl = document.createElement('div');
     bubbleEl.className = 'msg-bubble';

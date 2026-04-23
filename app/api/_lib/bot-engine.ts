@@ -171,7 +171,8 @@ ${buildGoalsBlock(config)}
 
 ### introduction（サービス提案）
 - matched_service_ids から上位${conv.cardCount || 3}個を選ぶ
-- replyは短く「おすすめがあります。気になるのを選んでくださいね。」程度
+- **replyは質問を含めない**。「おすすめがあります。気になるのを選んでくださいね。」のような短い遷移文のみ
+- 質問したい場合はまだヒアリングすべき → next_stage='hearing' にする（introductionには進まない）
 - ui_hint = 'cards'
 - 押し売り禁止
 - **既に一度 introduction を出した後は、絶対に introduction に戻らない**（同じカードを繰り返し出さない）
@@ -517,6 +518,13 @@ export const processBotTurn = async (params: {
 
   if (force && process.env.NODE_ENV !== 'production') {
     console.log(`[bot-engine] rule override: ${aiResp.next_stage} -> ${finalStage} (${reason})`);
+  }
+
+  // ルールがintroductionを強制した場合、AIのreply（質問文の可能性）を簡潔な遷移文に上書き
+  // → 質問とカードが同時に出ることを防ぐ
+  if (force && finalStage === 'introduction') {
+    const flourish = config.conversation?.preFlourish || 'なるほど、それならおすすめがあります。';
+    aiResp.reply = `${flourish}気になるものを選んでくださいね。`;
   }
 
   // Merge matched service IDs (AI + rule-based)
