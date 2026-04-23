@@ -178,12 +178,14 @@ ${summary.slice(0, 800)}
   // userId未設定 → 直接Broadcast
   if (!userId) {
     const r = await callLine('broadcast');
-    return r.ok ? { ok: true } : { ok: false, error: r.error };
+    console.log('[LINE] broadcast(no-userId) result:', JSON.stringify(r));
+    return r.ok ? { ok: true, error: 'broadcast送信完了（友だち全員宛）' } : { ok: false, error: r.error };
   }
 
   // まずPushを試す
   const pushResult = await callLine('push');
-  if (pushResult.ok) return { ok: true };
+  console.log('[LINE] push result:', JSON.stringify(pushResult));
+  if (pushResult.ok) return { ok: true, error: 'push送信完了' };
 
   // "yourself" エラーならBroadcastにフォールバック
   const isSelfError =
@@ -191,8 +193,9 @@ ${summary.slice(0, 800)}
     /yourself|to yourself/i.test(pushResult.body || '');
   if (isSelfError) {
     const broadcastResult = await callLine('broadcast');
-    if (broadcastResult.ok) return { ok: true, error: '(Broadcastで送信: Push自分宛制限のため)' };
-    return { ok: false, error: `Push失敗→Broadcastも失敗: ${broadcastResult.error}` };
+    console.log('[LINE] fallback broadcast result:', JSON.stringify(broadcastResult));
+    if (broadcastResult.ok) return { ok: true, error: 'Broadcast送信完了（Push自己宛制限回避）' };
+    return { ok: false, error: `Push→Broadcast両方失敗: push=${pushResult.error} / broadcast=${broadcastResult.error}` };
   }
 
   return { ok: false, error: pushResult.error };
