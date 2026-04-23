@@ -64,7 +64,8 @@
 
     /* Floating bubble */
     .bubble {
-      position: fixed; bottom: 24px; width: 60px; height: 60px;
+      position: fixed; bottom: 24px;
+      width: var(--bubble-size, 60px); height: var(--bubble-size, 60px);
       border-radius: var(--bubble-radius, 50%);
       background: var(--bubble-bg, var(--color, #6366f1));
       color: #fff; border: none; cursor: pointer;
@@ -104,7 +105,101 @@
       transform: scale(0.4) rotate(-20deg);
       pointer-events: none;
     }
-    .bubble svg { width: 26px; height: 26px; }
+    .bubble svg {
+      width: calc(var(--bubble-size, 60px) * 0.43);
+      height: calc(var(--bubble-size, 60px) * 0.43);
+    }
+
+    /* Bubble animations (ready中のみ発動) */
+    .bubble.ready.anim-pulse { animation: bubblePulse 2.2s ease-in-out infinite; }
+    .bubble.ready.anim-wobble { animation: bubbleWobble 3s ease-in-out infinite; }
+    .bubble.ready.anim-bounce { animation: bubbleBounce 2.4s cubic-bezier(0.2, 0.8, 0.2, 1) infinite; }
+    .bubble.ready.anim-shimmer { animation: bubbleShimmer 2.8s ease-in-out infinite; }
+    @keyframes bubblePulse {
+      0%, 100% { transform: scale(1) translateY(0); }
+      50% { transform: scale(1.07) translateY(-1px); box-shadow: 0 16px 40px rgba(99,102,241,0.55), 0 4px 10px rgba(0,0,0,0.1); }
+    }
+    @keyframes bubbleWobble {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-6deg); }
+      75% { transform: rotate(6deg); }
+    }
+    @keyframes bubbleBounce {
+      0%, 30%, 60%, 100% { transform: translateY(0); }
+      45% { transform: translateY(-12px); }
+      70% { transform: translateY(-5px); }
+    }
+    @keyframes bubbleShimmer {
+      0%, 100% { box-shadow: 0 10px 30px rgba(99,102,241,0.35), 0 0 0 rgba(99,102,241,0); }
+      50% { box-shadow: 0 14px 36px rgba(99,102,241,0.5), 0 0 26px rgba(99,102,241,0.65); }
+    }
+
+    /* Bubble tooltip */
+    .tooltip {
+      position: fixed; bottom: calc(24px + (var(--bubble-size, 60px) - 44px) / 2);
+      z-index: 2147483647;
+      padding: 10px 16px;
+      font-size: 13px; font-weight: 700;
+      color: #1e293b;
+      background: #fff;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0; visibility: hidden;
+      transform: translateY(4px) scale(0.92);
+      transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 0.3s;
+    }
+    .tooltip.ready {
+      opacity: 1; visibility: visible;
+      transform: translateY(0) scale(1);
+      transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 0s;
+    }
+    .tooltip.hidden { opacity: 0; visibility: hidden; transform: translateY(4px) scale(0.92); }
+    /* position: bubbleの反対側に配置（overlap を避けて 16px マージン） */
+    .tooltip.right { right: calc(24px + var(--bubble-size, 60px) + 14px); }
+    .tooltip.left  { left:  calc(24px + var(--bubble-size, 60px) + 14px); }
+
+    /* Tooltip styles */
+    .tooltip.style-speech {
+      border-radius: 18px;
+      box-shadow: 0 10px 26px rgba(0,0,0,0.12), 0 3px 8px rgba(0,0,0,0.06);
+    }
+    .tooltip.style-speech::after {
+      content: ''; position: absolute; top: 50%; width: 0; height: 0;
+      border-style: solid; transform: translateY(-50%);
+    }
+    .tooltip.style-speech.right::after { right: -8px; border-width: 7px 0 7px 10px; border-color: transparent transparent transparent #fff; }
+    .tooltip.style-speech.left::after  { left:  -8px; border-width: 7px 10px 7px 0; border-color: transparent #fff transparent transparent; }
+
+    .tooltip.style-pill {
+      border-radius: 999px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06);
+    }
+
+    .tooltip.style-card {
+      border-radius: 12px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.18), 0 6px 14px rgba(0,0,0,0.08);
+      padding: 12px 18px;
+    }
+
+    .tooltip.style-neon {
+      border-radius: 999px;
+      background: #fff;
+      box-shadow:
+        0 0 0 2px var(--color, #6366f1),
+        0 0 18px 2px var(--color, #6366f1),
+        0 0 32px rgba(99,102,241,0.35);
+      color: var(--color, #6366f1);
+    }
+
+    .tooltip.style-minimal {
+      background: transparent;
+      border-bottom: 2px solid var(--color, #6366f1);
+      border-radius: 0;
+      padding: 6px 4px;
+      color: var(--color, #6366f1);
+      box-shadow: none;
+      font-weight: 800;
+    }
 
     /* Main panel */
     .panel {
@@ -373,6 +468,10 @@
   bubble.addEventListener('click', togglePanel);
   shadow.appendChild(bubble);
 
+  var tooltip = document.createElement('div');
+  tooltip.className = 'tooltip right style-speech';
+  shadow.appendChild(tooltip);
+
   var panel = document.createElement('div');
   panel.className = 'panel right';
   shadow.appendChild(panel);
@@ -409,17 +508,36 @@
     var iconStyle = appearance.iconStyle || 'chat';
     var iconPath = ICON_PATHS[iconStyle] || ICON_PATHS.chat;
     var position = appearance.bubblePosition === 'left' ? 'left' : 'right';
+    var bubbleSize = appearance.bubbleSize === 'small' ? '48px'
+      : appearance.bubbleSize === 'large' ? '72px' : '60px';
+    var animation = appearance.bubbleAnimation || 'none';
+    var tooltipText = typeof appearance.bubbleTooltipText === 'string' ? appearance.bubbleTooltipText : 'AIに相談する';
+    var tooltipStyle = appearance.bubbleTooltipStyle || 'speech';
 
     panel.style.setProperty('--color', color);
     panel.style.setProperty('--bubble-bg', bubbleBg);
     bubble.style.setProperty('--color', color);
     bubble.style.setProperty('--bubble-bg', bubbleBg);
     bubble.style.setProperty('--bubble-radius', bubbleRadius);
+    bubble.style.setProperty('--bubble-size', bubbleSize);
+    tooltip.style.setProperty('--color', color);
+    tooltip.style.setProperty('--bubble-size', bubbleSize);
     // position (left/right) のみ更新。ready / hidden / open クラスは init と togglePanel が管理
-    bubble.classList.remove('left', 'right');
+    bubble.classList.remove('left', 'right', 'anim-pulse', 'anim-wobble', 'anim-bounce', 'anim-shimmer');
     bubble.classList.add(position);
+    if (animation && animation !== 'none') bubble.classList.add('anim-' + animation);
     panel.classList.remove('left', 'right');
     panel.classList.add(position);
+    // tooltip の位置・スタイル・テキスト
+    tooltip.classList.remove('left', 'right', 'style-speech', 'style-pill', 'style-card', 'style-neon', 'style-minimal');
+    tooltip.classList.add(position);
+    tooltip.classList.add('style-' + tooltipStyle);
+    tooltip.textContent = tooltipText;
+    // 空文字なら tooltip を表示しない（visibility: hidden に）
+    if (!tooltipText) {
+      tooltip.classList.remove('ready');
+      tooltip.classList.add('hidden');
+    }
     bubble.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="' + iconPath + '"/></svg>';
 
     panel.innerHTML = '';
@@ -615,10 +733,12 @@
       requestAnimationFrame(function () {
         panel.classList.add('open');
         bubble.classList.add('hidden');
+        tooltip.classList.add('hidden');
       });
     } else {
       panel.classList.remove('open');
       bubble.classList.remove('hidden');
+      if (tooltip.textContent) tooltip.classList.remove('hidden');
     }
   }
 
@@ -671,12 +791,22 @@
       host.remove();
       return;
     }
+    // showPages: 'top' の場合、TOPページ以外では表示しない
+    var showPages = res.config && res.config.appearance && res.config.appearance.showPages;
+    if (showPages === 'top') {
+      var path = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
+      var isTop = path === '/' || path === '/index.html' || path === '/index.htm' || path === '/index';
+      if (!isTop) { host.remove(); return; }
+    }
     state.config = res.config;
     var delay = Number((res.config && res.config.appearance && res.config.appearance.welcomeDelay) || 0) || 0;
     setTimeout(function () {
       render();
-      // 初回render直後にバブルをフワッと登場させる
-      requestAnimationFrame(function () { bubble.classList.add('ready'); });
+      // 初回render直後にバブルと吹き出しをフワッと登場させる
+      requestAnimationFrame(function () {
+        bubble.classList.add('ready');
+        if (tooltip.textContent) tooltip.classList.add('ready');
+      });
     }, delay * 1000);
   }).catch(function (err) {
     console.warn('[palette-bot] init error:', err);

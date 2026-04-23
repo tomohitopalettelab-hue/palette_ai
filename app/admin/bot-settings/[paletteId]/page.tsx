@@ -1464,6 +1464,45 @@ function AppearanceTab({ config, update, embedCode, onCopy, copied, paletteId }:
               { value: '30', label: '30秒後' },
             ]} />
           </div>
+          <div>
+            <Label>バブルサイズ</Label>
+            <Select value={a.bubbleSize || 'medium'} onChange={(v: string) => update(['appearance', 'bubbleSize'], v)} options={[
+              { value: 'small', label: '小（48px）' },
+              { value: 'medium', label: '中（60px）' },
+              { value: 'large', label: '大（72px）' },
+            ]} />
+          </div>
+          <div>
+            <Label>バブルのアニメーション</Label>
+            <Select value={a.bubbleAnimation || 'none'} onChange={(v: string) => update(['appearance', 'bubbleAnimation'], v)} options={[
+              { value: 'none', label: 'なし' },
+              { value: 'pulse', label: 'パルス（拡大縮小）' },
+              { value: 'wobble', label: 'ゆらゆら' },
+              { value: 'bounce', label: 'バウンド' },
+              { value: 'shimmer', label: 'きらめき（光る）' },
+            ]} />
+          </div>
+          <div>
+            <Label>表示するページ</Label>
+            <Select value={a.showPages || 'all'} onChange={(v: string) => update(['appearance', 'showPages'], v)} options={[
+              { value: 'all', label: '全ページ' },
+              { value: 'top', label: 'TOPページのみ' },
+            ]} />
+          </div>
+          <div>
+            <Label>吹き出しの文言（空で非表示）</Label>
+            <TextInput value={a.bubbleTooltipText || ''} onChange={(v: string) => update(['appearance', 'bubbleTooltipText'], v)} placeholder="AIに相談する" />
+          </div>
+          <div>
+            <Label>吹き出しのスタイル</Label>
+            <Select value={a.bubbleTooltipStyle || 'speech'} onChange={(v: string) => update(['appearance', 'bubbleTooltipStyle'], v)} options={[
+              { value: 'speech', label: '💬 スピーチ（尻尾付き）' },
+              { value: 'pill', label: '💊 ピル（角丸）' },
+              { value: 'card', label: '📄 カード（影付き）' },
+              { value: 'neon', label: '💡 ネオン（光る縁）' },
+              { value: 'minimal', label: '━ ミニマル（線のみ）' },
+            ]} />
+          </div>
         </div>
       </Card>
 

@@ -68,13 +68,17 @@ export type BotConfig = {
     gradientTo?: string;
     botIcon?: string;
     welcomeDelay?: number;
-    showPages?: string;
+    showPages?: 'all' | 'top';
     botName?: string;
     templateId?: string;
     bubbleShape?: 'circle' | 'rounded' | 'square';
     iconStyle?: 'chat' | 'ai' | 'sparkle' | 'heart' | 'robot';
     bubblePosition?: 'right' | 'left';
     gradient?: boolean;
+    bubbleSize?: 'small' | 'medium' | 'large';
+    bubbleAnimation?: 'none' | 'pulse' | 'wobble' | 'bounce' | 'shimmer';
+    bubbleTooltipText?: string;
+    bubbleTooltipStyle?: 'speech' | 'pill' | 'card' | 'neon' | 'minimal';
   };
   ngRules: {
     forbiddenTopics?: string[];
@@ -206,6 +210,10 @@ export const DEFAULT_CONFIG: Omit<BotConfig, 'paletteId' | 'updatedAt'> = {
     iconStyle: 'chat',
     bubblePosition: 'right',
     gradient: true,
+    bubbleSize: 'medium',
+    bubbleAnimation: 'none',
+    bubbleTooltipText: 'AIに相談する',
+    bubbleTooltipStyle: 'speech',
   },
   ngRules: {
     forbiddenTopics: [],
