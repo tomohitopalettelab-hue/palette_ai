@@ -325,7 +325,7 @@ export default function BotSettingsEditPage({ params }: { params: Promise<{ pale
             onDelete={deleteFaq}
           />
         )}
-        {tab === 'conversation' && <ConversationTab config={config} update={updateConfigField} />}
+        {tab === 'conversation' && <ConversationTab config={config} update={updateConfigField} paletteId={paletteId} />}
         {tab === 'nurture' && <NurtureTab config={config} update={updateConfigField} />}
         {tab === 'appearance' && (
           <AppearanceTab
@@ -808,7 +808,35 @@ function FaqsTab({ faqs, onAdd, onChange, onSave, onDelete }: any) {
 
 // ─── Conversation Tab ────────────────────────────────────
 
-function ConversationTab({ config, update }: any) {
+function ConversationTab({ config, update, paletteId }: any) {
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<string>('');
+
+  const runNotifyTest = async () => {
+    setTesting(true);
+    setTestResult('');
+    try {
+      const res = await fetch(`/api/admin/bot-settings/${paletteId}/notify-test`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        setTestResult('❌ ' + (data?.error || 'テスト送信に失敗しました'));
+        return;
+      }
+      const lines: string[] = [];
+      const r = data.result || {};
+      if (r.email) lines.push(`📧 メール: ${r.email.ok ? '✓ 送信成功' : '✗ ' + (r.email.error || 'error')}`);
+      if (r.line) lines.push(`💚 LINE: ${r.line.ok ? '✓ 送信成功' : '✗ ' + (r.line.error || 'error')}`);
+      if (r.webhook) lines.push(`🔗 Webhook: ${r.webhook.ok ? '✓ 送信成功' : '✗ ' + (r.webhook.error || 'error')}`);
+      if (!lines.length) lines.push('どの通知先も設定されていません（メール/LINE/Webhookいずれかを入力してください）');
+      setTestResult(lines.join('\n'));
+    } catch (err: any) {
+      setTestResult('❌ ' + (err?.message || 'error'));
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  // Below uses paletteId - keep existing variable names
   const c = config.conversation || {};
   const g = config.goals || {};
   const show = c.cardShow || {};
@@ -1034,6 +1062,29 @@ function ConversationTab({ config, update }: any) {
                   placeholder="https://hooks.slack.com/..."
                 />
                 <p className="text-[10px] text-slate-400 mt-1">Webhook URLを貼るとJSON POSTで通知</p>
+              </div>
+
+              {/* テスト送信 */}
+              <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-black text-amber-800">🧪 テスト送信</div>
+                    <div className="text-[10px] text-amber-600 mt-0.5">
+                      先に「保存」を押した上で、ダミーのリード情報でテスト通知を送信します。
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={runNotifyTest}
+                    disabled={testing}
+                    className="px-4 py-2 rounded-lg bg-amber-500 text-white text-xs font-black hover:bg-amber-600 disabled:opacity-50 shrink-0"
+                  >
+                    {testing ? '送信中...' : 'テスト送信'}
+                  </button>
+                </div>
+                {testResult && (
+                  <pre className="mt-3 p-2 bg-white rounded text-[11px] text-slate-700 whitespace-pre-wrap border border-amber-200">{testResult}</pre>
+                )}
               </div>
             </div>
           )}
