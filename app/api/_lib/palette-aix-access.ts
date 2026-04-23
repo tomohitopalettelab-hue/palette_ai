@@ -13,6 +13,10 @@ import { palDbGet } from './pal-db-client';
 
 const normalize = (value: string | null | undefined) => String(value || '').trim().toLowerCase();
 
+/** 商品名を code 形式に正規化 (例: "Palette AIX" → "palette_aix") */
+const normalizeNameToCode = (name: string): string =>
+  normalize(name).replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+
 /** plan code が palette_aix かどうか判定（palette_ai より先にチェック必要） */
 export const isPaletteAixPlanCode = (code: string): boolean => {
   const normalized = normalize(code).replace(/-/g, '_');
@@ -23,6 +27,25 @@ export const isPaletteAixPlanCode = (code: string): boolean => {
     normalized === 'aix' ||
     normalized.startsWith('aix_')
   );
+};
+
+/**
+ * 管理画面で独自追加した crm_products レコードから商品名を取得。
+ * palette-summary の JOIN で service_plans とマッチしない prod-* IDの
+ * 契約でも、商品名（例: "Palette AIX"）から AIX 判定できるようにする。
+ */
+const fetchCrmProductName = async (productId: string): Promise<string | null> => {
+  try {
+    const base = String(process.env.PAL_DB_BASE_URL || '').trim().replace(/\/$/, '');
+    if (!base) return null;
+    const res = await fetch(`${base}/api/crm/products/${encodeURIComponent(productId)}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const body = await res.json().catch(() => ({}));
+    const name = body?.data?.name;
+    return name ? String(name) : null;
+  } catch {
+    return null;
+  }
 };
 
 const todayYmd = (): string => {
@@ -60,19 +83,34 @@ export const hasPaletteAixPlan = async (paletteId: string): Promise<boolean> => 
     const planMap = new Map<string, any>(plans.map((p: any) => [String(p.id), p]));
 
     const activeOn = todayYmd();
-    const hasAix = contracts.some((contract) => {
-      // End-date check
+    const isActiveContract = (contract: any): boolean => {
       if (contract.endDate && String(contract.endDate) < activeOn) return false;
-      // Status check (active系のみ)
       const status = normalize(contract.status);
-      if (status && !['active', 'in progress', '運用中', '本運用', '制作中', '納品済み', '納品済'].some((s) => status.includes(s))) {
-        // 非稼働ステータスは除外
-        if (['suspended', 'expired', 'cancelled', '停止', '解約'].some((s) => status.includes(s))) return false;
-      }
+      if (status && ['suspended', 'expired', 'cancelled', '停止', '解約'].some((s) => status.includes(s))) return false;
+      return true;
+    };
+
+    let hasAix = false;
+    const prodFallbackIds: string[] = [];
+    for (const contract of contracts) {
+      if (!isActiveContract(contract)) continue;
       const plan = planMap.get(String(contract.planId));
       const code = plan?.code || '';
-      return isPaletteAixPlanCode(code);
-    });
+      if (isPaletteAixPlanCode(code)) { hasAix = true; break; }
+      // contract.planName / contract.planCode 直接指定のケース（palette_crm修正後の経路）
+      const planCodeFromContract = (contract as any).planCode ? String((contract as any).planCode) : '';
+      if (planCodeFromContract && isPaletteAixPlanCode(planCodeFromContract)) { hasAix = true; break; }
+      const planNameFromContract = (contract as any).planName ? String((contract as any).planName) : '';
+      if (planNameFromContract && isPaletteAixPlanCode(normalizeNameToCode(planNameFromContract))) { hasAix = true; break; }
+      // service_plans とJOINできなかった prod-* ID をフォールバック候補に
+      if (!plan && contract.planId) prodFallbackIds.push(String(contract.planId));
+    }
+
+    // 応急フォールバック: crm_products API で商品名を取得してAIX判定
+    if (!hasAix && prodFallbackIds.length > 0) {
+      const names = await Promise.all(prodFallbackIds.map(fetchCrmProductName));
+      hasAix = names.some((n) => !!n && isPaletteAixPlanCode(normalizeNameToCode(n)));
+    }
 
     cache.set(target, { hasAix, expiresAt: Date.now() + CACHE_TTL_MS });
     return hasAix;
