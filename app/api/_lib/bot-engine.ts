@@ -555,6 +555,7 @@ export const processBotTurn = async (params: {
     aiResp.reply = `${flourish}気になるものを選んでくださいね。`;
   }
 
+
   // Merge matched service IDs (AI + rule-based)
   const allMatchedIds = Array.from(new Set([
     ...(aiResp.matched_service_ids || []),
@@ -569,6 +570,11 @@ export const processBotTurn = async (params: {
     services,
     { ...session, messages: newMessages, matchedServiceIds: allMatchedIds },
   );
+
+  // リードフォームを出すとき（notify経由の場合など）は、親しみやすい案内文に上書き
+  if (ui.type === 'lead_form') {
+    aiResp.reply = 'ありがとうございます！担当者からご連絡させていただきますので、お客様情報を数点だけ教えてください。';
+  }
 
   // Save bot message
   const botMsg: BotMessage = {

@@ -585,7 +585,12 @@
           var lab = document.createElement('label');
           lab.textContent = f.label + (f.required ? ' *' : '');
           var inp = document.createElement('input');
-          inp.type = f.field === 'email' ? 'email' : f.field === 'phone' ? 'tel' : 'text';
+          // フィールド名に応じて入力タイプを決定
+          if (f.field === 'email') inp.type = 'email';
+          else if (f.field === 'phone') inp.type = 'tel';
+          else if (/time|datetime|希望/.test(f.field) || /日時/.test(f.label || '')) inp.type = 'datetime-local';
+          else if (/date|日付/.test(f.field) || /日付/.test(f.label || '')) inp.type = 'date';
+          else inp.type = 'text';
           inp.addEventListener('input', function (e) { leadData[f.field] = e.target.value; });
           form.appendChild(lab);
           form.appendChild(inp);
