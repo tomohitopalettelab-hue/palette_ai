@@ -1094,28 +1094,32 @@ function ConversationTab({ config, update }: any) {
                     const pos = list.indexOf(opt.key);
                     const selected = pos >= 0;
                     const enabled = Boolean((g as any)[opt.key]?.enabled);
+                    // 選択済みなら無効化ゴールでもクリック可能（削除できるように）
+                    const clickable = enabled || selected;
                     return (
                       <button
                         key={opt.key}
                         type="button"
-                        onClick={() => toggleGoal(opt.key)}
-                        disabled={!enabled}
-                        title={!enabled ? 'このゴールは無効です。上のクロージング設定で有効にしてください' : ''}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleGoal(opt.key); }}
+                        disabled={!clickable}
+                        title={!enabled && selected ? 'ゴール無効化済。クリックで削除' : !enabled ? 'このゴールは無効です。上のクロージング設定で有効にしてください' : (selected ? 'クリックで解除' : 'クリックで追加')}
                         className={`relative px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all ${
                           selected
-                            ? 'bg-indigo-500 text-white border-indigo-500 shadow-md'
+                            ? 'bg-indigo-500 text-white border-indigo-500 shadow-md hover:bg-indigo-600'
                             : enabled
                               ? 'bg-white text-slate-600 border-slate-300 hover:border-indigo-300'
                               : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-50'
                         }`}
                       >
                         {selected && (
-                          <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white text-indigo-600 text-[9px] font-black flex items-center justify-center border-2 border-indigo-500">
+                          <span
+                            className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-white text-indigo-600 text-[9px] font-black flex items-center justify-center border-2 border-indigo-500 pointer-events-none"
+                          >
                             {pos + 1}
                           </span>
                         )}
-                        <span className="mr-1">{opt.emoji}</span>
-                        {opt.label}
+                        <span className="mr-1 pointer-events-none">{opt.emoji}</span>
+                        <span className="pointer-events-none">{opt.label}</span>
                       </button>
                     );
                   })}
