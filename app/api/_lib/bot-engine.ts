@@ -5,6 +5,7 @@ import {
   BotFaq,
   BotSession,
   BotMessage,
+  HearingStep,
   getBotConfigOrDefault,
   listServices,
   listFaqs,
@@ -184,6 +185,55 @@ const buildNgRulesBlock = (config: BotConfig): string => {
   return `## 🛑 運用ルール (最優先・必ず守る)\n${lines.join('\n\n')}\n`;
 };
 
+/**
+ * hearingFlow.mode='manual' のとき、現在のステップ情報を system prompt に挿入する。
+ * - AI がステップの prompt の趣旨を汲んで自然に言い換えて OK
+ * - 明確な購入意思を検出したら残りステップを飛ばして closing に遷移してよい
+ */
+const buildHearingFlowBlock = (config: BotConfig, session: BotSession): string => {
+  const flow = config.conversation?.hearingFlow;
+  if (!flow || flow.mode !== 'manual') return '';
+  const steps: HearingStep[] = Array.isArray(flow.steps) ? flow.steps : [];
+  if (steps.length === 0) return '';
+  const idx = session.hearingStepIndex ?? 0;
+  if (idx >= steps.length) return '';
+  const current = steps[idx];
+
+  const typeLabels: Record<HearingStep['type'], string> = {
+    ask: '💬 質問する',
+    show_cards: '🎴 サービスカードを提示',
+    proposal_meeting: '🎯 商談誘導',
+    show_closing: '✅ クロージング',
+  };
+
+  let instruction = '';
+  if (current.type === 'ask') {
+    const prompt = (current.prompt || '').trim();
+    instruction = prompt
+      ? `- 次に尋ねたい内容（趣旨）: 「${prompt}」\n- この**趣旨を汲んで**、訪問者の直前の発言の文脈に合わせて**自然に言い換えて** reply に含めてください。機械的なコピペはNG。\n- ui_hint='text', next_stage='hearing' を基本とします`
+      : `- 深掘り質問を1つ返してください。\n- ui_hint='text', next_stage='hearing'`;
+  } else if (current.type === 'show_cards') {
+    instruction = `- 質問は含めず、短い遷移文（例: 「${config.conversation?.preFlourish || 'それならおすすめがあります。'}気になるものを選んでくださいね。」）を reply に入れてください。\n- next_stage='introduction', ui_hint='cards' を返してください。`;
+  } else if (current.type === 'proposal_meeting') {
+    instruction = `- 「最終ゴール」ブロックの誘導文言を使って reply を作り、ui_hint='meeting_proposal' を返してください。`;
+  } else if (current.type === 'show_closing') {
+    instruction = `- next_stage='closing' に遷移し、買う気度に応じた closing_cta_key を選んでください（または ui_hint='lead_form'）。`;
+  }
+
+  return `
+## 🧭 ヒアリング台本（管理者設定・最優先）
+管理者が会話の流れを設計しています。以下のステップに沿って会話を進めてください。
+現在 **${idx + 1}/${steps.length} ステップ目**: ${typeLabels[current.type]}
+
+${instruction}
+
+### 台本運用の重要ルール
+- ステップの趣旨は守りつつ、訪問者の文脈に合わせて**自然に言い換えて** reply に含める
+- 訪問者が「予約したい / 買います / お願いします / 申し込みます / 契約します」等の**明確な購入意思** を示し、かつ buy_intent_score が 4 以上なら、残りステップを飛ばして next_stage='closing' に遷移してかまいません
+- ステップ末尾まで到達したら、通常のルール（AI判断）に戻ります
+`;
+};
+
 const buildMeetingGoalBlock = (config: BotConfig): string => {
   const m = config.goals?.meeting;
   if (!m || !m.enabled) return '';
@@ -245,6 +295,8 @@ ${faqs.length ? `## FAQ\n${buildFaqBlock(faqs)}\n` : ''}
 ${buildGoalsBlock(config)}
 
 ${buildMeetingGoalBlock(config)}
+
+${buildHearingFlowBlock(config, session)}
 
 ## 現在の会話状態
 - stage: ${session.stage}
@@ -749,16 +801,71 @@ export const processBotTurn = async (params: {
     };
   }
 
-  // Apply rule-based override
-  const { stage: finalStage, force, reason } = applyRuleBasedTransition(
-    aiResp.next_stage,
-    { ...session, messages: newMessages },
-    matched,
-    config,
-  );
+  // ── ヒアリング台本 (manual) によるステップ進行 ─────────────
+  // auto モードなら従来挙動、manual モードなら steps[idx] に従って遷移を上書き
+  const hearingFlow = config.conversation?.hearingFlow;
+  const manualSteps: HearingStep[] = (hearingFlow?.mode === 'manual' && Array.isArray(hearingFlow.steps))
+    ? hearingFlow.steps
+    : [];
+  const manualActive = manualSteps.length > 0;
+  const currentStepIdx = session.hearingStepIndex ?? 0;
 
-  if (force && process.env.NODE_ENV !== 'production') {
-    console.log(`[bot-engine] rule override: ${aiResp.next_stage} -> ${finalStage} (${reason})`);
+  let manualForceStage: BotStage | null = null;
+  let manualForceUiHint: AiResponse['ui_hint'] | null = null;
+  let nextStepIdx = currentStepIdx;
+
+  if (manualActive) {
+    // 早期クロージング: buy_intent_score >= 4 かつ明確な購入意思キーワード検出
+    const buyIntentRegex = /予約したい|予約します|予約お願い|お願いします|やります|申し込み|申込|買います|購入します|契約したい|契約します|やってもらいたい|お願いしたい/;
+    const aiScore = Number(aiResp.buy_intent_score || 0);
+    const earlyBuy = aiScore >= 4 && buyIntentRegex.test(params.message);
+
+    if (earlyBuy && session.stage !== 'closed') {
+      manualForceStage = 'closing';
+      nextStepIdx = manualSteps.length; // 残りステップを飛ばす
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[bot-engine] manual: 早期クロージング発動 (score=${aiScore}, msg=${String(params.message).slice(0, 40)})`);
+      }
+    } else if (currentStepIdx < manualSteps.length) {
+      const step = manualSteps[currentStepIdx];
+      if (step.type === 'show_cards') {
+        manualForceStage = 'introduction';
+        manualForceUiHint = 'cards';
+      } else if (step.type === 'proposal_meeting') {
+        manualForceUiHint = 'meeting_proposal';
+      } else if (step.type === 'show_closing') {
+        manualForceStage = 'closing';
+      }
+      // 'ask' は stage/ui_hint 上書きなし、index のみ進める
+      nextStepIdx = currentStepIdx + 1;
+    }
+
+    // ui_hint の上書きは buildUiResponse 前に反映
+    if (manualForceUiHint) aiResp.ui_hint = manualForceUiHint;
+  }
+
+  // Apply rule-based override
+  // manual モードで明示的にステージを強制した場合は rule-based を適用しない（退行禁止ロジックが干渉するため）
+  let finalStage: BotStage;
+  let force = false;
+  if (manualForceStage) {
+    finalStage = manualForceStage;
+    force = true;
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[bot-engine] manual override: ${aiResp.next_stage} -> ${finalStage} (step=${currentStepIdx})`);
+    }
+  } else {
+    const rb = applyRuleBasedTransition(
+      aiResp.next_stage,
+      { ...session, messages: newMessages },
+      matched,
+      config,
+    );
+    finalStage = rb.stage;
+    force = rb.force;
+    if (rb.force && process.env.NODE_ENV !== 'production') {
+      console.log(`[bot-engine] rule override: ${aiResp.next_stage} -> ${finalStage} (${rb.reason})`);
+    }
   }
 
   // ルールがintroductionを強制した場合、AIのreply（質問文の可能性）を簡潔な遷移文に上書き
@@ -808,6 +915,7 @@ export const processBotTurn = async (params: {
     buyIntentScore: score,
     matchedServiceIds: allMatchedIds,
     messages: finalMessages,
+    hearingStepIndex: nextStepIdx,
   });
 
   return {

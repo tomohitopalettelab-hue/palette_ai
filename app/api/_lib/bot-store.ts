@@ -12,6 +12,34 @@ if (!process.env.POSTGRES_URL) {
 // Types
 // ============================================================
 
+/**
+ * ヒアリングフローの個別ステップ。
+ * Phase 2 で使う branches / skipIf / position も最初から型に入れておく。
+ * （Phase 1 では保存・読込だけ対応し、実際の分岐・スキップは未実装）
+ */
+export type HearingStep = {
+  id: string;
+  type: 'ask' | 'show_cards' | 'proposal_meeting' | 'show_closing';
+  /** type='ask' のときの質問趣旨。AIはこれを訪問者の文脈に合わせて自然に言い換えてOK */
+  prompt?: string;
+  /** Phase 2-B: 回答キーワードに応じて次のステップにジャンプ */
+  branches?: Array<{
+    condition: {
+      type: 'keyword' | 'sentiment' | 'default';
+      value?: string[];
+      sentiment?: 'positive' | 'negative' | 'neutral';
+    };
+    goToStepId: string;
+  }>;
+  /** Phase 2-A: 既に回答済みの場合にスキップする条件 */
+  skipIf?: {
+    type: 'already_answered';
+    matchKeys?: string[];
+  };
+  /** Phase 2-C: フローチャート表示用のノード座標 */
+  position?: { x: number; y: number };
+};
+
 export type BotConfig = {
   paletteId: string;
   basic: {
@@ -42,6 +70,15 @@ export type BotConfig = {
     closingMatrix?: Record<string, string[]>;
     preFlourish?: string;
     leadFields?: Array<{ key: string; label: string; required: boolean }>;
+    /**
+     * ヒアリングフロー設定。
+     * - mode='auto'（既定）: 既存挙動 (AI任せ, hearingMinTurns/hearingMaxTurns に従う)
+     * - mode='manual': steps の順に AI を駆動する
+     */
+    hearingFlow?: {
+      mode: 'auto' | 'manual';
+      steps?: HearingStep[];
+    };
   };
   goals: {
     reservation?: {
@@ -208,6 +245,11 @@ export type BotSession = {
   userAgent: string | null;
   referrer: string | null;
   syncedToCrm: boolean;
+  /**
+   * hearingFlow.mode='manual' のとき、現在処理中のステップ番号（0 始まり）。
+   * ステップ数を超えたら auto モードにフォールバック。
+   */
+  hearingStepIndex?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -248,6 +290,7 @@ export const DEFAULT_CONFIG: Omit<BotConfig, 'paletteId' | 'updatedAt'> = {
       { key: 'email', label: 'メールアドレス', required: false },
       { key: 'preferredTime', label: 'ご希望日時', required: false },
     ],
+    hearingFlow: { mode: 'auto', steps: [] },
   },
   goals: {
     reservation: { enabled: false, url: '', label: '予約する' },
@@ -402,6 +445,9 @@ const ensureTablesOnce = async (): Promise<void> => {
   `);
   await tryIgnoreDup(() => sql`CREATE INDEX IF NOT EXISTS bot_sessions_palette_idx ON bot_sessions (palette_id, updated_at DESC)`);
   await tryIgnoreDup(() => sql`CREATE INDEX IF NOT EXISTS bot_sessions_score_idx ON bot_sessions (palette_id, buy_intent_score DESC)`);
+
+  // hearingFlow (manual mode) のステップ進行を保存するカラム（idempotent）
+  await tryIgnoreDup(() => sql`ALTER TABLE bot_sessions ADD COLUMN IF NOT EXISTS hearing_step_index INT NOT NULL DEFAULT 0`);
 };
 
 const ensureTables = async (): Promise<void> => {
@@ -485,6 +531,7 @@ const rowToSession = (row: any): BotSession => ({
   userAgent: row.user_agent || null,
   referrer: row.referrer || null,
   syncedToCrm: Boolean(row.synced_to_crm),
+  hearingStepIndex: Number(row.hearing_step_index ?? 0),
   createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at || ''),
   updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at || ''),
 });
@@ -677,6 +724,7 @@ export const updateSession = async (id: string, patch: Partial<BotSession>): Pro
     closedAction: patch.closedAction !== undefined ? patch.closedAction : current.closedAction,
     closed: patch.closed ?? current.closed,
     syncedToCrm: patch.syncedToCrm ?? current.syncedToCrm,
+    hearingStepIndex: patch.hearingStepIndex !== undefined ? patch.hearingStepIndex : (current.hearingStepIndex ?? 0),
   };
 
   const result = await sql`
@@ -690,6 +738,7 @@ export const updateSession = async (id: string, patch: Partial<BotSession>): Pro
       closed_action = ${next.closedAction},
       closed = ${next.closed},
       synced_to_crm = ${next.syncedToCrm},
+      hearing_step_index = ${next.hearingStepIndex},
       updated_at = NOW()
     WHERE id = ${id}
     RETURNING *

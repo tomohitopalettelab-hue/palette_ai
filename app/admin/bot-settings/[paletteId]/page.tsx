@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   Bot, ArrowLeft, Save, Copy, Check, Plus, Trash2, MessageSquare, Code,
   Sparkles, Settings2, HelpCircle, Palette, Heart, Package, PlayCircle, X, AlertTriangle,
+  Workflow, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { WIDGET_TEMPLATES, ICON_SVG_PATHS, getBubbleRadius, getBubbleGradient, type WidgetTemplate } from '../_lib/widget-templates';
 
@@ -30,7 +31,7 @@ type Faq = {
   priority: number;
 };
 
-type TabKey = 'basic' | 'services' | 'faqs' | 'conversation' | 'nurture' | 'rules' | 'appearance';
+type TabKey = 'basic' | 'services' | 'faqs' | 'conversation' | 'flow' | 'nurture' | 'rules' | 'appearance';
 
 export function BotSettingsEditor({
   paletteId,
@@ -205,6 +206,7 @@ export function BotSettingsEditor({
     { key: 'services', label: 'サービス', icon: Package },
     { key: 'faqs', label: 'Q&A', icon: HelpCircle },
     { key: 'conversation', label: '会話設計', icon: MessageSquare },
+    { key: 'flow', label: 'ヒアリングフロー', icon: Workflow },
     { key: 'nurture', label: '追客', icon: Heart },
     { key: 'rules', label: 'NG・ルール', icon: AlertTriangle },
     { key: 'appearance', label: '見た目・埋込', icon: Palette },
@@ -347,6 +349,7 @@ export function BotSettingsEditor({
           />
         )}
         {tab === 'conversation' && <ConversationTab config={config} update={updateConfigField} paletteId={paletteId} />}
+        {tab === 'flow' && <FlowTab config={config} update={updateConfigField} paletteId={paletteId} />}
         {tab === 'nurture' && <NurtureTab config={config} update={updateConfigField} />}
         {tab === 'rules' && <RulesTab config={config} update={updateConfigField} />}
         {tab === 'appearance' && (
@@ -2204,6 +2207,245 @@ function BubblePreview({ appearance: a }: { appearance: any }) {
         <span>アニメ: <b className="text-slate-700">{animation === 'none' ? 'なし' : animation}</b> / 吹き出し: <b className="text-slate-700">{tooltipStyle}</b></span>
       </div>
     </div>
+  );
+}
+
+// ─── Flow Tab (ヒアリングフロー) ────────────────────────────
+
+type FlowStepType = 'ask' | 'show_cards' | 'proposal_meeting' | 'show_closing';
+
+type FlowStep = {
+  id: string;
+  type: FlowStepType;
+  prompt?: string;
+  branches?: Array<{
+    condition: {
+      type: 'keyword' | 'sentiment' | 'default';
+      value?: string[];
+      sentiment?: 'positive' | 'negative' | 'neutral';
+    };
+    goToStepId: string;
+  }>;
+  skipIf?: {
+    type: 'already_answered';
+    matchKeys?: string[];
+  };
+  position?: { x: number; y: number };
+};
+
+const FLOW_STEP_META: Record<FlowStepType, { emoji: string; label: string; tone: string; hint: string }> = {
+  ask: { emoji: '💬', label: '質問する', tone: 'bg-indigo-50 border-indigo-200', hint: 'AIが訪問者に質問します（プロンプトの趣旨を汲んで自然に言い換え）' },
+  show_cards: { emoji: '🎴', label: 'サービスカードを提示', tone: 'bg-purple-50 border-purple-200', hint: '登録済みサービスから候補を提示（introduction 遷移）' },
+  proposal_meeting: { emoji: '🎯', label: '商談誘導', tone: 'bg-fuchsia-50 border-fuchsia-200', hint: '会話設計 ③-2 の商談ゴール誘導を発動' },
+  show_closing: { emoji: '✅', label: 'クロージング', tone: 'bg-emerald-50 border-emerald-200', hint: 'closing ステージに遷移し、買う気度に応じた CTA を出す' },
+};
+
+const newFlowStep = (type: FlowStepType): FlowStep => {
+  const id = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+    ? crypto.randomUUID()
+    : `step-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const base: FlowStep = { id, type };
+  if (type === 'ask') base.prompt = '';
+  return base;
+};
+
+function FlowTab({ config, update }: { config: any; update: (path: string[], value: any) => void; paletteId: string }) {
+  const flow = config.conversation?.hearingFlow || { mode: 'auto', steps: [] };
+  const mode: 'auto' | 'manual' = flow.mode === 'manual' ? 'manual' : 'auto';
+  const steps: FlowStep[] = Array.isArray(flow.steps) ? flow.steps : [];
+
+  const setMode = (m: 'auto' | 'manual') => {
+    update(['conversation', 'hearingFlow'], { mode: m, steps });
+  };
+  const setSteps = (next: FlowStep[]) => {
+    update(['conversation', 'hearingFlow'], { mode, steps: next });
+  };
+
+  const updateStep = (idx: number, patch: Partial<FlowStep>) => {
+    const next = steps.map((s, i) => (i === idx ? { ...s, ...patch } : s));
+    setSteps(next);
+  };
+  const removeStep = (idx: number) => {
+    if (!confirm('このステップを削除しますか？')) return;
+    setSteps(steps.filter((_, i) => i !== idx));
+  };
+  const moveStep = (idx: number, dir: -1 | 1) => {
+    const target = idx + dir;
+    if (target < 0 || target >= steps.length) return;
+    const next = [...steps];
+    [next[idx], next[target]] = [next[target], next[idx]];
+    setSteps(next);
+  };
+  const addStep = (type: FlowStepType) => {
+    setSteps([...steps, newFlowStep(type)]);
+  };
+
+  return (
+    <>
+      <Card title="🧭 ヒアリングフロー">
+        <p className="text-xs text-slate-500 mb-4">
+          ヒアリングの流れを「AIお任せ」にするか、「自分で決める」（ステップを順に指定）を選べます。
+          自分で決める場合、AIはプロンプトの趣旨を汲んで訪問者の文脈に合わせて自然に言い換えます。
+        </p>
+        <div className="flex gap-2 mb-4">
+          <button
+            type="button"
+            onClick={() => setMode('auto')}
+            className={`flex-1 px-4 py-3 rounded-xl text-xs font-bold border transition-all ${
+              mode === 'auto'
+                ? 'bg-indigo-500 text-white border-indigo-500 shadow'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+            }`}
+          >
+            🤖 AIお任せ
+            <div className={`text-[10px] font-normal mt-0.5 ${mode === 'auto' ? 'text-indigo-100' : 'text-slate-400'}`}>
+              最小/最大ヒアリング回数に従う（会話設計タブの設定）
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('manual')}
+            className={`flex-1 px-4 py-3 rounded-xl text-xs font-bold border transition-all ${
+              mode === 'manual'
+                ? 'bg-indigo-500 text-white border-indigo-500 shadow'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+            }`}
+          >
+            🗺️ 自分で決める
+            <div className={`text-[10px] font-normal mt-0.5 ${mode === 'manual' ? 'text-indigo-100' : 'text-slate-400'}`}>
+              ステップを並べて会話の流れを設計
+            </div>
+          </button>
+        </div>
+      </Card>
+
+      {mode === 'manual' && (
+        <Card title="ステップ一覧">
+          {steps.length === 0 && (
+            <div className="text-center py-10 text-sm text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+              ステップがまだありません。下のボタンから追加してください。
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {steps.map((step, idx) => {
+              const meta = FLOW_STEP_META[step.type];
+              return (
+                <div key={step.id} className={`rounded-xl border p-4 ${meta.tone}`}>
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-sm font-black text-slate-600 shrink-0">
+                      {idx + 1}
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xl">{meta.emoji}</span>
+                        <select
+                          value={step.type}
+                          onChange={(e) => {
+                            const nextType = e.target.value as FlowStepType;
+                            const patch: Partial<FlowStep> = { type: nextType };
+                            if (nextType !== 'ask') patch.prompt = undefined;
+                            if (nextType === 'ask' && !step.prompt) patch.prompt = '';
+                            updateStep(idx, patch);
+                          }}
+                          className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold outline-none focus:border-indigo-300"
+                        >
+                          {(Object.keys(FLOW_STEP_META) as FlowStepType[]).map((t) => (
+                            <option key={t} value={t}>{FLOW_STEP_META[t].emoji} {FLOW_STEP_META[t].label}</option>
+                          ))}
+                        </select>
+                        <span className="text-[10px] text-slate-500 flex-1 min-w-0">{meta.hint}</span>
+                      </div>
+
+                      {step.type === 'ask' && (
+                        <div>
+                          <div className="text-[10px] font-bold text-slate-500 mb-1">質問のプロンプト（趣旨）</div>
+                          <TextArea
+                            value={step.prompt || ''}
+                            onChange={(v: string) => updateStep(idx, { prompt: v })}
+                            placeholder="例: 現在どんな集客でお困りか聞きたい"
+                            rows={2}
+                          />
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            💡 AIはこの趣旨を汲んで、訪問者の文脈に合わせて自然に言い換えます
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => moveStep(idx, -1)}
+                        disabled={idx === 0}
+                        className="w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 flex items-center justify-center"
+                        aria-label="上に移動"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5 text-slate-500" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveStep(idx, 1)}
+                        disabled={idx === steps.length - 1}
+                        className="w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 flex items-center justify-center"
+                        aria-label="下に移動"
+                      >
+                        <ArrowDown className="w-3.5 h-3.5 text-slate-500" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeStep(idx)}
+                        className="w-7 h-7 rounded-lg border border-red-200 bg-white hover:bg-red-50 flex items-center justify-center"
+                        aria-label="削除"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {(Object.keys(FLOW_STEP_META) as FlowStepType[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => addStep(t)}
+                className="px-3 py-2 rounded-lg bg-white border border-slate-200 hover:border-indigo-300 text-xs font-bold text-slate-700 flex items-center gap-1.5"
+              >
+                <Plus className="w-3 h-3" />
+                {FLOW_STEP_META[t].emoji} {FLOW_STEP_META[t].label}
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {mode === 'manual' && (
+        <Card title="💡 ガイド">
+          <ul className="space-y-2 text-xs text-slate-600">
+            <li className="flex gap-2">
+              <span className="shrink-0">✨</span>
+              <span>AIは各ステップのプロンプトの<b>趣旨を汲んで</b>、訪問者の文脈に合わせて自然に言い換えて話します（機械的なコピペにはなりません）。</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="shrink-0">🚀</span>
+              <span>途中で訪問者が「予約したい」「買います」等の<b>明確な購入意思</b> を示したら、残りのステップを飛ばして即クロージングに遷移します（買う気度 4 以上が条件）。</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="shrink-0">🔄</span>
+              <span>ステップ末尾まで到達したら、自動で「AIお任せ」モードの挙動に戻ります。</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="shrink-0">📋</span>
+              <span>「会話設計」タブの <b>最小/最大ヒアリング回数</b> は、自分で決めるモードでは無視されます。</span>
+            </li>
+          </ul>
+        </Card>
+      )}
+    </>
   );
 }
 
