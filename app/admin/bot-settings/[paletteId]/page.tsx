@@ -2240,6 +2240,54 @@ const FLOW_STEP_META: Record<FlowStepType, { emoji: string; label: string; tone:
   show_closing: { emoji: '✅', label: 'クロージング', tone: 'bg-emerald-50 border-emerald-200', hint: 'closing ステージに遷移し、買う気度に応じた CTA を出す' },
 };
 
+function SkipIfEditor({ step, onChange }: { step: FlowStep; onChange: (patch: Partial<FlowStep>) => void }) {
+  const enabled = Boolean(step.skipIf);
+  const keys = Array.isArray(step.skipIf?.matchKeys) ? step.skipIf!.matchKeys! : [];
+  const keyStr = keys.join(', ');
+
+  const toggle = (on: boolean) => {
+    if (on) {
+      onChange({ skipIf: { type: 'already_answered', matchKeys: [] } });
+    } else {
+      onChange({ skipIf: undefined });
+    }
+  };
+  const setKeys = (text: string) => {
+    const arr = text.split(/[,、]/).map((s) => s.trim()).filter(Boolean);
+    onChange({ skipIf: { type: 'already_answered', matchKeys: arr } });
+  };
+
+  return (
+    <div className="pt-2 border-t border-slate-200/60">
+      <label className="flex items-center gap-2 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => toggle(e.target.checked)}
+          className="w-3.5 h-3.5"
+        />
+        <span className="text-[11px] font-bold text-slate-600">
+          🔎 すでに回答済みならスキップ
+        </span>
+      </label>
+      {enabled && (
+        <div className="mt-2 pl-6">
+          <div className="text-[10px] text-slate-500 mb-1">
+            訪問者が過去の発言で以下のキーワードに触れていれば、このステップを飛ばします（カンマ/、区切り）
+          </div>
+          <input
+            type="text"
+            value={keyStr}
+            onChange={(e) => setKeys(e.target.value)}
+            placeholder="例: 美容室, サロン, 整体"
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white focus:border-indigo-300 outline-none text-xs"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 const newFlowStep = (type: FlowStepType): FlowStep => {
   const id = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
     ? crypto.randomUUID()
@@ -2371,6 +2419,12 @@ function FlowTab({ config, update }: { config: any; update: (path: string[], val
                           </p>
                         </div>
                       )}
+
+                      {/* Phase 2-A: 条件スキップ */}
+                      <SkipIfEditor
+                        step={step}
+                        onChange={(patch) => updateStep(idx, patch)}
+                      />
                     </div>
 
                     <div className="flex flex-col gap-1 shrink-0">

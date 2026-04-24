@@ -186,6 +186,36 @@ const buildNgRulesBlock = (config: BotConfig): string => {
 };
 
 /**
+ * ステップの skipIf 条件を評価。訪問者が既に該当話題を出していれば skip。
+ * Phase 2-A: skipIf.type='already_answered' のみ対応。matchKeys の単純部分一致。
+ */
+const shouldSkipStep = (step: HearingStep, visitorText: string): boolean => {
+  const skip = step.skipIf;
+  if (!skip) return false;
+  if (skip.type !== 'already_answered') return false;
+  const matchKeys = (skip.matchKeys || []).map((k) => String(k || '').trim()).filter(Boolean);
+  if (matchKeys.length === 0) return false;
+  const hay = String(visitorText || '').toLowerCase();
+  return matchKeys.some((k) => hay.includes(k.toLowerCase()));
+};
+
+/**
+ * manual モードで、hearingStepIndex から skipIf にマッチするステップを飛ばし、
+ * 最初にマッチしないステップの index を返す。全部 skip されたら steps.length を返す。
+ */
+const advanceSkippedSteps = (
+  steps: HearingStep[],
+  startIdx: number,
+  visitorText: string,
+): number => {
+  let idx = startIdx;
+  while (idx < steps.length && shouldSkipStep(steps[idx], visitorText)) {
+    idx++;
+  }
+  return idx;
+};
+
+/**
  * hearingFlow.mode='manual' のとき、現在のステップ情報を system prompt に挿入する。
  * - AI がステップの prompt の趣旨を汲んで自然に言い換えて OK
  * - 明確な購入意思を検出したら残りステップを飛ばして closing に遷移してよい
@@ -195,7 +225,12 @@ const buildHearingFlowBlock = (config: BotConfig, session: BotSession): string =
   if (!flow || flow.mode !== 'manual') return '';
   const steps: HearingStep[] = Array.isArray(flow.steps) ? flow.steps : [];
   if (steps.length === 0) return '';
-  const idx = session.hearingStepIndex ?? 0;
+  // skipIf を考慮して effective index を取得（既に回答済みのステップを飛ばす）
+  const visitorText = session.messages
+    .filter((m) => m.role === 'visitor')
+    .map((m) => String(m.content || ''))
+    .join(' ');
+  const idx = advanceSkippedSteps(steps, session.hearingStepIndex ?? 0, visitorText);
   if (idx >= steps.length) return '';
   const current = steps[idx];
 
@@ -808,7 +843,14 @@ export const processBotTurn = async (params: {
     ? hearingFlow.steps
     : [];
   const manualActive = manualSteps.length > 0;
-  const currentStepIdx = session.hearingStepIndex ?? 0;
+  // skipIf を考慮した effective index (回答済みステップを飛ばす)
+  const visitorTextAll = newMessages
+    .filter((m) => m.role === 'visitor')
+    .map((m) => String(m.content || ''))
+    .join(' ');
+  const currentStepIdx = manualActive
+    ? advanceSkippedSteps(manualSteps, session.hearingStepIndex ?? 0, visitorTextAll)
+    : (session.hearingStepIndex ?? 0);
 
   let manualForceStage: BotStage | null = null;
   let manualForceUiHint: AiResponse['ui_hint'] | null = null;
@@ -837,6 +879,7 @@ export const processBotTurn = async (params: {
         manualForceStage = 'closing';
       }
       // 'ask' は stage/ui_hint 上書きなし、index のみ進める
+      // 次ターンもさらに skipIf を見るので、ここでは +1 するだけでよい
       nextStepIdx = currentStepIdx + 1;
     }
 
