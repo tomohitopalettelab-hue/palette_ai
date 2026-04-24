@@ -189,6 +189,13 @@ const buildMeetingGoalBlock = (config: BotConfig): string => {
   if (!m || !m.enabled) return '';
   const label = m.label || 'ミーティング';
   const prompt = m.invitationPrompt || `一度、担当と30分の${label}で詳しくお聞かせいただけませんか？`;
+  const collectLead = m.collectLead !== false;
+
+  const acceptFlow = collectLead
+    ? `2. 訪問者が「はい」「ぜひ」「お願いします」等の承諾 → reply に「ありがとうございます！日程調整のため、お名前とご連絡先を教えてください」を入れ、ui_hint='meeting_lead_form' を返す
+3. lead が送信された後の次のターン → reply に「ありがとうございます。下のボタンからお進みください」を入れ、ui_hint='meeting_calendar' を返す`
+    : `2. 訪問者が「はい」「ぜひ」「お願いします」等の承諾 → reply に「ありがとうございます。下のボタンからお進みください」を入れ、ui_hint='meeting_calendar' を返す（リード収集はスキップ）`;
+
   return `
 ## 🎯 最終ゴール: ${label}
 このBotの最終ゴールは「${label}」への誘導です。
@@ -198,14 +205,14 @@ const buildMeetingGoalBlock = (config: BotConfig): string => {
 
 ### 誘導フロー
 1. ヒアリングが進んだら → reply に上記の誘導文言を自然な日本語で入れ、ui_hint='meeting_proposal' を返す
-2. 訪問者が「はい」「ぜひ」「お願いします」「予約します」等の承諾 → reply に「ありがとうございます！日程調整のため、お名前とご連絡先を教えてください」を入れ、ui_hint='meeting_lead_form' を返す
-3. lead が送信された後の次のターン → reply に「ありがとうございます。下のボタンから日時をお選びください」を入れ、ui_hint='meeting_calendar' を返す
+${acceptFlow}
 4. 訪問者が「もう少し考える」「検討します」等の拒否 → ui_hint='meeting_declined' を返す（後で自動で fallback に振り分けられる）
 
 ### ルール
 - 一度 meeting_proposal を出したら、訪問者の返答を待たずに何度も meeting_proposal を繰り返さない
 - meeting_calendar を出した後は、closed 状態にして追加の営業は控える
 - ヒアリング不足のまま proposal を急がない（最低1-2ターンは深掘りヒアリング）
+${collectLead ? '' : '- リード収集はスキップ設定のため、承諾後すぐに meeting_calendar へ進む'}
 `;
 };
 
@@ -522,7 +529,29 @@ const buildUiResponse = (
   }
 
   // meeting_lead_form: goal.leadFields があればそれを、なければ名前・メール・電話のデフォルト
+  // ただし collectLead=false の場合はスキップして最終アクションを直接返す
   if (aiResp.ui_hint === 'meeting_lead_form' && meeting && meeting.enabled) {
+    if (meeting.collectLead === false) {
+      // lead_form をスキップして直接最終アクション（meeting_calendar 相当の結果）を返す
+      let action = meeting.action || 'reservation';
+      if (action === ('calendar' as any)) action = 'reservation';
+      if (action !== 'lead_only') {
+        const targetGoal = (config.goals as any)[action];
+        const fallbackUrl =
+          action === 'reservation' && (!targetGoal?.url) && meeting.calendarUrl
+            ? meeting.calendarUrl
+            : null;
+        if (targetGoal && targetGoal.enabled) {
+          const buttonLabel = meeting.buttonLabel || targetGoal.label || action;
+          const cta: ClosingCta = action === 'phone'
+            ? { key: 'phone', label: buttonLabel, number: targetGoal.number || '' }
+            : { key: action, label: buttonLabel, url: targetGoal.url || fallbackUrl || '' };
+          return { type: 'closing_cta', cta };
+        }
+      }
+      // lead_only / 設定未完: テキストのみ
+      return { type: 'text' };
+    }
     const fields = buildGoalLeadFields(config, 'meeting');
     return { type: 'lead_form', fields, context: 'meeting' };
   }

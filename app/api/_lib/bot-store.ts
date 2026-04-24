@@ -102,6 +102,8 @@ export type BotConfig = {
       buttonLabel?: string;
       /** 訪問者が「もう少し考える」等で拒否したときのフォールバック先 */
       declineFallback?: 'nurture' | 'document' | 'line';
+      /** 承諾後にリード情報 (名前/メール等) を収集するか。false なら lead_form をスキップ (デフォルト true) */
+      collectLead?: boolean;
       /** 承諾時に収集するリード項目 (未指定なら name/email/phone が必須のデフォルト) */
       leadFields?: Array<{ key: string; label: string; required: boolean }>;
     };
@@ -269,6 +271,7 @@ export const DEFAULT_CONFIG: Omit<BotConfig, 'paletteId' | 'updatedAt'> = {
       action: 'reservation',
       buttonLabel: '日時を選ぶ',
       declineFallback: 'nurture',
+      collectLead: true,
     },
   },
   nurture: {

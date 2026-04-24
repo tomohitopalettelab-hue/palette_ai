@@ -1227,30 +1227,47 @@ function ConversationTab({ config, update, paletteId }: any) {
               </div>
             </div>
             <div className="p-3 rounded bg-white border border-fuchsia-200 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-black text-slate-800">💡 承諾後に収集する項目</div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1">
+                  <div className="text-xs font-black text-slate-800">💡 承諾後に情報を収集する</div>
                   <div className="text-[10px] text-slate-500 mt-0.5">
-                    訪問者が「はい、お願いします」と承諾したら、この順で情報収集します。
+                    {g.meeting?.collectLead !== false
+                      ? '訪問者が「はい、お願いします」と承諾したら、下の項目で情報収集します。'
+                      : 'OFFにすると、承諾後すぐに最終アクションへ進みます（リード情報は収集されません）。'}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => update(['goals', 'meeting', 'leadFields'], [...DEFAULT_MEETING_LEAD_FIELDS])}
-                  className="text-[10px] text-fuchsia-600 hover:text-fuchsia-700 font-bold"
-                >
-                  デフォルトに戻す
-                </button>
+                <ToggleSwitch
+                  checked={g.meeting?.collectLead !== false}
+                  onChange={(v: boolean) => update(['goals', 'meeting', 'collectLead'], v)}
+                />
               </div>
-              <GoalLeadFieldsEditor
-                fields={
-                  Array.isArray(g.meeting?.leadFields) && g.meeting.leadFields.length > 0
-                    ? g.meeting.leadFields
-                    : DEFAULT_MEETING_LEAD_FIELDS
-                }
-                onChange={(v: LeadField[]) => update(['goals', 'meeting', 'leadFields'], v)}
-                accent="fuchsia"
-              />
+              {g.meeting?.collectLead !== false ? (
+                <>
+                  <div className="flex items-center justify-end">
+                    <button
+                      type="button"
+                      onClick={() => update(['goals', 'meeting', 'leadFields'], [...DEFAULT_MEETING_LEAD_FIELDS])}
+                      className="text-[10px] text-fuchsia-600 hover:text-fuchsia-700 font-bold"
+                    >
+                      デフォルトに戻す
+                    </button>
+                  </div>
+                  <GoalLeadFieldsEditor
+                    fields={
+                      Array.isArray(g.meeting?.leadFields) && g.meeting.leadFields.length > 0
+                        ? g.meeting.leadFields
+                        : DEFAULT_MEETING_LEAD_FIELDS
+                    }
+                    onChange={(v: LeadField[]) => update(['goals', 'meeting', 'leadFields'], v)}
+                    accent="fuchsia"
+                  />
+                </>
+              ) : (
+                <div className="text-[11px] text-slate-600 p-2 rounded bg-slate-50 border border-slate-200">
+                  承諾後すぐに最終アクション（{g.meeting?.action === 'lead_only' ? '完了メッセージ' : '③ のゴールへ遷移'}）に進みます。
+                  訪問者情報は収集されませんが、AI要約通知（④）の会話ログで担当者に状況は届きます。
+                </div>
+              )}
             </div>
           </div>
         )}
