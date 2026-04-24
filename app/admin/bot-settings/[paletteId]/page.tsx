@@ -2275,12 +2275,14 @@ function SkipIfEditor({ step, onChange }: { step: FlowStep; onChange: (patch: Pa
       {enabled && (
         <div className="mt-2 pl-6">
           <div className="text-[10px] text-slate-500 mb-1">
-            訪問者が過去の発言で以下のキーワードに触れていれば、このステップを飛ばします
+            訪問者が過去の発言で以下のキーワードに触れていれば、このステップを飛ばします。
+            <br />
+            <span className="text-indigo-600">✨ 言い換え（例:「いらない」⇄「必要ない」「結構です」）も AI が意味判定します。</span>
           </div>
           <TagInput
             tags={keys}
             onChange={(next) => onChange({ skipIf: { type: 'already_answered', matchKeys: next } })}
-            placeholder="例: 美容室／HP制作（Enterで追加）"
+            placeholder="例: いらない／考えてない（Enterで追加）"
           />
         </div>
       )}

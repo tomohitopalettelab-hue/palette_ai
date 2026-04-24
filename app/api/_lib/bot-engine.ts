@@ -81,6 +81,8 @@ type AiResponse = {
   closing_cta_key: string | null;  // 'reservation' etc
   /** Phase 2-B: hearingFlow manual モードで、分岐先ステップの id。マッチなしなら null */
   next_branch_id?: string | null;
+  /** Phase 2-A拡張: 現在ステップを意味的に「答え済み」と判定し、reply を次ステップ向けに書いた場合 true */
+  skip_current_step?: boolean;
   reasoning?: string;
 };
 
@@ -257,6 +259,31 @@ const buildHearingFlowBlock = (config: BotConfig, session: BotSession): string =
     instruction = `- next_stage='closing' に遷移し、買う気度に応じた closing_cta_key を選んでください（または ui_hint='lead_form'）。`;
   }
 
+  // Phase 2-A 拡張: AI 意味判定スキップ
+  // 現在ステップに skipIf があり、次のステップが存在するなら、AI に意味的同等チェックを促す
+  const skipKeys = (current.skipIf?.matchKeys || []).map((k) => String(k || '').trim()).filter(Boolean);
+  const nextStep: HearingStep | null = idx + 1 < steps.length ? steps[idx + 1] : null;
+  let smartSkipBlock = '';
+  if (skipKeys.length > 0 && nextStep) {
+    let nextDesc = `${idx + 2}/${steps.length} ステップ目: ${typeLabels[nextStep.type]}`;
+    if (nextStep.type === 'ask' && nextStep.prompt) {
+      nextDesc += `\n  趣旨: 「${(nextStep.prompt || '').trim()}」`;
+    }
+    smartSkipBlock = `
+### 🔎 意味スキップ判定（重要）
+このステップには「すでに回答済みなら飛ばす」設定があります。
+スキップを促す意図キーワード: ${skipKeys.join(' / ')}
+
+訪問者の過去発言（特に直近）から、上記キーワードと**意味的に同等**（言い換え・婉曲・否定表現を含む）の意思表示が既にあれば:
+- \`skip_current_step: true\` を返す
+- そして **reply は現在ステップではなく次のステップに対する応答** にすること
+  → 次のステップ: ${nextDesc}
+
+例: キーワード「いらない」に対して、訪問者が「別に必要ないです」「興味ありません」「結構です」のような発言をしていた場合は、現在ステップをスキップしてよい。
+判断材料が弱い・曖昧な場合は \`skip_current_step: false\` のまま、現在ステップに対する応答にすること。
+`;
+  }
+
   // Phase 2-B: 分岐条件をプロンプトに挿入
   const branches = Array.isArray(current.branches) ? current.branches : [];
   const stepIdToIndex = new Map<string, number>();
@@ -294,6 +321,7 @@ ${lines.join('\n')}
 現在 **${idx + 1}/${steps.length} ステップ目**: ${typeLabels[current.type]}
 
 ${instruction}
+${smartSkipBlock}
 ${branchBlock}
 
 ### 台本運用の重要ルール
@@ -445,6 +473,7 @@ ${hearingRulesBlock}
   "lead_ask": null | "name" | "phone" | "email" | "preferredTime",
   "closing_cta_key": null | "reservation" | "inquiry" | "phone" | "line" | "document" | "notify" | "meeting",
   "next_branch_id": null | "<goToStepId>",
+  "skip_current_step": false,
   "reasoning": "なぜこの判定か短く"
 }
 
@@ -925,26 +954,38 @@ export const processBotTurn = async (params: {
         console.log(`[bot-engine] manual: 早期クロージング発動 (score=${aiScore}, msg=${String(params.message).slice(0, 40)})`);
       }
     } else if (currentStepIdx < manualSteps.length) {
-      const step = manualSteps[currentStepIdx];
-      if (step.type === 'show_cards') {
+      // AI 意味判定スキップ: skip_current_step=true && skipIf 設定あり && 次ステップが存在
+      // → reply は次ステップ向けに書かれているはずなので、effective を次ステップに進める
+      const rawStep = manualSteps[currentStepIdx];
+      const aiWantsSkip = aiResp.skip_current_step === true
+        && !!rawStep.skipIf
+        && (rawStep.skipIf.matchKeys || []).filter(Boolean).length > 0
+        && currentStepIdx + 1 < manualSteps.length;
+
+      const effectiveStepIdx = aiWantsSkip ? currentStepIdx + 1 : currentStepIdx;
+      const effectiveStep = manualSteps[effectiveStepIdx];
+
+      if (aiWantsSkip && process.env.NODE_ENV !== 'production') {
+        console.log(`[bot-engine] AI 意味スキップ: step ${currentStepIdx} -> ${effectiveStepIdx}`);
+      }
+
+      if (effectiveStep.type === 'show_cards') {
         manualForceStage = 'introduction';
         manualForceUiHint = 'cards';
-      } else if (step.type === 'proposal_meeting') {
+      } else if (effectiveStep.type === 'proposal_meeting') {
         manualForceUiHint = 'meeting_proposal';
-      } else if (step.type === 'show_closing') {
+      } else if (effectiveStep.type === 'show_closing') {
         manualForceStage = 'closing';
       }
       // 'ask' は stage/ui_hint 上書きなし、index のみ進める
 
-      // Phase 2-B: 分岐条件の解決
-      // AI が next_branch_id を返した && step.branches に定義された id と一致 → ジャンプ
-      // サーバー側でもキーワードマッチで補強（AI が next_branch_id を返さなかった場合）
-      const branches = Array.isArray(step.branches) ? step.branches : [];
+      // Phase 2-B: 分岐条件の解決（effectiveStep の branches を使う）
+      const branches = Array.isArray(effectiveStep.branches) ? effectiveStep.branches : [];
       const branchById = new Map(branches.map((b) => [b.goToStepId, b]));
       const stepIdToIndex = new Map(manualSteps.map((s, i) => [s.id, i]));
 
       let branchTargetIdx: number | null = null;
-      // 1) AI が返した next_branch_id を優先
+      // 1) AI が返した next_branch_id を優先 (skip 時は次ステップの branches に対する評価とみなす)
       const aiBranchId = (aiResp as any).next_branch_id;
       if (aiBranchId && typeof aiBranchId === 'string' && branchById.has(aiBranchId)) {
         const idx = stepIdToIndex.get(aiBranchId);
@@ -975,11 +1016,11 @@ export const processBotTurn = async (params: {
       if (branchTargetIdx !== null) {
         nextStepIdx = branchTargetIdx;
         if (process.env.NODE_ENV !== 'production') {
-          console.log(`[bot-engine] manual branch: step ${currentStepIdx} -> ${branchTargetIdx}`);
+          console.log(`[bot-engine] manual branch: step ${effectiveStepIdx} -> ${branchTargetIdx}`);
         }
       } else {
-        // 次ターンもさらに skipIf を見るので、ここでは +1 するだけでよい
-        nextStepIdx = currentStepIdx + 1;
+        // 次ターンの skipIf 判定があるので effective からさらに +1 で進める
+        nextStepIdx = effectiveStepIdx + 1;
       }
     }
 
