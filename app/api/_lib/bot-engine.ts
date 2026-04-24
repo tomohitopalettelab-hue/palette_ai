@@ -543,6 +543,7 @@ ${ngBlock}
 - replyには具体的な価格・住所・電話番号を勝手に作らない（設定データに明記されたもののみ）
 - HTMLやMarkdownは使わない（プレーンテキスト）
 - 返答はJSONのみ、余計な文字列をつけない
+- **ウェルカムメッセージはチャット画面で訪問者に既に表示済み**。reply で「こんにちは」「ようこそ」等の挨拶を繰り返さない。ウェルカムが質問を含んでいた場合、訪問者の最初の発言はそれへの回答。同じ質問を再度投げ返さない。
 
 ## 会話フロー厳守ルール
 - 訪問者が具体サービス名や「気になる/お願いしたい/詳しく/見積もり/予約/相談」等を言ったら、next_stage='closing' へ
@@ -961,12 +962,21 @@ export const processBotTurn = async (params: {
   });
 
   // Conversation history for OpenAI
-  const history = newMessages
-    .slice(-10)
-    .map((m) => ({
-      role: m.role === 'visitor' ? ('user' as const) : ('assistant' as const),
+  // 初回ターン (session.messages に bot 発言なし) のとき、widget で静的表示している
+  // ウェルカムを assistant メッセージとして先頭に注入する。
+  // → AI が「自分が既にウェルカムで挨拶した」と認識でき、二重挨拶や同じ質問の繰り返しを防ぐ
+  const isFirstTurn = session.messages.length === 0;
+  const welcomeForHistory = (config.conversation?.welcomeMessage || '').trim();
+  const history: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+  if (isFirstTurn && welcomeForHistory) {
+    history.push({ role: 'assistant', content: welcomeForHistory.slice(0, 800) });
+  }
+  for (const m of newMessages.slice(-10)) {
+    history.push({
+      role: m.role === 'visitor' ? 'user' : 'assistant',
       content: String(m.content).slice(0, 800),
-    }));
+    });
+  }
 
   // Call OpenAI with JSON mode
   let aiResp: AiResponse;
