@@ -2250,7 +2250,6 @@ const FLOW_STEP_META: Record<FlowStepType, { emoji: string; label: string; tone:
 function SkipIfEditor({ step, onChange }: { step: FlowStep; onChange: (patch: Partial<FlowStep>) => void }) {
   const enabled = Boolean(step.skipIf);
   const keys = Array.isArray(step.skipIf?.matchKeys) ? step.skipIf!.matchKeys! : [];
-  const keyStr = keys.join(', ');
 
   const toggle = (on: boolean) => {
     if (on) {
@@ -2258,10 +2257,6 @@ function SkipIfEditor({ step, onChange }: { step: FlowStep; onChange: (patch: Pa
     } else {
       onChange({ skipIf: undefined });
     }
-  };
-  const setKeys = (text: string) => {
-    const arr = text.split(/[,、]/).map((s) => s.trim()).filter(Boolean);
-    onChange({ skipIf: { type: 'already_answered', matchKeys: arr } });
   };
 
   return (
@@ -2280,14 +2275,12 @@ function SkipIfEditor({ step, onChange }: { step: FlowStep; onChange: (patch: Pa
       {enabled && (
         <div className="mt-2 pl-6">
           <div className="text-[10px] text-slate-500 mb-1">
-            訪問者が過去の発言で以下のキーワードに触れていれば、このステップを飛ばします（カンマ/、区切り）
+            訪問者が過去の発言で以下のキーワードに触れていれば、このステップを飛ばします
           </div>
-          <input
-            type="text"
-            value={keyStr}
-            onChange={(e) => setKeys(e.target.value)}
-            placeholder="例: 美容室, サロン, 整体"
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white focus:border-indigo-300 outline-none text-xs"
+          <TagInput
+            tags={keys}
+            onChange={(next) => onChange({ skipIf: { type: 'already_answered', matchKeys: next } })}
+            placeholder="例: 美容室／HP制作（Enterで追加）"
           />
         </div>
       )}
@@ -2351,7 +2344,6 @@ function BranchesEditor({
       <div className="space-y-2">
         {branches.map((br, i) => {
           const cType = br.condition.type;
-          const kwStr = (br.condition.value || []).join(', ');
           return (
             <div key={i} className="p-2 rounded-lg bg-white/60 border border-slate-200 space-y-2">
               <div className="flex gap-2 items-center flex-wrap">
@@ -2397,15 +2389,10 @@ function BranchesEditor({
                 </button>
               </div>
               {cType === 'keyword' && (
-                <input
-                  type="text"
-                  value={kwStr}
-                  onChange={(e) => {
-                    const arr = e.target.value.split(/[,、]/).map((s) => s.trim()).filter(Boolean);
-                    updateBranch(i, { condition: { type: 'keyword', value: arr } });
-                  }}
-                  placeholder="例: はい, うん, 考えてる, Yes（カンマ/、区切り）"
-                  className="w-full px-2 py-1.5 rounded border border-slate-200 bg-white text-xs outline-none focus:border-indigo-300"
+                <TagInput
+                  tags={br.condition.value || []}
+                  onChange={(next) => updateBranch(i, { condition: { type: 'keyword', value: next } })}
+                  placeholder="例: はい／うん／Yes（Enterで追加）"
                 />
               )}
             </div>
