@@ -6,6 +6,7 @@ import {
   upsertFaq,
   listServices,
   listFaqs,
+  getBotConfig,
   DEFAULT_CONFIG,
 } from '../../../../_lib/bot-store';
 
@@ -216,24 +217,28 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'AI解析に失敗しました。時間をおいて再度お試しください。' }, { status: 500 });
     }
 
-    // 3. bot_configs に書き込み
+    // 3. bot_configs に書き込み（既存設定を保持しつつ basic/tone/welcomeMessage のみマージ）
+    const existing = await getBotConfig(paletteId);
     const configUpdate = {
       paletteId,
-      basic: extracted.basic || {},
+      basic: { ...(existing?.basic || {}), ...(extracted.basic || {}) },
       tone: {
-        ...DEFAULT_CONFIG.tone,
-        personality: (extracted.tone?.personality as any) || DEFAULT_CONFIG.tone.personality,
-        replyLength: (extracted.tone?.replyLength as any) || DEFAULT_CONFIG.tone.replyLength,
-        emoji: (extracted.tone?.emoji as any) || DEFAULT_CONFIG.tone.emoji,
+        ...(existing?.tone || DEFAULT_CONFIG.tone),
+        ...(extracted.tone?.personality ? { personality: extracted.tone.personality as any } : {}),
+        ...(extracted.tone?.replyLength ? { replyLength: extracted.tone.replyLength as any } : {}),
+        ...(extracted.tone?.emoji ? { emoji: extracted.tone.emoji as any } : {}),
       },
       conversation: {
-        ...DEFAULT_CONFIG.conversation,
-        welcomeMessage: extracted.welcomeMessage || DEFAULT_CONFIG.conversation.welcomeMessage,
+        ...(existing?.conversation || DEFAULT_CONFIG.conversation),
+        // welcomeMessage は既存があれば優先（auto-setup で既存ヒアリングフローを壊さない）
+        welcomeMessage: existing?.conversation?.welcomeMessage
+          || extracted.welcomeMessage
+          || DEFAULT_CONFIG.conversation.welcomeMessage,
       },
-      goals: DEFAULT_CONFIG.goals,
-      nurture: DEFAULT_CONFIG.nurture,
-      appearance: DEFAULT_CONFIG.appearance,
-      ngRules: DEFAULT_CONFIG.ngRules,
+      goals: existing?.goals || DEFAULT_CONFIG.goals,
+      nurture: existing?.nurture || DEFAULT_CONFIG.nurture,
+      appearance: existing?.appearance || DEFAULT_CONFIG.appearance,
+      ngRules: existing?.ngRules || DEFAULT_CONFIG.ngRules,
     };
     await upsertBotConfig(configUpdate);
 
