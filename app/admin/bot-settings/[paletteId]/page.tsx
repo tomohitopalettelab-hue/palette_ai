@@ -1086,14 +1086,63 @@ function ConversationTab({ config, update, paletteId }: any) {
               <p className="text-[10px] text-slate-400 mt-1">AI はこの文章をベースに、自然な日本語で誘導します。</p>
             </div>
             <div>
-              <Label>Google カレンダー 予約ページURL</Label>
-              <TextInput
-                value={g.meeting?.calendarUrl || ''}
-                onChange={(v: string) => update(['goals', 'meeting', 'calendarUrl'], v)}
-                placeholder="https://calendar.app.google/..."
+              <Label>承諾後のアクション（リード送信後に何をさせるか）</Label>
+              <Select
+                value={g.meeting?.action || 'calendar'}
+                onChange={(v: string) => update(['goals', 'meeting', 'action'], v)}
+                options={[
+                  { value: 'calendar', label: '🗓️ Google カレンダーで日時を選ばせる' },
+                  { value: 'reservation', label: '📅 ③の「予約」ゴールへ誘導' },
+                  { value: 'inquiry', label: '💬 ③の「問い合わせ」ゴールへ誘導' },
+                  { value: 'phone', label: '📞 ③の「電話」ゴールへ誘導' },
+                  { value: 'line', label: '💚 ③の「LINE登録」ゴールへ誘導' },
+                  { value: 'document', label: '📄 ③の「資料請求」ゴールへ誘導' },
+                  { value: 'lead_only', label: '✉️ リード送信のみ（AI要約通知で担当者に連絡）' },
+                ]}
               />
-              <p className="text-[10px] text-slate-400 mt-1">Google カレンダーの予約ページURL（Appointment Schedule）を貼ってください。訪問者はこのページで日時を選びます。</p>
+              <p className="text-[10px] text-slate-400 mt-1">
+                ③クロージング先で設定した URL/番号をそのまま使います。まず ③ 側で対象ゴールを有効化・URL設定してから選んでください。
+              </p>
             </div>
+            {g.meeting?.action === 'calendar' && (
+              <div>
+                <Label>Google カレンダー 予約ページURL</Label>
+                <TextInput
+                  value={g.meeting?.calendarUrl || ''}
+                  onChange={(v: string) => update(['goals', 'meeting', 'calendarUrl'], v)}
+                  placeholder="https://calendar.app.google/..."
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Google カレンダーの予約ページURL（Appointment Schedule）を貼ってください。訪問者はこのページで日時を選びます。</p>
+              </div>
+            )}
+            {g.meeting?.action && g.meeting.action !== 'calendar' && g.meeting.action !== 'lead_only' && (() => {
+              const target = (g as any)[g.meeting.action];
+              if (!target?.enabled) {
+                return (
+                  <div className="p-2 rounded bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
+                    ⚠️ ③クロージング先で「{g.meeting.action}」ゴールが無効化されています。先に有効化してURL/番号を設定してください。
+                  </div>
+                );
+              }
+              const urlOrNumber = g.meeting.action === 'phone' ? target.number : target.url;
+              if (!urlOrNumber) {
+                return (
+                  <div className="p-2 rounded bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
+                    ⚠️ ③クロージング先の「{g.meeting.action}」に {g.meeting.action === 'phone' ? '電話番号' : 'URL'} が未設定です。
+                  </div>
+                );
+              }
+              return (
+                <div className="p-2 rounded bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-800">
+                  ✓ ③の「{g.meeting.action}」へ誘導します: <span className="font-mono">{String(urlOrNumber).slice(0, 60)}</span>
+                </div>
+              );
+            })()}
+            {g.meeting?.action === 'lead_only' && (
+              <div className="p-2 rounded bg-slate-50 border border-slate-200 text-[11px] text-slate-600">
+                💡 lead 送信のみで完結し、外部遷移はしません。AI要約通知（④）で担当者に自動連絡が飛びます。
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>日時選択ボタンのラベル</Label>

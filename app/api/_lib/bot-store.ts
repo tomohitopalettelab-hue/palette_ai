@@ -72,7 +72,15 @@ export type BotConfig = {
       label?: string;
       /** AIが訪問者に提示する誘導文言のベース */
       invitationPrompt?: string;
-      /** Google Calendar Appointment Schedule URL (https://calendar.app.google/...) */
+      /**
+       * 訪問者が承諾して lead_form を送信した後の最終アクション
+       * - 'calendar': Google Calendar 予約ページへ遷移 (既存)
+       * - 'reservation' | 'inquiry' | 'phone' | 'line' | 'document':
+       *   ③クロージング先で設定した該当 goal の URL/番号へ遷移
+       * - 'lead_only': 遷移せず完了メッセージのみ (AI要約通知は自動で飛ぶ)
+       */
+      action?: 'calendar' | 'reservation' | 'inquiry' | 'phone' | 'line' | 'document' | 'lead_only';
+      /** action='calendar' のとき: Google Calendar Appointment Schedule URL */
       calendarUrl?: string;
       /** 日時選択ボタンのラベル */
       buttonLabel?: string;
@@ -242,6 +250,7 @@ export const DEFAULT_CONFIG: Omit<BotConfig, 'paletteId' | 'updatedAt'> = {
       kind: 'web_mtg',
       label: 'WEBミーティング',
       invitationPrompt: 'ヒアリング内容的に、御社のお悩みにぴったりの解決策がありそうです。一度、担当と30分のWEBミーティングで詳しくお聞かせいただけませんか？',
+      action: 'calendar',
       calendarUrl: '',
       buttonLabel: '日時を選ぶ',
       declineFallback: 'nurture',

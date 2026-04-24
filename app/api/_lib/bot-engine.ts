@@ -527,14 +527,33 @@ const buildUiResponse = (
     return { type: 'lead_form', fields, context: 'meeting' };
   }
 
-  // meeting_calendar: Google Calendar URL へ遷移するボタン
+  // meeting_calendar: 承諾後の最終アクション
+  //  - action='calendar' → Google Calendar 予約ページ (既存)
+  //  - action='reservation'|'inquiry'|'phone'|'line'|'document' → ③で設定したgoalへ
+  //  - action='lead_only' → 遷移なし (text, AI要約通知のみ)
   if (aiResp.ui_hint === 'meeting_calendar' && meeting && meeting.enabled) {
-    return {
-      type: 'meeting_calendar',
-      label: meeting.label || 'ミーティング',
-      url: meeting.calendarUrl || '',
-      buttonLabel: meeting.buttonLabel || '日時を選ぶ',
-    };
+    const action = meeting.action || 'calendar';
+    if (action === 'calendar' && meeting.calendarUrl) {
+      return {
+        type: 'meeting_calendar',
+        label: meeting.label || 'ミーティング',
+        url: meeting.calendarUrl || '',
+        buttonLabel: meeting.buttonLabel || '日時を選ぶ',
+      };
+    }
+    if (action !== 'lead_only' && action !== 'calendar') {
+      // ③で設定した既存 goal の CTA を流用
+      const targetGoal = (config.goals as any)[action];
+      if (targetGoal && targetGoal.enabled) {
+        const buttonLabel = meeting.buttonLabel || targetGoal.label || action;
+        const cta: ClosingCta = action === 'phone'
+          ? { key: 'phone', label: buttonLabel, number: targetGoal.number || '' }
+          : { key: action, label: buttonLabel, url: targetGoal.url || '' };
+        return { type: 'closing_cta', cta };
+      }
+    }
+    // lead_only / URL未設定時: 完了のみ (AI要約通知は自動発動)
+    return { type: 'text' };
   }
 
   // meeting_declined: 拒否された → declineFallback に沿って振り分け
