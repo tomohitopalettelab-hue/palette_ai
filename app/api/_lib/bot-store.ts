@@ -44,13 +44,27 @@ export type BotConfig = {
     leadFields?: Array<{ key: string; label: string; required: boolean }>;
   };
   goals: {
-    reservation?: { enabled: boolean; url?: string; label?: string; leadFields?: Array<{ key: string; label: string; required: boolean }> };
+    reservation?: {
+      enabled: boolean;
+      /** 'url' = 外部URLに遷移 / 'bot_form' = Bot内でlead_form表示→送信で完結 */
+      mode?: 'url' | 'bot_form';
+      url?: string;
+      label?: string;
+      leadFields?: Array<{ key: string; label: string; required: boolean }>;
+    };
     /**
      * 問い合わせゴール:
-     * - url が空なら Bot 内で lead_form を出して完結 (送信すると goals.notify で自動通知)
-     * - url が設定されていれば外部 URL に遷移
+     * - mode='url': 外部URL に遷移
+     * - mode='bot_form': Bot内でlead_formを出して完結、送信するとAI要約通知が自動で飛ぶ
+     * - mode 未設定時は url の有無で自動判定 (互換)
      */
-    inquiry?: { enabled: boolean; url?: string; label?: string; leadFields?: Array<{ key: string; label: string; required: boolean }> };
+    inquiry?: {
+      enabled: boolean;
+      mode?: 'url' | 'bot_form';
+      url?: string;
+      label?: string;
+      leadFields?: Array<{ key: string; label: string; required: boolean }>;
+    };
     phone?: { enabled: boolean; number?: string; label?: string };
     line?: { enabled: boolean; url?: string; label?: string };
     document?: { enabled: boolean; url?: string; label?: string };

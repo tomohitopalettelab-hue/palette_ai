@@ -1005,6 +1005,39 @@ function ConversationTab({ config, update, paletteId }: any) {
                 </div>
                 {enabled && (
                   <>
+                    {/* inquiry / reservation は受付モードを選択可能 */}
+                    {(gk.key === 'inquiry' || gk.key === 'reservation') && (() => {
+                      const resolvedMode: 'url' | 'bot_form' = goal.mode
+                        ? goal.mode
+                        : (goal.url ? 'url' : 'bot_form');
+                      return (
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => update(['goals', gk.key, 'mode'], 'url')}
+                            className={`flex-1 px-3 py-2 rounded-lg text-[11px] font-bold border transition-all ${
+                              resolvedMode === 'url'
+                                ? 'bg-indigo-500 text-white border-indigo-500 shadow'
+                                : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+                            }`}
+                          >
+                            🔗 外部URLに遷移
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => update(['goals', gk.key, 'mode'], 'bot_form')}
+                            className={`flex-1 px-3 py-2 rounded-lg text-[11px] font-bold border transition-all ${
+                              resolvedMode === 'bot_form'
+                                ? 'bg-emerald-500 text-white border-emerald-500 shadow'
+                                : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300'
+                            }`}
+                          >
+                            🤖 Bot内でヒアリング → AI要約通知
+                          </button>
+                        </div>
+                      );
+                    })()}
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
                       <div>
                         <div className="text-[10px] font-bold text-slate-500 mb-1">ボタンに表示する文言</div>
@@ -1014,35 +1047,52 @@ function ConversationTab({ config, update, paletteId }: any) {
                           placeholder={gk.label + 'する'}
                         />
                       </div>
-                      <div>
-                        <div className="text-[10px] font-bold text-slate-500 mb-1">{gk.fieldLabel}</div>
-                        <TextInput
-                          value={gk.key === 'phone' ? goal.number : goal.url}
-                          onChange={(v: string) => update(['goals', gk.key, gk.key === 'phone' ? 'number' : 'url'], v)}
-                          placeholder={gk.key === 'phone' ? '03-xxxx-xxxx' : 'https://'}
-                        />
-                      </div>
+                      {/* URLモード or それ以外の goal は URL/番号欄を表示 */}
+                      {(() => {
+                        const isInqOrRes = gk.key === 'inquiry' || gk.key === 'reservation';
+                        const resolvedMode: 'url' | 'bot_form' = isInqOrRes
+                          ? (goal.mode ? goal.mode : (goal.url ? 'url' : 'bot_form'))
+                          : 'url';
+                        if (isInqOrRes && resolvedMode === 'bot_form') return null;
+                        return (
+                          <div>
+                            <div className="text-[10px] font-bold text-slate-500 mb-1">{gk.fieldLabel}</div>
+                            <TextInput
+                              value={gk.key === 'phone' ? goal.number : goal.url}
+                              onChange={(v: string) => update(['goals', gk.key, gk.key === 'phone' ? 'number' : 'url'], v)}
+                              placeholder={gk.key === 'phone' ? '03-xxxx-xxxx' : 'https://'}
+                            />
+                          </div>
+                        );
+                      })()}
                     </div>
-                    {/* inquiry / reservation: URL 空なら Bot 内 lead_form モード */}
-                    {(gk.key === 'inquiry' || gk.key === 'reservation') && !goal.url && (
-                      <div className="mt-3 p-3 rounded-lg bg-emerald-50 border border-emerald-200 space-y-3">
-                        <div className="text-[11px] text-emerald-800">
-                          <b>🤖 Bot 内で完結モード</b>: URL が空欄のため、訪問者に直接 lead_form を出して情報を収集します。
-                          送信後は AI要約通知が自動で飛びます。
+
+                    {/* Bot内完結モードのときのみリード項目エディタを表示 */}
+                    {(gk.key === 'inquiry' || gk.key === 'reservation') && (() => {
+                      const resolvedMode: 'url' | 'bot_form' = goal.mode
+                        ? goal.mode
+                        : (goal.url ? 'url' : 'bot_form');
+                      if (resolvedMode !== 'bot_form') return null;
+                      return (
+                        <div className="mt-3 p-3 rounded-lg bg-emerald-50 border border-emerald-200 space-y-3">
+                          <div className="text-[11px] text-emerald-800">
+                            <b>🤖 Bot 内でヒアリング</b>: 訪問者に直接 lead_form を出して情報を収集します。
+                            送信後は AI要約通知（④）が自動で飛び、担当者に会話要約+リード情報が届きます。
+                          </div>
+                          <GoalLeadFieldsEditor
+                            fields={
+                              Array.isArray(goal.leadFields) && goal.leadFields.length > 0
+                                ? goal.leadFields
+                                : []
+                            }
+                            onChange={(v: LeadField[]) => update(['goals', gk.key, 'leadFields'], v)}
+                          />
+                          <div className="text-[10px] text-slate-500">
+                            未設定の場合は「会話設計」タブのリード項目を使用します。
+                          </div>
                         </div>
-                        <GoalLeadFieldsEditor
-                          fields={
-                            Array.isArray(goal.leadFields) && goal.leadFields.length > 0
-                              ? goal.leadFields
-                              : []
-                          }
-                          onChange={(v: LeadField[]) => update(['goals', gk.key, 'leadFields'], v)}
-                        />
-                        <div className="text-[10px] text-slate-500">
-                          未設定の場合は「会話設計」タブのリード項目を使用します。
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </>
                 )}
               </div>

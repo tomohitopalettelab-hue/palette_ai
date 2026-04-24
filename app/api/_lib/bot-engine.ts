@@ -594,15 +594,22 @@ const buildUiResponse = (
   // closing_cta
   if (aiResp.ui_hint === 'closing_cta' || stage === 'closing') {
     const cta = pickClosingCta(config, aiResp.buy_intent_score, aiResp.closing_cta_key);
-    // inquiry で url 空 → Bot 内で lead_form を出して完結
-    if (cta && cta.key === 'inquiry' && !cta.url) {
-      const fields = buildGoalLeadFields(config, 'inquiry');
-      if (fields.length) return { type: 'lead_form', fields, context: 'inquiry' };
-    }
-    // reservation で url 空 → 同様に Bot 内完結
-    if (cta && cta.key === 'reservation' && !cta.url) {
-      const fields = buildGoalLeadFields(config, 'reservation');
-      if (fields.length) return { type: 'lead_form', fields, context: 'inquiry' };
+    // inquiry / reservation は mode に応じて lead_form へ切替
+    //   mode='bot_form' → Bot 内 lead_form
+    //   mode='url' → 外部URL (通常CTA)
+    //   mode 未設定 → url の有無で自動判定 (互換)
+    const resolveMode = (key: 'inquiry' | 'reservation'): 'url' | 'bot_form' => {
+      const goal = (config.goals as any)?.[key];
+      if (goal?.mode === 'bot_form') return 'bot_form';
+      if (goal?.mode === 'url') return 'url';
+      return goal?.url ? 'url' : 'bot_form';
+    };
+    if (cta && (cta.key === 'inquiry' || cta.key === 'reservation')) {
+      const mode = resolveMode(cta.key as 'inquiry' | 'reservation');
+      if (mode === 'bot_form') {
+        const fields = buildGoalLeadFields(config, cta.key as 'inquiry' | 'reservation');
+        if (fields.length) return { type: 'lead_form', fields, context: cta.key as 'inquiry' | 'reservation' };
+      }
     }
     if (cta) return { type: 'closing_cta', cta };
   }
