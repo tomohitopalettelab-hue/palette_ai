@@ -1033,6 +1033,19 @@ export const processBotTurn = async (params: {
     ...matched.slice(0, 5).map((m) => m.id),
   ]));
 
+  // manual モードの show_cards で何も拾えていない場合、登録済みサービスの先頭から補完
+  // → 設計者は「ここでカードを出す」と意図しているので、タグマッチが弱くても必ず出す
+  if (manualForceUiHint === 'cards' && allMatchedIds.length === 0 && services.length > 0) {
+    const cardCount = config.conversation?.cardCount ?? 3;
+    for (const svc of services) {
+      allMatchedIds.push(svc.id);
+      if (allMatchedIds.length >= cardCount) break;
+    }
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[bot-engine] manual show_cards: タグマッチなし → 登録順 ${allMatchedIds.length} 件で補完`);
+    }
+  }
+
   // Build UI response
   const ui = buildUiResponse(
     { ...aiResp, matched_service_ids: allMatchedIds },
