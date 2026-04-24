@@ -78,6 +78,17 @@ export type BotConfig = {
     hearingFlow?: {
       mode: 'auto' | 'manual';
       steps?: HearingStep[];
+      /**
+       * ウェルカムメッセージに最初の質問を含めている場合 true。
+       * 訪問者の最初の発言が welcome への回答として消費され、AI は steps[0] からではなく次のステップから開始する。
+       */
+      welcomeAsksFirstQuestion?: boolean;
+      /**
+       * ウェルカムへの最初の発言で評価する分岐ルール。
+       * branches と同じ shape。welcomeBranches.length>0 の時、最初の発言で評価し
+       * マッチした goToStepId へジャンプする。
+       */
+      welcomeBranches?: HearingStep['branches'];
     };
   };
   goals: {

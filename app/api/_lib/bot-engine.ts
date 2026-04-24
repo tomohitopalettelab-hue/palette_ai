@@ -220,6 +220,56 @@ const advanceSkippedSteps = (
 };
 
 /**
+ * ウェルカム step 0 の解決。
+ * 初回ターン (visitor 発言数=1 && session.hearingStepIndex=0) のとき:
+ *  - welcomeBranches があり、最初の発言がキーワード/default にマッチ → 該当 step.id へジャンプ
+ *  - マッチなし or branches 未設定でも welcomeAsksFirstQuestion=true → effective=1 (steps[0] スキップ)
+ *  - それ以外 → effective=0 (既存挙動)
+ * 初回ターン以外は session.hearingStepIndex をそのまま返す。
+ */
+const resolveWelcomeStep = (
+  config: BotConfig,
+  manualSteps: HearingStep[],
+  newMessages: BotMessage[],
+  storedIdx: number,
+  visitorMessage: string,
+): number => {
+  const visitorCount = newMessages.filter((m) => m.role === 'visitor').length;
+  if (visitorCount > 1 || storedIdx !== 0) return storedIdx;
+
+  const flow = config.conversation?.hearingFlow;
+  if (!flow || flow.mode !== 'manual') return storedIdx;
+  const welcomeAsks = flow.welcomeAsksFirstQuestion === true;
+  const welcomeBranches = Array.isArray(flow.welcomeBranches) ? flow.welcomeBranches : [];
+  const stepIdToIndex = new Map(manualSteps.map((s, i) => [s.id, i]));
+
+  // welcomeBranches を評価（あれば welcome は質問を含む前提）
+  if (welcomeBranches.length > 0) {
+    const msgLower = String(visitorMessage || '').toLowerCase();
+    for (const br of welcomeBranches) {
+      if (br.condition.type === 'keyword') {
+        const kws = (br.condition.value || []).map((k) => String(k || '').trim().toLowerCase()).filter(Boolean);
+        if (kws.length === 0) continue;
+        if (kws.some((k) => msgLower.includes(k))) {
+          const idx = stepIdToIndex.get(br.goToStepId);
+          if (idx !== undefined) return idx;
+        }
+      }
+    }
+    const def = welcomeBranches.find((b) => b.condition.type === 'default');
+    if (def) {
+      const idx = stepIdToIndex.get(def.goToStepId);
+      if (idx !== undefined) return idx;
+    }
+    // welcomeBranches があるが、マッチも default も解決できなかった場合は welcome 消費だけ
+    return Math.min(1, manualSteps.length);
+  }
+
+  // welcomeBranches なし → トグルに従う
+  return welcomeAsks ? Math.min(1, manualSteps.length) : 0;
+};
+
+/**
  * hearingFlow.mode='manual' のとき、現在のステップ情報を system prompt に挿入する。
  * - AI がステップの prompt の趣旨を汲んで自然に言い換えて OK
  * - 明確な購入意思を検出したら残りステップを飛ばして closing に遷移してよい
@@ -237,6 +287,20 @@ const buildHearingFlowBlock = (config: BotConfig, session: BotSession): string =
   const idx = advanceSkippedSteps(steps, session.hearingStepIndex ?? 0, visitorText);
   if (idx >= steps.length) return '';
   const current = steps[idx];
+
+  // 初回ターンで welcome が質問を含む場合、訪問者の最初の発言は welcome への回答である旨を AI に伝える
+  const visitorCount = session.messages.filter((m) => m.role === 'visitor').length;
+  const welcomeAsks = flow.welcomeAsksFirstQuestion === true;
+  const welcomeBranches = Array.isArray(flow.welcomeBranches) ? flow.welcomeBranches : [];
+  const welcomeMsg = (config.conversation?.welcomeMessage || '').trim();
+  let welcomeContextBlock = '';
+  if (visitorCount === 1 && (welcomeAsks || welcomeBranches.length > 0) && welcomeMsg) {
+    welcomeContextBlock = `
+### 👋 ウェルカム文脈（重要）
+訪問者には事前にウェルカムメッセージとして「${welcomeMsg}」を提示済みです。
+訪問者の最初の発言はこのウェルカムに対する回答として扱い、その内容を踏まえて現在ステップに応答してください。
+`;
+  }
 
   const typeLabels: Record<HearingStep['type'], string> = {
     ask: '💬 質問する',
@@ -319,7 +383,7 @@ ${lines.join('\n')}
 ## 🧭 ヒアリング台本（管理者設定・最優先）
 管理者が会話の流れを設計しています。以下のステップに沿って会話を進めてください。
 現在 **${idx + 1}/${steps.length} ステップ目**: ${typeLabels[current.type]}
-
+${welcomeContextBlock}
 ${instruction}
 ${smartSkipBlock}
 ${branchBlock}
@@ -879,10 +943,25 @@ export const processBotTurn = async (params: {
     .join(' ');
   const matched = findMatchingServices(services, fullUserText);
 
+  // ── manual モード: ウェルカム + skipIf 解決を AI 呼び出し前に行う ─────────
+  // (buildSystemPrompt と後段の processBotTurn 両方で同じ effective step を参照する)
+  const hearingFlow = config.conversation?.hearingFlow;
+  const manualSteps: HearingStep[] = (hearingFlow?.mode === 'manual' && Array.isArray(hearingFlow.steps))
+    ? hearingFlow.steps
+    : [];
+  const manualActive = manualSteps.length > 0;
+  // 初回ターン: ウェルカム step 0 を解決 (welcomeBranches / welcomeAsksFirstQuestion)
+  const baseIdx = manualActive
+    ? resolveWelcomeStep(config, manualSteps, newMessages, session.hearingStepIndex ?? 0, params.message)
+    : (session.hearingStepIndex ?? 0);
+
   // Build AI prompt
+  // hearingStepIndex はウェルカム解決後の baseIdx を渡す。buildHearingFlowBlock 内で
+  // さらに skipIf advance が走り、processBotTurn と同じ effective step に到達する。
   const systemPrompt = buildSystemPrompt(config, services, faqs, {
     ...session,
     messages: newMessages,
+    hearingStepIndex: manualActive ? baseIdx : (session.hearingStepIndex ?? 0),
   });
 
   // Conversation history for OpenAI
@@ -922,20 +1001,14 @@ export const processBotTurn = async (params: {
   }
 
   // ── ヒアリング台本 (manual) によるステップ進行 ─────────────
-  // auto モードなら従来挙動、manual モードなら steps[idx] に従って遷移を上書き
-  const hearingFlow = config.conversation?.hearingFlow;
-  const manualSteps: HearingStep[] = (hearingFlow?.mode === 'manual' && Array.isArray(hearingFlow.steps))
-    ? hearingFlow.steps
-    : [];
-  const manualActive = manualSteps.length > 0;
   // skipIf を考慮した effective index (回答済みステップを飛ばす)
   const visitorTextAll = newMessages
     .filter((m) => m.role === 'visitor')
     .map((m) => String(m.content || ''))
     .join(' ');
   const currentStepIdx = manualActive
-    ? advanceSkippedSteps(manualSteps, session.hearingStepIndex ?? 0, visitorTextAll)
-    : (session.hearingStepIndex ?? 0);
+    ? advanceSkippedSteps(manualSteps, baseIdx, visitorTextAll)
+    : baseIdx;
 
   let manualForceStage: BotStage | null = null;
   let manualForceUiHint: AiResponse['ui_hint'] | null = null;

@@ -2419,13 +2419,23 @@ function FlowTab({ config, update }: { config: any; update: (path: string[], val
   const mode: 'auto' | 'manual' = flow.mode === 'manual' ? 'manual' : 'auto';
   const steps: FlowStep[] = Array.isArray(flow.steps) ? flow.steps : [];
   const welcomeMessage: string = config.conversation?.welcomeMessage || '';
+  const welcomeAsks: boolean = flow.welcomeAsksFirstQuestion === true;
+  const welcomeBranches: NonNullable<FlowStep['branches']> = Array.isArray(flow.welcomeBranches) ? flow.welcomeBranches : [];
   const [view, setView] = useState<'list' | 'flowchart'>('list');
 
+  // setMode / setSteps / setWelcome* で hearingFlow オブジェクト全体を上書きする際、
+  // 他のキーが消えないよう必ず flow を spread する
   const setMode = (m: 'auto' | 'manual') => {
-    update(['conversation', 'hearingFlow'], { mode: m, steps });
+    update(['conversation', 'hearingFlow'], { ...flow, mode: m, steps });
   };
   const setSteps = (next: FlowStep[]) => {
-    update(['conversation', 'hearingFlow'], { mode, steps: next });
+    update(['conversation', 'hearingFlow'], { ...flow, mode, steps: next });
+  };
+  const setWelcomeAsks = (v: boolean) => {
+    update(['conversation', 'hearingFlow'], { ...flow, mode, steps, welcomeAsksFirstQuestion: v });
+  };
+  const setWelcomeBranches = (next: FlowStep['branches']) => {
+    update(['conversation', 'hearingFlow'], { ...flow, mode, steps, welcomeBranches: next });
   };
 
   const updateStep = (idx: number, patch: Partial<FlowStep>) => {
@@ -2521,6 +2531,57 @@ function FlowTab({ config, update }: { config: any; update: (path: string[], val
                   </React.Fragment>
                 );
               })
+            )}
+          </div>
+        </Card>
+      )}
+
+      {mode === 'manual' && (
+        <Card title="👋 ステップ 0: ウェルカム">
+          <p className="text-xs text-slate-500 mb-3">
+            訪問者が最初に見るメッセージ。「会話設計」タブの内容と同期しています。
+            ウェルカム自体に質問を含める場合は下のトグルを ON にしてください。
+          </p>
+          <div className="space-y-3">
+            <div>
+              <Label>ウェルカムメッセージ</Label>
+              <TextArea
+                value={welcomeMessage}
+                onChange={(v: string) => update(['conversation', 'welcomeMessage'], v)}
+                placeholder="こんにちは！何かお困りですか？"
+                rows={2}
+              />
+            </div>
+            <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
+              <label className="flex items-start gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={welcomeAsks}
+                  onChange={(e) => setWelcomeAsks(e.target.checked)}
+                  className="w-4 h-4 mt-0.5"
+                />
+                <div className="flex-1">
+                  <div className="text-xs font-bold text-slate-700">
+                    ✨ ウェルカムに最初の質問を含めている
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">
+                    ON: 訪問者の最初の発言は <b>ウェルカムへの回答</b> として消費し、AI はステップ 1 から開始します。
+                  </div>
+                </div>
+              </label>
+            </div>
+            {(welcomeAsks || welcomeBranches.length > 0) && (
+              steps.length === 0 ? (
+                <p className="text-[11px] text-slate-400 pl-1">
+                  💡 分岐を設定するには、下にステップを追加してください
+                </p>
+              ) : (
+                <BranchesEditor
+                  step={{ id: '__welcome__', type: 'ask' as FlowStepType, branches: welcomeBranches }}
+                  allSteps={steps}
+                  onChange={(patch) => setWelcomeBranches(patch.branches)}
+                />
+              )
             )}
           </div>
         </Card>
