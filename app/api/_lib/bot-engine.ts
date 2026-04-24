@@ -221,11 +221,12 @@ const advanceSkippedSteps = (
 
 /**
  * ウェルカム step 0 の解決。
- * 初回ターン (visitor 発言数=1 && session.hearingStepIndex=0) のとき:
- *  - welcomeBranches があり、最初の発言がキーワード/default にマッチ → 該当 step.id へジャンプ
- *  - マッチなし or branches 未設定でも welcomeAsksFirstQuestion=true → effective=1 (steps[0] スキップ)
- *  - それ以外 → effective=0 (既存挙動)
- * 初回ターン以外は session.hearingStepIndex をそのまま返す。
+ * 初回ターン (visitor 発言数=1 && session.hearingStepIndex=0) かつ welcomeBranches があれば、
+ * 最初の発言を評価して該当 step.id へジャンプする。
+ *
+ * welcomeAsksFirstQuestion トグルは index には影響しない（AI プロンプトの文脈にのみ影響）。
+ *  → トグル ON でもステップ 1 (manualSteps[0]) は飛ばさない。AI はウェルカムへの回答を
+ *    踏まえつつ Step 1 の質問を投げる、という自然な流れになる。
  */
 const resolveWelcomeStep = (
   config: BotConfig,
@@ -239,34 +240,29 @@ const resolveWelcomeStep = (
 
   const flow = config.conversation?.hearingFlow;
   if (!flow || flow.mode !== 'manual') return storedIdx;
-  const welcomeAsks = flow.welcomeAsksFirstQuestion === true;
   const welcomeBranches = Array.isArray(flow.welcomeBranches) ? flow.welcomeBranches : [];
-  const stepIdToIndex = new Map(manualSteps.map((s, i) => [s.id, i]));
+  if (welcomeBranches.length === 0) return 0;
 
-  // welcomeBranches を評価（あれば welcome は質問を含む前提）
-  if (welcomeBranches.length > 0) {
-    const msgLower = String(visitorMessage || '').toLowerCase();
-    for (const br of welcomeBranches) {
-      if (br.condition.type === 'keyword') {
-        const kws = (br.condition.value || []).map((k) => String(k || '').trim().toLowerCase()).filter(Boolean);
-        if (kws.length === 0) continue;
-        if (kws.some((k) => msgLower.includes(k))) {
-          const idx = stepIdToIndex.get(br.goToStepId);
-          if (idx !== undefined) return idx;
-        }
+  const stepIdToIndex = new Map(manualSteps.map((s, i) => [s.id, i]));
+  const msgLower = String(visitorMessage || '').toLowerCase();
+
+  for (const br of welcomeBranches) {
+    if (br.condition.type === 'keyword') {
+      const kws = (br.condition.value || []).map((k) => String(k || '').trim().toLowerCase()).filter(Boolean);
+      if (kws.length === 0) continue;
+      if (kws.some((k) => msgLower.includes(k))) {
+        const idx = stepIdToIndex.get(br.goToStepId);
+        if (idx !== undefined) return idx;
       }
     }
-    const def = welcomeBranches.find((b) => b.condition.type === 'default');
-    if (def) {
-      const idx = stepIdToIndex.get(def.goToStepId);
-      if (idx !== undefined) return idx;
-    }
-    // welcomeBranches があるが、マッチも default も解決できなかった場合は welcome 消費だけ
-    return Math.min(1, manualSteps.length);
   }
-
-  // welcomeBranches なし → トグルに従う
-  return welcomeAsks ? Math.min(1, manualSteps.length) : 0;
+  const def = welcomeBranches.find((b) => b.condition.type === 'default');
+  if (def) {
+    const idx = stepIdToIndex.get(def.goToStepId);
+    if (idx !== undefined) return idx;
+  }
+  // どの分岐にもマッチしなかった → ステップ 1 から開始
+  return 0;
 };
 
 /**
