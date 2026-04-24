@@ -79,6 +79,8 @@ type AiResponse = {
   ui_hint: 'text' | 'cards' | 'closing_cta' | 'lead_form' | 'nurture_options' | 'meeting_proposal' | 'meeting_lead_form' | 'meeting_calendar' | 'meeting_declined';
   lead_ask: string | null;         // 'name' | 'phone' | 'email' | 'preferredTime'
   closing_cta_key: string | null;  // 'reservation' etc
+  /** Phase 2-B: hearingFlow manual モードで、分岐先ステップの id。マッチなしなら null */
+  next_branch_id?: string | null;
   reasoning?: string;
 };
 
@@ -255,12 +257,44 @@ const buildHearingFlowBlock = (config: BotConfig, session: BotSession): string =
     instruction = `- next_stage='closing' に遷移し、買う気度に応じた closing_cta_key を選んでください（または ui_hint='lead_form'）。`;
   }
 
+  // Phase 2-B: 分岐条件をプロンプトに挿入
+  const branches = Array.isArray(current.branches) ? current.branches : [];
+  const stepIdToIndex = new Map<string, number>();
+  steps.forEach((s, i) => stepIdToIndex.set(s.id, i));
+  let branchBlock = '';
+  if (branches.length > 0) {
+    const lines: string[] = [];
+    branches.forEach((br, i) => {
+      const targetIdx = stepIdToIndex.get(br.goToStepId);
+      if (targetIdx === undefined) return; // ステップが削除されていたら無視
+      const targetLabel = `ステップ ${targetIdx + 1}（${typeLabels[steps[targetIdx].type]}）`;
+      if (br.condition.type === 'keyword') {
+        const kws = (br.condition.value || []).filter(Boolean);
+        if (kws.length === 0) return;
+        lines.push(`${i + 1}. キーワード [${kws.join(' / ')}] にマッチ → 次は ${targetLabel} (id=${br.goToStepId})`);
+      } else if (br.condition.type === 'sentiment') {
+        const sent = br.condition.sentiment || 'positive';
+        lines.push(`${i + 1}. 感情が「${sent}」 → 次は ${targetLabel} (id=${br.goToStepId})`);
+      } else if (br.condition.type === 'default') {
+        lines.push(`${i + 1}. 上記にマッチしない場合（デフォルト）→ 次は ${targetLabel} (id=${br.goToStepId})`);
+      }
+    });
+    if (lines.length > 0) {
+      branchBlock = `
+### 分岐条件（訪問者の回答次第で次のステップを選ぶ）
+${lines.join('\n')}
+
+訪問者の今回の回答をこれらの条件で評価し、マッチしたら \`next_branch_id\` にその分岐の goToStepId を設定してください。どれにもマッチしなければ \`next_branch_id: null\`（次のステップへ順次進行）。`;
+    }
+  }
+
   return `
 ## 🧭 ヒアリング台本（管理者設定・最優先）
 管理者が会話の流れを設計しています。以下のステップに沿って会話を進めてください。
 現在 **${idx + 1}/${steps.length} ステップ目**: ${typeLabels[current.type]}
 
 ${instruction}
+${branchBlock}
 
 ### 台本運用の重要ルール
 - ステップの趣旨は守りつつ、訪問者の文脈に合わせて**自然に言い換えて** reply に含める
@@ -389,6 +423,7 @@ ${buildHearingFlowBlock(config, session)}
   "ui_hint": "text|cards|closing_cta|lead_form|nurture_options|meeting_proposal|meeting_lead_form|meeting_calendar|meeting_declined",
   "lead_ask": null | "name" | "phone" | "email" | "preferredTime",
   "closing_cta_key": null | "reservation" | "inquiry" | "phone" | "line" | "document" | "notify" | "meeting",
+  "next_branch_id": null | "<goToStepId>",
   "reasoning": "なぜこの判定か短く"
 }
 
@@ -879,8 +914,52 @@ export const processBotTurn = async (params: {
         manualForceStage = 'closing';
       }
       // 'ask' は stage/ui_hint 上書きなし、index のみ進める
-      // 次ターンもさらに skipIf を見るので、ここでは +1 するだけでよい
-      nextStepIdx = currentStepIdx + 1;
+
+      // Phase 2-B: 分岐条件の解決
+      // AI が next_branch_id を返した && step.branches に定義された id と一致 → ジャンプ
+      // サーバー側でもキーワードマッチで補強（AI が next_branch_id を返さなかった場合）
+      const branches = Array.isArray(step.branches) ? step.branches : [];
+      const branchById = new Map(branches.map((b) => [b.goToStepId, b]));
+      const stepIdToIndex = new Map(manualSteps.map((s, i) => [s.id, i]));
+
+      let branchTargetIdx: number | null = null;
+      // 1) AI が返した next_branch_id を優先
+      const aiBranchId = (aiResp as any).next_branch_id;
+      if (aiBranchId && typeof aiBranchId === 'string' && branchById.has(aiBranchId)) {
+        const idx = stepIdToIndex.get(aiBranchId);
+        if (idx !== undefined) branchTargetIdx = idx;
+      }
+      // 2) AI が返さなかったら、サーバー側でキーワード判定
+      if (branchTargetIdx === null && branches.length > 0) {
+        const msgLower = String(params.message || '').toLowerCase();
+        for (const br of branches) {
+          if (br.condition.type !== 'keyword') continue;
+          const kws = (br.condition.value || []).map((k) => String(k || '').trim().toLowerCase()).filter(Boolean);
+          if (kws.length === 0) continue;
+          if (kws.some((k) => msgLower.includes(k))) {
+            const idx = stepIdToIndex.get(br.goToStepId);
+            if (idx !== undefined) { branchTargetIdx = idx; break; }
+          }
+        }
+        // 3) キーワードにマッチしなければ default 分岐
+        if (branchTargetIdx === null) {
+          const def = branches.find((b) => b.condition.type === 'default');
+          if (def) {
+            const idx = stepIdToIndex.get(def.goToStepId);
+            if (idx !== undefined) branchTargetIdx = idx;
+          }
+        }
+      }
+
+      if (branchTargetIdx !== null) {
+        nextStepIdx = branchTargetIdx;
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[bot-engine] manual branch: step ${currentStepIdx} -> ${branchTargetIdx}`);
+        }
+      } else {
+        // 次ターンもさらに skipIf を見るので、ここでは +1 するだけでよい
+        nextStepIdx = currentStepIdx + 1;
+      }
     }
 
     // ui_hint の上書きは buildUiResponse 前に反映

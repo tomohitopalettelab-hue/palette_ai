@@ -2288,6 +2288,127 @@ function SkipIfEditor({ step, onChange }: { step: FlowStep; onChange: (patch: Pa
   );
 }
 
+function BranchesEditor({
+  step,
+  allSteps,
+  onChange,
+}: {
+  step: FlowStep;
+  allSteps: FlowStep[];
+  onChange: (patch: Partial<FlowStep>) => void;
+}) {
+  const branches = Array.isArray(step.branches) ? step.branches : [];
+  const otherSteps = allSteps.filter((s) => s.id !== step.id);
+
+  const setBranches = (next: NonNullable<FlowStep['branches']>) => {
+    onChange({ branches: next.length ? next : undefined });
+  };
+  const addBranch = () => {
+    const firstTargetId = otherSteps[0]?.id || '';
+    setBranches([
+      ...branches,
+      { condition: { type: 'keyword', value: [] }, goToStepId: firstTargetId },
+    ]);
+  };
+  const removeBranch = (i: number) => {
+    setBranches(branches.filter((_, j) => j !== i));
+  };
+  const updateBranch = (i: number, patch: Partial<NonNullable<FlowStep['branches']>[number]>) => {
+    setBranches(branches.map((b, j) => (j === i ? { ...b, ...patch } : b)));
+  };
+
+  const stepLabel = (id: string) => {
+    const found = allSteps.findIndex((s) => s.id === id);
+    if (found < 0) return '（削除されたステップ）';
+    const s = allSteps[found];
+    const meta = FLOW_STEP_META[s.type];
+    return `${found + 1}. ${meta.emoji} ${meta.label}`;
+  };
+
+  return (
+    <div className="pt-2 border-t border-slate-200/60">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[11px] font-bold text-slate-600">🔀 分岐条件（回答で次のステップを変える）</span>
+        <button
+          type="button"
+          onClick={addBranch}
+          disabled={otherSteps.length === 0}
+          className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 disabled:opacity-30 flex items-center gap-1"
+        >
+          <Plus className="w-3 h-3" />分岐を追加
+        </button>
+      </div>
+      {branches.length === 0 && (
+        <p className="text-[10px] text-slate-400 pl-1">未設定のときは順次次のステップへ進みます</p>
+      )}
+      <div className="space-y-2">
+        {branches.map((br, i) => {
+          const cType = br.condition.type;
+          const kwStr = (br.condition.value || []).join(', ');
+          return (
+            <div key={i} className="p-2 rounded-lg bg-white/60 border border-slate-200 space-y-2">
+              <div className="flex gap-2 items-center flex-wrap">
+                <select
+                  value={cType}
+                  onChange={(e) => {
+                    const t = e.target.value as 'keyword' | 'default';
+                    updateBranch(i, {
+                      condition: t === 'default' ? { type: 'default' } : { type: 'keyword', value: br.condition.value || [] },
+                    });
+                  }}
+                  className="px-2 py-1 rounded border border-slate-200 bg-white text-xs outline-none focus:border-indigo-300"
+                >
+                  <option value="keyword">キーワード一致</option>
+                  <option value="default">その他すべて（デフォルト）</option>
+                </select>
+                <span className="text-[10px] text-slate-500">→</span>
+                <select
+                  value={br.goToStepId}
+                  onChange={(e) => updateBranch(i, { goToStepId: e.target.value })}
+                  className="flex-1 min-w-0 px-2 py-1 rounded border border-slate-200 bg-white text-xs outline-none focus:border-indigo-300"
+                >
+                  {!otherSteps.some((s) => s.id === br.goToStepId) && (
+                    <option value={br.goToStepId}>{stepLabel(br.goToStepId)}</option>
+                  )}
+                  {otherSteps.map((s) => {
+                    const found = allSteps.findIndex((x) => x.id === s.id);
+                    const meta = FLOW_STEP_META[s.type];
+                    return (
+                      <option key={s.id} value={s.id}>
+                        {found + 1}. {meta.emoji} {meta.label}
+                      </option>
+                    );
+                  })}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => removeBranch(i)}
+                  className="text-slate-400 hover:text-red-500 shrink-0"
+                  aria-label="分岐を削除"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              {cType === 'keyword' && (
+                <input
+                  type="text"
+                  value={kwStr}
+                  onChange={(e) => {
+                    const arr = e.target.value.split(/[,、]/).map((s) => s.trim()).filter(Boolean);
+                    updateBranch(i, { condition: { type: 'keyword', value: arr } });
+                  }}
+                  placeholder="例: はい, うん, 考えてる, Yes（カンマ/、区切り）"
+                  className="w-full px-2 py-1.5 rounded border border-slate-200 bg-white text-xs outline-none focus:border-indigo-300"
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 const newFlowStep = (type: FlowStepType): FlowStep => {
   const id = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
     ? crypto.randomUUID()
@@ -2425,6 +2546,15 @@ function FlowTab({ config, update }: { config: any; update: (path: string[], val
                         step={step}
                         onChange={(patch) => updateStep(idx, patch)}
                       />
+
+                      {/* Phase 2-B: 分岐条件 (ask のみ) */}
+                      {step.type === 'ask' && (
+                        <BranchesEditor
+                          step={step}
+                          allSteps={steps}
+                          onChange={(patch) => updateStep(idx, patch)}
+                        />
+                      )}
                     </div>
 
                     <div className="flex flex-col gap-1 shrink-0">
