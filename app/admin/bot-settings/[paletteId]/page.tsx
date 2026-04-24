@@ -7,7 +7,14 @@ import {
   Sparkles, Settings2, HelpCircle, Palette, Heart, Package, PlayCircle, X, AlertTriangle,
   Workflow, ArrowUp, ArrowDown,
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { WIDGET_TEMPLATES, ICON_SVG_PATHS, getBubbleRadius, getBubbleGradient, type WidgetTemplate } from '../_lib/widget-templates';
+
+// @xyflow/react は重いので dynamic import でクライアント専用にロード
+const HearingFlowChart = dynamic(
+  () => import('../_lib/hearing-flow-chart').then((m) => m.HearingFlowChart),
+  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center text-xs text-slate-400">フローチャートを読み込み中...</div> },
+);
 
 type Config = any;
 type Service = {
@@ -2422,6 +2429,7 @@ function FlowTab({ config, update }: { config: any; update: (path: string[], val
   const flow = config.conversation?.hearingFlow || { mode: 'auto', steps: [] };
   const mode: 'auto' | 'manual' = flow.mode === 'manual' ? 'manual' : 'auto';
   const steps: FlowStep[] = Array.isArray(flow.steps) ? flow.steps : [];
+  const [view, setView] = useState<'list' | 'flowchart'>('list');
 
   const setMode = (m: 'auto' | 'manual') => {
     update(['conversation', 'hearingFlow'], { mode: m, steps });
@@ -2489,6 +2497,56 @@ function FlowTab({ config, update }: { config: any; update: (path: string[], val
       </Card>
 
       {mode === 'manual' && (
+        <Card title="表示モード">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setView('list')}
+              className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold border transition-all ${
+                view === 'list'
+                  ? 'bg-indigo-500 text-white border-indigo-500 shadow'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+              }`}
+            >
+              📋 リスト
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('flowchart')}
+              className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold border transition-all ${
+                view === 'flowchart'
+                  ? 'bg-indigo-500 text-white border-indigo-500 shadow'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+              }`}
+            >
+              🗺️ フローチャート
+            </button>
+          </div>
+          <p className="text-[10px] text-slate-400 mt-2">
+            フローチャート: ノードをドラッグで位置変更、分岐は色付き矢印で可視化
+          </p>
+        </Card>
+      )}
+
+      {mode === 'manual' && view === 'flowchart' && (
+        <Card title="🗺️ フローチャート">
+          {steps.length === 0 ? (
+            <div className="text-center py-10 text-sm text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+              ステップがまだありません。リストモードに戻って追加してください。
+            </div>
+          ) : (
+            <HearingFlowChart
+              steps={steps}
+              onStepsChange={(next) => setSteps(next)}
+            />
+          )}
+          <p className="text-[10px] text-slate-400 mt-3">
+            💡 ノードをドラッグして配置を保存できます。内容の編集はリストモードで行ってください。
+          </p>
+        </Card>
+      )}
+
+      {mode === 'manual' && view === 'list' && (
         <Card title="ステップ一覧">
           {steps.length === 0 && (
             <div className="text-center py-10 text-sm text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
