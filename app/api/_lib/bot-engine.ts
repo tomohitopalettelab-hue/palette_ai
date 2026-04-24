@@ -335,6 +335,19 @@ ${collectLead ? '' : '- リード収集はスキップ設定のため、承諾�
 `;
 };
 
+/**
+ * manual モードのヒアリング台本がアクティブかどうか
+ * （mode='manual' かつ steps が1件以上、かつ現在 index がまだ末尾未満）
+ */
+const isManualHearingActive = (config: BotConfig, session: BotSession): boolean => {
+  const flow = config.conversation?.hearingFlow;
+  if (!flow || flow.mode !== 'manual') return false;
+  const steps = Array.isArray(flow.steps) ? flow.steps : [];
+  if (steps.length === 0) return false;
+  const idx = session.hearingStepIndex ?? 0;
+  return idx < steps.length;
+};
+
 const buildSystemPrompt = (
   config: BotConfig,
   services: BotService[],
@@ -345,6 +358,19 @@ const buildSystemPrompt = (
   const conv = config.conversation || {};
   const ng = config.ngRules || {};
   const ngBlock = buildNgRulesBlock(config);
+  const manualActive = isManualHearingActive(config, session);
+
+  // manual モード時は hearing の最小/最大ターンルールを「台本に従う」と置き換える
+  const hearingRulesBlock = manualActive
+    ? `### hearing（ヒアリング）
+- **🧭 ヒアリング台本セクションが最優先**。下記のターン数・タグマッチによる自動遷移ルールは適用されない。
+- 台本のステップ末尾まで到達したら通常ルールに戻る。`
+    : `### hearing（ヒアリング）
+- 訪問者の悩みを深掘りする質問を1つ返す
+- ${conv.hearingMinTurns || 2}往復は必ずヒアリング、${conv.hearingMaxTurns || 5}往復超えたらfallbackへ
+- サービスの悩みタグ/おすすめタグが2つ以上マッチしたら next_stage='introduction'
+- 訪問者が具体サービス名を出したら即 introduction
+- matched_service_ids には候補サービスIDを詰める`;
 
   return `あなたは ${basic.shopName || 'お店'} のウェブサイトに設置された営業アシスタントAIです。
 業種: ${basic.industry || '未設定'}
@@ -376,12 +402,7 @@ ${buildHearingFlowBlock(config, session)}
 
 ## 会話フロー規則
 
-### hearing（ヒアリング）
-- 訪問者の悩みを深掘りする質問を1つ返す
-- ${conv.hearingMinTurns || 2}往復は必ずヒアリング、${conv.hearingMaxTurns || 5}往復超えたらfallbackへ
-- サービスの悩みタグ/おすすめタグが2つ以上マッチしたら next_stage='introduction'
-- 訪問者が具体サービス名を出したら即 introduction
-- matched_service_ids には候補サービスIDを詰める
+${hearingRulesBlock}
 
 ### introduction（サービス提案）
 - matched_service_ids から上位${conv.cardCount || 3}個を選ぶ
@@ -967,14 +988,22 @@ export const processBotTurn = async (params: {
   }
 
   // Apply rule-based override
-  // manual モードで明示的にステージを強制した場合は rule-based を適用しない（退行禁止ロジックが干渉するため）
+  // manual モードがアクティブ (steps が残っている) なら rule-based を完全に停止
+  // → 強制 introduction / 退行禁止 / 強制 fallback などが ask ステップ中に干渉するのを防ぐ
   let finalStage: BotStage;
   let force = false;
+  const manualStillActive = manualActive && currentStepIdx < manualSteps.length;
   if (manualForceStage) {
     finalStage = manualForceStage;
     force = true;
     if (process.env.NODE_ENV !== 'production') {
       console.log(`[bot-engine] manual override: ${aiResp.next_stage} -> ${finalStage} (step=${currentStepIdx})`);
+    }
+  } else if (manualStillActive) {
+    // 'ask' ステップ実行中: stage='hearing' を維持 (AI が introduction 等に飛ぼうとしても無視)
+    finalStage = 'hearing';
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[bot-engine] manual ask: stage 維持 hearing (step=${currentStepIdx}/${manualSteps.length})`);
     }
   } else {
     const rb = applyRuleBasedTransition(

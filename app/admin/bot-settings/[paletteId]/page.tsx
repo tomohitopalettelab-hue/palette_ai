@@ -2416,6 +2416,7 @@ function FlowTab({ config, update }: { config: any; update: (path: string[], val
   const flow = config.conversation?.hearingFlow || { mode: 'auto', steps: [] };
   const mode: 'auto' | 'manual' = flow.mode === 'manual' ? 'manual' : 'auto';
   const steps: FlowStep[] = Array.isArray(flow.steps) ? flow.steps : [];
+  const welcomeMessage: string = config.conversation?.welcomeMessage || '';
   const [view, setView] = useState<'list' | 'flowchart'>('list');
 
   const setMode = (m: 'auto' | 'manual') => {
@@ -2482,6 +2483,46 @@ function FlowTab({ config, update }: { config: any; update: (path: string[], val
           </button>
         </div>
       </Card>
+
+      {mode === 'manual' && (
+        <Card title="👀 全体プレビュー">
+          <p className="text-xs text-slate-500 mb-3">
+            訪問者が見る順序です。<b>ウェルカム</b> は会話設計タブで編集できます。
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 max-w-xs">
+              <div className="text-[10px] font-bold text-amber-700 mb-0.5">👋 ウェルカム</div>
+              <div className="text-[11px] text-slate-700 line-clamp-2">
+                {welcomeMessage || <span className="text-slate-400 italic">未設定</span>}
+              </div>
+            </div>
+            {steps.length === 0 ? (
+              <div className="px-3 py-2 rounded-xl border-2 border-dashed border-slate-200 text-[11px] text-slate-400">
+                ↓ ヒアリングステップを下で追加してください
+              </div>
+            ) : (
+              steps.map((s, i) => {
+                const meta = FLOW_STEP_META[s.type];
+                return (
+                  <React.Fragment key={s.id}>
+                    <span className="text-slate-300 text-lg">→</span>
+                    <div className={`px-3 py-2 rounded-xl border ${meta.tone}`}>
+                      <div className="text-[10px] font-bold text-slate-600">
+                        {i + 1}. {meta.emoji} {meta.label}
+                      </div>
+                      {s.type === 'ask' && s.prompt && (
+                        <div className="text-[10px] text-slate-600 mt-0.5 max-w-[180px] line-clamp-1">
+                          {s.prompt}
+                        </div>
+                      )}
+                    </div>
+                  </React.Fragment>
+                );
+              })
+            )}
+          </div>
+        </Card>
+      )}
 
       {mode === 'manual' && (
         <Card title="表示モード">
