@@ -528,27 +528,25 @@ const buildUiResponse = (
   }
 
   // meeting_calendar: 承諾後の最終アクション
-  //  - action='calendar' → Google Calendar 予約ページ (既存)
   //  - action='reservation'|'inquiry'|'phone'|'line'|'document' → ③で設定したgoalへ
   //  - action='lead_only' → 遷移なし (text, AI要約通知のみ)
+  //  - action='calendar' (旧) → reservation に読み替え (互換)
   if (aiResp.ui_hint === 'meeting_calendar' && meeting && meeting.enabled) {
-    const action = meeting.action || 'calendar';
-    if (action === 'calendar' && meeting.calendarUrl) {
-      return {
-        type: 'meeting_calendar',
-        label: meeting.label || 'ミーティング',
-        url: meeting.calendarUrl || '',
-        buttonLabel: meeting.buttonLabel || '日時を選ぶ',
-      };
-    }
-    if (action !== 'lead_only' && action !== 'calendar') {
-      // ③で設定した既存 goal の CTA を流用
+    let action = meeting.action || 'reservation';
+    // 旧 action='calendar' 互換: reservation に読み替え
+    if (action === ('calendar' as any)) action = 'reservation';
+    if (action !== 'lead_only') {
       const targetGoal = (config.goals as any)[action];
+      // 旧 meeting.calendarUrl が残っている & reservation.url が空なら calendarUrl を流用（互換）
+      const fallbackUrl =
+        action === 'reservation' && (!targetGoal?.url) && meeting.calendarUrl
+          ? meeting.calendarUrl
+          : null;
       if (targetGoal && targetGoal.enabled) {
         const buttonLabel = meeting.buttonLabel || targetGoal.label || action;
         const cta: ClosingCta = action === 'phone'
           ? { key: 'phone', label: buttonLabel, number: targetGoal.number || '' }
-          : { key: action, label: buttonLabel, url: targetGoal.url || '' };
+          : { key: action, label: buttonLabel, url: targetGoal.url || fallbackUrl || '' };
         return { type: 'closing_cta', cta };
       }
     }

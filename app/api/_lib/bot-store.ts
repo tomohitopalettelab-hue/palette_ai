@@ -74,13 +74,15 @@ export type BotConfig = {
       invitationPrompt?: string;
       /**
        * 訪問者が承諾して lead_form を送信した後の最終アクション
-       * - 'calendar': Google Calendar 予約ページへ遷移 (既存)
        * - 'reservation' | 'inquiry' | 'phone' | 'line' | 'document':
        *   ③クロージング先で設定した該当 goal の URL/番号へ遷移
+       *   (Google Calendar の予約URLは reservation.url に入れる)
        * - 'lead_only': 遷移せず完了メッセージのみ (AI要約通知は自動で飛ぶ)
+       * - 'calendar' (deprecated): 旧実装。互換のため残存、読み込み時に 'reservation' と
+       *   meeting.calendarUrl → reservation.url に自動移行
        */
-      action?: 'calendar' | 'reservation' | 'inquiry' | 'phone' | 'line' | 'document' | 'lead_only';
-      /** action='calendar' のとき: Google Calendar Appointment Schedule URL */
+      action?: 'reservation' | 'inquiry' | 'phone' | 'line' | 'document' | 'lead_only' | 'calendar';
+      /** @deprecated reservation.url に統合されました。互換のため残存 */
       calendarUrl?: string;
       /** 日時選択ボタンのラベル */
       buttonLabel?: string;
@@ -250,8 +252,7 @@ export const DEFAULT_CONFIG: Omit<BotConfig, 'paletteId' | 'updatedAt'> = {
       kind: 'web_mtg',
       label: 'WEBミーティング',
       invitationPrompt: 'ヒアリング内容的に、御社のお悩みにぴったりの解決策がありそうです。一度、担当と30分のWEBミーティングで詳しくお聞かせいただけませんか？',
-      action: 'calendar',
-      calendarUrl: '',
+      action: 'reservation',
       buttonLabel: '日時を選ぶ',
       declineFallback: 'nurture',
     },

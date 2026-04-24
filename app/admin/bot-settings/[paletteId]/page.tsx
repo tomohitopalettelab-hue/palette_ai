@@ -834,6 +834,27 @@ function ConversationTab({ config, update, paletteId }: any) {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string>('');
 
+  // 旧 meeting.action='calendar' + calendarUrl を reservation に自動移行（表示時に一度だけ）
+  useEffect(() => {
+    const m = config?.goals?.meeting;
+    if (!m) return;
+    if (m.action === 'calendar') {
+      // calendar URL が設定されていて reservation.url が空なら移す
+      const existingResUrl = config?.goals?.reservation?.url;
+      if (m.calendarUrl && !existingResUrl) {
+        update(['goals', 'reservation', 'url'], m.calendarUrl);
+        if (!config?.goals?.reservation?.enabled) {
+          update(['goals', 'reservation', 'enabled'], true);
+        }
+      }
+      // action を reservation に寄せる
+      update(['goals', 'meeting', 'action'], 'reservation');
+      // calendarUrl はクリア (互換処理は bot-engine 側に残っている)
+      if (m.calendarUrl) update(['goals', 'meeting', 'calendarUrl'], '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config?.goals?.meeting?.action]);
+
   const runNotifyTest = async () => {
     setTesting(true);
     setTestResult('');
@@ -954,7 +975,7 @@ function ConversationTab({ config, update, paletteId }: any) {
         </p>
         <div className="space-y-3">
           {([
-            { key: 'reservation', label: '予約', emoji: '📅', fieldLabel: '予約ページのURL', desc: '予約サイト・予約フォームに誘導' },
+            { key: 'reservation', label: '予約', emoji: '📅', fieldLabel: '予約ページのURL（Googleカレンダー予約URLもOK）', desc: '予約サイト・予約フォーム・Googleカレンダー予約ページに誘導' },
             { key: 'inquiry', label: '問い合わせ', emoji: '💬', fieldLabel: '問い合わせフォームのURL', desc: '一般的な問い合わせフォーム' },
             { key: 'phone', label: '電話', emoji: '📞', fieldLabel: '電話番号', desc: 'スマホならタップで発信' },
             { key: 'line', label: 'LINE登録', emoji: '💚', fieldLabel: 'LINE友だち追加URL', desc: '関係維持・後日追客用' },
@@ -1088,11 +1109,10 @@ function ConversationTab({ config, update, paletteId }: any) {
             <div>
               <Label>承諾後のアクション（リード送信後に何をさせるか）</Label>
               <Select
-                value={g.meeting?.action || 'calendar'}
+                value={(g.meeting?.action === 'calendar' ? 'reservation' : g.meeting?.action) || 'reservation'}
                 onChange={(v: string) => update(['goals', 'meeting', 'action'], v)}
                 options={[
-                  { value: 'calendar', label: '🗓️ Google カレンダーで日時を選ばせる' },
-                  { value: 'reservation', label: '📅 ③の「予約」ゴールへ誘導' },
+                  { value: 'reservation', label: '📅 ③の「予約」ゴールへ誘導（Googleカレンダー予約URLもここで OK）' },
                   { value: 'inquiry', label: '💬 ③の「問い合わせ」ゴールへ誘導' },
                   { value: 'phone', label: '📞 ③の「電話」ゴールへ誘導' },
                   { value: 'line', label: '💚 ③の「LINE登録」ゴールへ誘導' },
@@ -1101,40 +1121,31 @@ function ConversationTab({ config, update, paletteId }: any) {
                 ]}
               />
               <p className="text-[10px] text-slate-400 mt-1">
-                ③クロージング先で設定した URL/番号をそのまま使います。まず ③ 側で対象ゴールを有効化・URL設定してから選んでください。
+                ③クロージング先で設定した URL/番号をそのまま使います。Googleカレンダー予約ページ(calendar.app.google/...)は「予約」ゴールのURL欄に貼ってください。
               </p>
             </div>
-            {g.meeting?.action === 'calendar' && (
-              <div>
-                <Label>Google カレンダー 予約ページURL</Label>
-                <TextInput
-                  value={g.meeting?.calendarUrl || ''}
-                  onChange={(v: string) => update(['goals', 'meeting', 'calendarUrl'], v)}
-                  placeholder="https://calendar.app.google/..."
-                />
-                <p className="text-[10px] text-slate-400 mt-1">Google カレンダーの予約ページURL（Appointment Schedule）を貼ってください。訪問者はこのページで日時を選びます。</p>
-              </div>
-            )}
-            {g.meeting?.action && g.meeting.action !== 'calendar' && g.meeting.action !== 'lead_only' && (() => {
-              const target = (g as any)[g.meeting.action];
+            {g.meeting?.action && g.meeting.action !== 'lead_only' && (() => {
+              // 旧 'calendar' は reservation として扱う
+              const effectiveAction = g.meeting.action === 'calendar' ? 'reservation' : g.meeting.action;
+              const target = (g as any)[effectiveAction];
               if (!target?.enabled) {
                 return (
                   <div className="p-2 rounded bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
-                    ⚠️ ③クロージング先で「{g.meeting.action}」ゴールが無効化されています。先に有効化してURL/番号を設定してください。
+                    ⚠️ ③クロージング先で「{effectiveAction}」ゴールが無効化されています。先に有効化してURL/番号を設定してください。
                   </div>
                 );
               }
-              const urlOrNumber = g.meeting.action === 'phone' ? target.number : target.url;
+              const urlOrNumber = effectiveAction === 'phone' ? target.number : target.url;
               if (!urlOrNumber) {
                 return (
                   <div className="p-2 rounded bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
-                    ⚠️ ③クロージング先の「{g.meeting.action}」に {g.meeting.action === 'phone' ? '電話番号' : 'URL'} が未設定です。
+                    ⚠️ ③クロージング先の「{effectiveAction}」に {effectiveAction === 'phone' ? '電話番号' : 'URL'} が未設定です。
                   </div>
                 );
               }
               return (
                 <div className="p-2 rounded bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-800">
-                  ✓ ③の「{g.meeting.action}」へ誘導します: <span className="font-mono">{String(urlOrNumber).slice(0, 60)}</span>
+                  ✓ ③の「{effectiveAction}」へ誘導します: <span className="font-mono">{String(urlOrNumber).slice(0, 60)}</span>
                 </div>
               );
             })()}
