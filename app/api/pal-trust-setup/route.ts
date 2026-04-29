@@ -10,6 +10,8 @@ type SetupRequest = {
   loginPassword: string;
   priceInitial?: string;
   priceYen?: string;
+  initialFeePaymentMethod?: 'square' | 'invoice';
+  monthlyFeePaymentMethod?: 'square' | 'invoice';
   term?: string;
   dateContract?: string;
   dateDelivery?: string;
@@ -97,6 +99,9 @@ export async function POST(req: Request) {
         startDate: body.dateContract || today,
         initialFeeDueDate: body.initialFeeDueDate || '',
         firstMonthlyDueDate: body.firstMonthlyDueDate || '',
+        // 支払方法 (square=Square自動発行・invoice=請求書のみ)
+        initialFeePaymentMethod: body.initialFeePaymentMethod || 'square',
+        monthlyFeePaymentMethod: body.monthlyFeePaymentMethod || 'square',
       });
     }
 
@@ -147,8 +152,8 @@ export async function POST(req: Request) {
 <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">ログインID</td><td style="padding:8px;border:1px solid #e2e8f0;">${body.loginId}</td></tr>
 <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">ログインPW</td><td style="padding:8px;border:1px solid #e2e8f0;">${body.loginPassword}</td></tr>
 <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">顧客ID</td><td style="padding:8px;border:1px solid #e2e8f0;">${newPaletteId}</td></tr>
-<tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">初期費用</td><td style="padding:8px;border:1px solid #e2e8f0;">¥${Number(body.priceInitial || 0).toLocaleString()}</td></tr>
-<tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">月額費用</td><td style="padding:8px;border:1px solid #e2e8f0;">¥${Number(body.priceYen || 0).toLocaleString()}</td></tr>
+<tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">初期費用</td><td style="padding:8px;border:1px solid #e2e8f0;">¥${Number(body.priceInitial || 0).toLocaleString()}（${body.initialFeePaymentMethod === 'invoice' ? '請求書払い' : 'スクエア'}）</td></tr>
+<tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">月額費用</td><td style="padding:8px;border:1px solid #e2e8f0;">¥${Number(body.priceYen || 0).toLocaleString()}（${body.monthlyFeePaymentMethod === 'invoice' ? '請求書払い' : 'スクエア'}）</td></tr>
 <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">契約期間</td><td style="padding:8px;border:1px solid #e2e8f0;">${body.term || '-'}</td></tr>
 <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">契約日</td><td style="padding:8px;border:1px solid #e2e8f0;">${body.dateContract || '-'}</td></tr>
 <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">納品希望月</td><td style="padding:8px;border:1px solid #e2e8f0;">${body.dateDelivery || '-'}</td></tr>

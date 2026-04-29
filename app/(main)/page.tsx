@@ -3441,7 +3441,9 @@ ${currentHtml}
     { key: 'loginId', label: 'ログインID（半角英数字）', required: true, type: 'text' as const },
     { key: 'loginPassword', label: 'ログインパスワード', required: true, type: 'text' as const },
     { key: 'priceInitial', label: '初期費用（税抜・円）', required: true, type: 'text' as const },
+    { key: 'initialFeePaymentMethod', label: '初期費用の支払方法', required: true, type: 'select' as const, options: ['スクエア', '請求書払い'] },
     { key: 'priceYen', label: '月額費用（税抜・円）', required: true, type: 'text' as const },
+    { key: 'monthlyFeePaymentMethod', label: '月額費用の支払方法', required: true, type: 'select' as const, options: ['スクエア', '請求書払い'] },
     { key: 'term', label: '契約期間（例: 12ヶ月）', required: true, type: 'text' as const },
     { key: 'dateContract', label: '契約日', required: true, type: 'date' as const },
     { key: 'dateDelivery', label: '納品希望月', required: true, type: 'month' as const },
@@ -3458,7 +3460,13 @@ ${currentHtml}
   const startPalTrustOrderHearing = () => {
     setConversationEnded(false);
     setPalTrustOrderStep('hearing');
-    setPalTrustOrderAnswers({ minStarsForGoogle: '4', aiReviewTaste: '親しみやすい', themeName: 'スタンダード' });
+    setPalTrustOrderAnswers({
+      minStarsForGoogle: '4',
+      aiReviewTaste: '親しみやすい',
+      themeName: 'スタンダード',
+      initialFeePaymentMethod: 'スクエア',
+      monthlyFeePaymentMethod: 'スクエア',
+    });
     appendAiMessage({
       content: 'Pal Trust の発注ヒアリングを開始します。\nVIEWに表示されたフォームから入力して「発注する」を押してください。',
     });
@@ -3466,7 +3474,7 @@ ${currentHtml}
 
   const submitPalTrustOrder = async () => {
     const a = palTrustOrderAnswers;
-    if (!a.shopName || !a.industry || !a.loginId || !a.loginPassword || !a.adminGoogleMapUrl || !a.priceInitial || !a.priceYen || !a.term || !a.dateContract || !a.dateDelivery || !a.initialFeeDueDate || !a.firstMonthlyDueDate) {
+    if (!a.shopName || !a.industry || !a.loginId || !a.loginPassword || !a.adminGoogleMapUrl || !a.priceInitial || !a.priceYen || !a.term || !a.dateContract || !a.dateDelivery || !a.initialFeeDueDate || !a.firstMonthlyDueDate || !a.initialFeePaymentMethod || !a.monthlyFeePaymentMethod) {
       appendAiMessage({ content: '必須項目（*マーク）をすべて入力してください。' });
       return;
     }
@@ -3476,6 +3484,10 @@ ${currentHtml}
     };
     const tasteMap: Record<string, string> = {
       '親しみやすい': 'friendly', '丁寧': 'polite', '元気': 'energetic', '感動的': 'emotional', 'シンプル': 'minimal', 'おまかせ': 'random',
+    };
+    const paymentMethodMap: Record<string, string> = {
+      'スクエア': 'square',
+      '請求書払い': 'invoice',
     };
     try {
       const res = await fetch('/api/pal-trust-setup', {
@@ -3489,6 +3501,8 @@ ${currentHtml}
           loginPassword: a.loginPassword,
           priceInitial: a.priceInitial || '',
           priceYen: a.priceYen || '',
+          initialFeePaymentMethod: paymentMethodMap[a.initialFeePaymentMethod || ''] || 'square',
+          monthlyFeePaymentMethod: paymentMethodMap[a.monthlyFeePaymentMethod || ''] || 'square',
           term: a.term || '',
           dateContract: a.dateContract || '',
           dateDelivery: a.dateDelivery || '',
