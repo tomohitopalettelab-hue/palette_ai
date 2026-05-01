@@ -3437,6 +3437,7 @@ ${currentHtml}
 
   const PAL_TRUST_HEARING_FIELDS = [
     { key: 'shopName', label: '店舗名・会社名', required: true, type: 'text' as const },
+    { key: 'representativeName', label: '代表者名（担当者名）', required: true, type: 'text' as const },
     { key: 'industry', label: '業種（例: 美容院、飲食店、整体院）', required: true, type: 'text' as const },
     { key: 'loginId', label: 'ログインID（半角英数字）', required: true, type: 'text' as const },
     { key: 'loginPassword', label: 'ログインパスワード', required: true, type: 'text' as const },
@@ -3474,7 +3475,7 @@ ${currentHtml}
 
   const submitPalTrustOrder = async () => {
     const a = palTrustOrderAnswers;
-    if (!a.shopName || !a.industry || !a.loginId || !a.loginPassword || !a.adminGoogleMapUrl || !a.priceInitial || !a.priceYen || !a.term || !a.dateContract || !a.dateDelivery || !a.initialFeeDueDate || !a.firstMonthlyDueDate || !a.initialFeePaymentMethod || !a.monthlyFeePaymentMethod) {
+    if (!a.shopName || !a.representativeName || !a.industry || !a.loginId || !a.loginPassword || !a.adminGoogleMapUrl || !a.priceInitial || !a.priceYen || !a.term || !a.dateContract || !a.dateDelivery || !a.initialFeeDueDate || !a.firstMonthlyDueDate || !a.initialFeePaymentMethod || !a.monthlyFeePaymentMethod) {
       appendAiMessage({ content: '必須項目（*マーク）をすべて入力してください。' });
       return;
     }
@@ -3496,6 +3497,7 @@ ${currentHtml}
         body: JSON.stringify({
           agencyPaletteId: authPaletteId,
           shopName: a.shopName,
+          representativeName: a.representativeName,
           industry: a.industry,
           loginId: a.loginId,
           loginPassword: a.loginPassword,

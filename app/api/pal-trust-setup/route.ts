@@ -5,6 +5,7 @@ import { getServiceUrl } from '../_lib/service-ports';
 type SetupRequest = {
   agencyPaletteId: string;
   shopName: string;
+  representativeName?: string;
   industry: string;
   loginId: string;
   loginPassword: string;
@@ -53,6 +54,7 @@ export async function POST(req: Request) {
     // --- 1. pal_db: 新規顧客アカウント作成 ---
     const accountRes = await palDbPost('/api/accounts', {
       name: body.shopName,
+      contactName: body.representativeName || '',
       industry: body.industry,
       chatLoginId: body.loginId,
       chatPassword: body.loginPassword,
@@ -148,6 +150,7 @@ export async function POST(req: Request) {
 <p>以下の内容で発注が完了しました。</p>
 <table style="border-collapse:collapse;width:100%;max-width:600px;">
 <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">店舗名</td><td style="padding:8px;border:1px solid #e2e8f0;">${body.shopName}</td></tr>
+<tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">代表者名</td><td style="padding:8px;border:1px solid #e2e8f0;">${body.representativeName || '-'}</td></tr>
 <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">業種</td><td style="padding:8px;border:1px solid #e2e8f0;">${body.industry}</td></tr>
 <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">ログインID</td><td style="padding:8px;border:1px solid #e2e8f0;">${body.loginId}</td></tr>
 <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">ログインPW</td><td style="padding:8px;border:1px solid #e2e8f0;">${body.loginPassword}</td></tr>
@@ -184,6 +187,32 @@ export async function POST(req: Request) {
     } catch (emailErr) {
       console.error('[Email notification]', emailErr);
       // メール送信失敗は発注処理には影響させない
+    }
+
+    // --- 5. LINE通知（palette_crm の日報と同じLINEチャネルへ push） ---
+    try {
+      const canvasUrl = process.env.PAL_DB_BASE_URL?.replace('/api/pal-db', '') || 'https://palettecrm.vercel.app';
+      const initialJp = body.initialFeePaymentMethod === 'invoice' ? '請求書払い' : 'スクエア';
+      const monthlyJp = body.monthlyFeePaymentMethod === 'invoice' ? '請求書払い' : 'スクエア';
+      const lineText = [
+        '🎉 Pal Trust 発注',
+        `店舗: ${body.shopName}`,
+        `代表者: ${body.representativeName || '-'}`,
+        `業種: ${body.industry}`,
+        `顧客ID: ${newPaletteId}`,
+        `初期: ¥${Number(body.priceInitial || 0).toLocaleString()}（${initialJp}）`,
+        `月額: ¥${Number(body.priceYen || 0).toLocaleString()}（${monthlyJp}）`,
+        `契約期間: ${body.term || '-'}`,
+        `納品希望月: ${body.dateDelivery || '-'}`,
+      ].join('\n');
+      await fetch(`${canvasUrl}/api/line/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: lineText }),
+      });
+    } catch (lineErr) {
+      console.error('[LINE notification]', lineErr);
+      // LINE 通知失敗は発注処理には影響させない
     }
 
     return NextResponse.json({
