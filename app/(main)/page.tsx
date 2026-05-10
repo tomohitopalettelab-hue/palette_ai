@@ -255,6 +255,9 @@ function PaletteDesignInner() {
   const [hasAgency, setHasAgency] = useState(false);
   const [palTrustOrderStep, setPalTrustOrderStep] = useState<'idle' | 'hearing' | 'submitting' | 'done'>('idle');
   const [palTrustOrderAnswers, setPalTrustOrderAnswers] = useState<Record<string, string>>({});
+  const [palStudioOrderStep, setPalStudioOrderStep] = useState<'idle' | 'hearing' | 'submitting' | 'done'>('idle');
+  const [palStudioOrderAnswers, setPalStudioOrderAnswers] = useState<Record<string, string>>({});
+  const [palStudioOrderFiles, setPalStudioOrderFiles] = useState<File[]>([]);
   const [studioHtmlGenerationCount, setStudioHtmlGenerationCount] = useState(0);
   const [confirmMode, setConfirmMode] = useState<ConfirmMode>(null);
   const [studioRevisionTarget, setStudioRevisionTarget] = useState<string>('');
@@ -3421,7 +3424,7 @@ ${currentHtml}
   // --- 発注フロー: サービス選択 → ヒアリング開始 ---
   const ORDER_SERVICES = [
     { key: 'pal_trust', label: 'Pal Trust', description: '口コミ管理システム' },
-    { key: 'pal_studio', label: 'Pal Studio', description: 'HP/LP制作（準備中）', disabled: true },
+    { key: 'pal_studio', label: 'Pal Studio', description: 'AIホームページ制作' },
   ];
 
   const handleOrderButtonClick = () => {
@@ -3430,7 +3433,7 @@ ${currentHtml}
       content: '発注するサービスを選択してください。',
       actionButtons: ORDER_SERVICES.map((s) => ({
         key: `order_${s.key}`,
-        label: `${s.label}${s.disabled ? '（準備中）' : ''}`,
+        label: s.label,
       })),
     });
   };
@@ -3531,6 +3534,141 @@ ${currentHtml}
     } catch {
       appendAiMessage({ content: '発注処理中にエラーが発生しました。再度お試しください。' });
       setPalTrustOrderStep('hearing');
+    }
+  };
+
+  // ────────────────────────────────────────────────
+  // Pal Studio 発注ヒアリング
+  // ────────────────────────────────────────────────
+  const PAL_STUDIO_HEARING_FIELDS = [
+    // ── 共通（契約・請求）──
+    { key: 'shopName', label: '店舗名・会社名', required: true, type: 'text' as const },
+    { key: 'representativeName', label: '代表者名（担当者名）', required: true, type: 'text' as const },
+    { key: 'industry', label: '業種', required: true, type: 'text' as const },
+    { key: 'loginId', label: 'ログインID（半角英数字）', required: true, type: 'text' as const },
+    { key: 'loginPassword', label: 'ログインパスワード', required: true, type: 'text' as const },
+    { key: 'contactEmail', label: '連絡先メールアドレス', required: true, type: 'text' as const },
+    { key: 'priceInitial', label: '初期費用（税抜・円）', required: true, type: 'text' as const },
+    { key: 'initialFeePaymentMethod', label: '初期費用の支払方法', required: true, type: 'select' as const, options: ['スクエア', '請求書払い'] },
+    { key: 'priceYen', label: '月額費用（税抜・円）', required: true, type: 'text' as const },
+    { key: 'monthlyFeePaymentMethod', label: '月額費用の支払方法', required: true, type: 'select' as const, options: ['スクエア', '請求書払い'] },
+    { key: 'term', label: '契約期間（例: 12ヶ月）', required: true, type: 'text' as const },
+    { key: 'dateContract', label: '契約日', required: true, type: 'date' as const },
+    { key: 'dateDelivery', label: '納品希望月', required: true, type: 'month' as const },
+    { key: 'initialFeeDueDate', label: '初期費用支払予定日', required: true, type: 'date' as const },
+    { key: 'firstMonthlyDueDate', label: '初回月額支払予定日', required: true, type: 'date' as const },
+    // ── Pal Studio 固有 ──
+    { key: 'sitePurpose', label: 'HPの目的', required: true, type: 'select' as const, options: ['新規集客', 'リニューアル', '採用', 'ブランディング', 'その他'] },
+    { key: 'sitePurposeOther', label: '└「その他」の場合の内容', required: false, type: 'text' as const },
+    { key: 'existingHpUrl', label: '既存HPのURL（あれば）', required: false, type: 'text' as const },
+    { key: 'referenceHps', label: '参考HP（複数の場合は改行区切り）', required: true, type: 'textarea' as const },
+    { key: 'mainColor', label: 'メインカラー（#000000 または "落ち着いた青" 等）', required: true, type: 'text' as const },
+    { key: 'designTaste', label: '希望デザインテイスト', required: true, type: 'select' as const, options: ['シンプル', 'ナチュラル', 'ポップ', '高級感', 'クール', '和風', 'おまかせ'] },
+    { key: 'domainPreference', label: '希望ドメイン', required: true, type: 'select' as const, options: ['あり', 'なし', '手配希望'] },
+    { key: 'domainName', label: '└「あり」の場合の希望ドメイン', required: false, type: 'text' as const },
+    { key: 'desiredDeliveryDate', label: '納品希望日', required: true, type: 'date' as const },
+    { key: 'sitemap', label: 'サイトマップ（必要なページ・階層を改行で）', required: true, type: 'textarea' as const },
+    { key: 'expectedPageCount', label: '想定ページ数', required: true, type: 'select' as const, options: ['1〜3', '4〜6', '7〜10', '11〜15', '16以上'] },
+    { key: 'requiredFeatures', label: '必要機能（あれば）', required: false, type: 'textarea' as const },
+    // ファイル添付（参考素材・ロゴなど）
+    { key: 'materials', label: '素材ファイル（ロゴ・写真・参考資料／JPG/PNG/WebP/GIF・各12MB以内）', required: false, type: 'file' as const },
+  ];
+
+  const startPalStudioOrderHearing = () => {
+    setConversationEnded(false);
+    setPalStudioOrderStep('hearing');
+    setPalStudioOrderAnswers({
+      initialFeePaymentMethod: 'スクエア',
+      monthlyFeePaymentMethod: 'スクエア',
+      designTaste: 'おまかせ',
+      domainPreference: '手配希望',
+      expectedPageCount: '4〜6',
+    });
+    setPalStudioOrderFiles([]);
+    appendAiMessage({
+      content: 'Pal Studio の発注ヒアリングを開始します。\nVIEWに表示されたフォームから入力して「発注する」を押してください。',
+    });
+  };
+
+  const submitPalStudioOrder = async () => {
+    const a = palStudioOrderAnswers;
+    const requiredKeys = [
+      'shopName', 'representativeName', 'industry', 'loginId', 'loginPassword', 'contactEmail',
+      'priceInitial', 'initialFeePaymentMethod', 'priceYen', 'monthlyFeePaymentMethod',
+      'term', 'dateContract', 'dateDelivery', 'initialFeeDueDate', 'firstMonthlyDueDate',
+      'sitePurpose', 'referenceHps', 'mainColor', 'designTaste',
+      'domainPreference', 'desiredDeliveryDate', 'sitemap', 'expectedPageCount',
+    ];
+    const missing = requiredKeys.find((k) => !a[k]);
+    if (missing) {
+      appendAiMessage({ content: '必須項目（*マーク）をすべて入力してください。' });
+      return;
+    }
+    if (a.sitePurpose === 'その他' && !a.sitePurposeOther) {
+      appendAiMessage({ content: '「HPの目的」で「その他」を選択した場合、内容を入力してください。' });
+      return;
+    }
+    if (a.domainPreference === 'あり' && !a.domainName) {
+      appendAiMessage({ content: '「希望ドメイン」が「あり」の場合、ドメイン名を入力してください。' });
+      return;
+    }
+    setPalStudioOrderStep('submitting');
+    const tasteMap: Record<string, string> = {
+      'シンプル': 'simple', 'ナチュラル': 'natural', 'ポップ': 'pop',
+      '高級感': 'premium', 'クール': 'cool', '和風': 'japanese', 'おまかせ': 'random',
+    };
+    const paymentMethodMap: Record<string, string> = {
+      'スクエア': 'square',
+      '請求書払い': 'invoice',
+    };
+    try {
+      const formData = new FormData();
+      formData.append('agencyPaletteId', authPaletteId || '');
+      formData.append('shopName', a.shopName);
+      formData.append('representativeName', a.representativeName);
+      formData.append('industry', a.industry);
+      formData.append('loginId', a.loginId);
+      formData.append('loginPassword', a.loginPassword);
+      formData.append('contactEmail', a.contactEmail);
+      formData.append('priceInitial', a.priceInitial);
+      formData.append('priceYen', a.priceYen);
+      formData.append('initialFeePaymentMethod', paymentMethodMap[a.initialFeePaymentMethod] || 'square');
+      formData.append('monthlyFeePaymentMethod', paymentMethodMap[a.monthlyFeePaymentMethod] || 'square');
+      formData.append('term', a.term);
+      formData.append('dateContract', a.dateContract);
+      formData.append('dateDelivery', a.dateDelivery);
+      formData.append('initialFeeDueDate', a.initialFeeDueDate);
+      formData.append('firstMonthlyDueDate', a.firstMonthlyDueDate);
+      formData.append('sitePurpose', a.sitePurpose === 'その他' ? `その他: ${a.sitePurposeOther}` : a.sitePurpose);
+      formData.append('existingHpUrl', a.existingHpUrl || '');
+      formData.append('referenceHps', a.referenceHps);
+      formData.append('mainColor', a.mainColor);
+      formData.append('designTaste', tasteMap[a.designTaste] || 'random');
+      formData.append('domainPreference', a.domainPreference);
+      formData.append('domainName', a.domainPreference === 'あり' ? (a.domainName || '') : '');
+      formData.append('desiredDeliveryDate', a.desiredDeliveryDate);
+      formData.append('sitemap', a.sitemap);
+      formData.append('expectedPageCount', a.expectedPageCount);
+      formData.append('requiredFeatures', a.requiredFeatures || '');
+      palStudioOrderFiles.forEach((f) => formData.append('materials', f));
+
+      const res = await fetch('/api/pal-studio-setup', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        appendAiMessage({
+          content: `Pal Studio の発注が完了しました！\n\n顧客ID: ${data.paletteId}\nログインID: ${a.loginId}\n店舗名: ${a.shopName}\n\n制作チームに自動通知済みです。`,
+        });
+        setPalStudioOrderStep('done');
+      } else {
+        appendAiMessage({ content: `発注処理に失敗しました: ${data.error || '不明なエラー'}` });
+        setPalStudioOrderStep('hearing');
+      }
+    } catch {
+      appendAiMessage({ content: '発注処理中にエラーが発生しました。再度お試しください。' });
+      setPalStudioOrderStep('hearing');
     }
   };
 
@@ -3662,7 +3800,11 @@ ${currentHtml}
       startPalTrustOrderHearing();
       return;
     }
-    if (button.key?.startsWith('order_') && button.key !== 'order_pal_trust') {
+    if (button.key === 'order_pal_studio') {
+      startPalStudioOrderHearing();
+      return;
+    }
+    if (button.key?.startsWith('order_') && button.key !== 'order_pal_trust' && button.key !== 'order_pal_studio') {
       appendAiMessage({ content: 'このサービスの発注はまだ準備中です。' });
       return;
     }
@@ -5356,6 +5498,100 @@ ${currentHtml}
                       className="px-8 py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-cyan-500 text-white text-sm font-black shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-60"
                     >
                       {palTrustOrderStep === 'submitting' ? '発注処理中...' : '発注する'}
+                    </button>
+                  </div>
+                </div>
+              ) : palStudioOrderStep === 'hearing' || palStudioOrderStep === 'submitting' ? (
+                <div className="h-full overflow-y-auto p-6">
+                  <div className="mb-5">
+                    <h3 className="text-sm font-black text-slate-700 tracking-tight">Pal Studio 発注ヒアリング</h3>
+                    <p className="text-[10px] text-slate-400 mt-1">各項目を入力して「発注する」を押してください（プランは Standard で登録されます）</p>
+                  </div>
+                  <div className="space-y-4">
+                    {PAL_STUDIO_HEARING_FIELDS.map((field) => {
+                      // 条件付き表示: HP の目的=その他 のときのみ sitePurposeOther、希望ドメイン=あり のときのみ domainName
+                      if (field.key === 'sitePurposeOther' && palStudioOrderAnswers.sitePurpose !== 'その他') return null;
+                      if (field.key === 'domainName' && palStudioOrderAnswers.domainPreference !== 'あり') return null;
+                      return (
+                        <div key={field.key}>
+                          <label className="block text-[11px] font-bold text-slate-500 mb-1">
+                            {field.label}{field.required && <span className="text-red-400 ml-0.5">*</span>}
+                          </label>
+                          {field.type === 'select' && (field as any).options ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {(field as any).options.map((opt: string) => (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  onClick={() => setPalStudioOrderAnswers((prev) => ({ ...prev, [field.key]: opt }))}
+                                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all ${
+                                    palStudioOrderAnswers[field.key] === opt
+                                      ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-sm'
+                                      : 'bg-white/80 border-slate-200 text-slate-500 hover:bg-white'
+                                  }`}
+                                >
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                          ) : field.type === 'textarea' ? (
+                            <textarea
+                              value={palStudioOrderAnswers[field.key] || ''}
+                              onChange={(e) => setPalStudioOrderAnswers((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                              placeholder={field.required ? '必須' : '任意（スキップ可）'}
+                              rows={3}
+                              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white/90 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-200 resize-none"
+                            />
+                          ) : field.type === 'file' ? (
+                            <div className="space-y-2">
+                              <input
+                                type="file"
+                                multiple
+                                accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
+                                onChange={(e) => {
+                                  const files = Array.from(e.target.files || []);
+                                  setPalStudioOrderFiles((prev) => [...prev, ...files]);
+                                }}
+                                className="w-full text-xs text-slate-600 file:mr-3 file:px-3 file:py-1.5 file:rounded-full file:border-0 file:bg-indigo-50 file:text-indigo-700 file:text-[11px] file:font-bold hover:file:bg-indigo-100"
+                              />
+                              {palStudioOrderFiles.length > 0 && (
+                                <div className="space-y-1">
+                                  {palStudioOrderFiles.map((f, i) => (
+                                    <div key={i} className="flex items-center justify-between text-[11px] text-slate-600 bg-slate-50 rounded px-2 py-1">
+                                      <span className="truncate flex-1">{f.name} ({Math.round(f.size / 1024)} KB)</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setPalStudioOrderFiles((prev) => prev.filter((_, j) => j !== i))}
+                                        className="ml-2 text-red-400 hover:text-red-600"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <input
+                              type={field.type === 'date' ? 'date' : field.type === 'month' ? 'month' : 'text'}
+                              value={palStudioOrderAnswers[field.key] || ''}
+                              onChange={(e) => setPalStudioOrderAnswers((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                              placeholder={field.required ? '必須' : '任意（スキップ可）'}
+                              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white/90 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-200"
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-6 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={submitPalStudioOrder}
+                      disabled={palStudioOrderStep === 'submitting'}
+                      className="px-8 py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white text-sm font-black shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-60"
+                    >
+                      {palStudioOrderStep === 'submitting' ? '発注処理中...' : '発注する'}
                     </button>
                   </div>
                 </div>
