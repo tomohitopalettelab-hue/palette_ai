@@ -57,6 +57,7 @@ export async function POST(req: Request) {
     const sitemap = getStr(form, 'sitemap');
     const expectedPageCount = getStr(form, 'expectedPageCount');
     const requiredFeatures = getStr(form, 'requiredFeatures');
+    const notes = getStr(form, 'notes');
 
     // --- 0. ログインID重複チェック ---
     const checkRes = await palDbGet(`/api/chat-auth/check-id?loginId=${encodeURIComponent(loginId)}`);
@@ -172,6 +173,7 @@ export async function POST(req: Request) {
       sitemap,
       expectedPageCount,
       requiredFeatures,
+      notes,
       materials: materialUrls,
       // 契約情報のメモ
       priceInitial,
@@ -189,6 +191,7 @@ export async function POST(req: Request) {
         templateKey: 'studio',
         status: 'hearing',
         hearingData,
+        notes,
         desiredDeadline: desiredDeliveryDate || null,
         contactName: representativeName,
         contactEmail,
@@ -231,6 +234,7 @@ export async function POST(req: Request) {
 <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">想定ページ数</td><td style="padding:8px;border:1px solid #e2e8f0;">${expectedPageCount}</td></tr>
 <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">必要機能</td><td style="padding:8px;border:1px solid #e2e8f0;white-space:pre-wrap;">${requiredFeatures || '-'}</td></tr>
 <tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">添付素材</td><td style="padding:8px;border:1px solid #e2e8f0;"><ul style="margin:0;padding-left:18px;">${materialsHtml}</ul></td></tr>
+<tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:600;">備考・要望</td><td style="padding:8px;border:1px solid #e2e8f0;white-space:pre-wrap;">${notes || '-'}</td></tr>
 </table>
 <p style="color:#94a3b8;font-size:12px;margin-top:24px;">Palette Lab</p>
 `;

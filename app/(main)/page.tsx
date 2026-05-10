@@ -3572,6 +3572,7 @@ ${currentHtml}
     { key: 'requiredFeatures', label: '必要機能（あれば）', required: false, type: 'textarea' as const },
     // ファイル添付（参考素材・ロゴなど）
     { key: 'materials', label: '素材ファイル（ロゴ・写真・参考資料／JPG/PNG/WebP/GIF・各12MB以内）', required: false, type: 'file' as const },
+    { key: 'notes', label: '備考・要望', required: false, type: 'textarea' as const },
   ];
 
   const startPalStudioOrderHearing = () => {
@@ -3650,6 +3651,7 @@ ${currentHtml}
       formData.append('sitemap', a.sitemap);
       formData.append('expectedPageCount', a.expectedPageCount);
       formData.append('requiredFeatures', a.requiredFeatures || '');
+      formData.append('notes', a.notes || '');
       palStudioOrderFiles.forEach((f) => formData.append('materials', f));
 
       const res = await fetch('/api/pal-studio-setup', {
