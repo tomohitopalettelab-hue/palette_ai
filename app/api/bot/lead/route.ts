@@ -79,19 +79,15 @@ export async function POST(req: Request) {
     // Merge with existing lead data (partial updates allowed)
     const mergedLead = { ...(session.lead || {}), ...lead };
 
-    // Fire and forget CRM sync
+    // CRM 自動連携は無効化（ユーザー要望）
+    // Bot 経由のリードは Palette CRM に自動追加せず、AI 要約通知のみで対応する。
+    // 再有効化したい場合は下記の syncLeadToCrm 呼び出しを復活させる。
     const hasMeaningfulLead = Boolean(mergedLead.name || mergedLead.email || mergedLead.phone);
-    let synced = session.syncedToCrm;
-    if (hasMeaningfulLead && !synced) {
-      synced = await syncLeadToCrm({
-        paletteId: session.paletteId,
-        sessionId,
-        score: session.buyIntentScore,
-        lead: mergedLead,
-        selectedServiceId: session.selectedServiceId,
-        closedAction,
-      });
-    }
+    const synced = session.syncedToCrm; // 既存セッションの値はそのまま保持
+    // if (hasMeaningfulLead && !synced) {
+    //   synced = await syncLeadToCrm({ ... });
+    // }
+    void syncLeadToCrm; // unused warning 抑止
 
     const updatedSession = await updateSession(sessionId, {
       lead: mergedLead,
