@@ -60,6 +60,7 @@ export function BotSettingsEditor({
   const [savedAt, setSavedAt] = useState<string>('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [demoCopied, setDemoCopied] = useState(false);
   const [autoUrl, setAutoUrl] = useState('');
   const [autoRunning, setAutoRunning] = useState(false);
   const [autoResult, setAutoResult] = useState<string>('');
@@ -191,6 +192,14 @@ export function BotSettingsEditor({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const demoUrl = typeof window !== 'undefined' ? `${window.location.origin}/demo/${paletteId}` : '';
+  const copyDemoUrl = () => {
+    if (!demoUrl) return;
+    navigator.clipboard.writeText(demoUrl);
+    setDemoCopied(true);
+    setTimeout(() => setDemoCopied(false), 2000);
+  };
+
   const updateConfigField = (path: string[], value: any) => {
     setConfig((prev: any) => {
       const next = { ...prev };
@@ -247,6 +256,14 @@ export function BotSettingsEditor({
             >
               <PlayCircle className="w-3.5 h-3.5" />
               チャットを試す
+            </button>
+            <button
+              onClick={copyDemoUrl}
+              title={demoUrl}
+              className="px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-xs font-bold text-indigo-700 hover:bg-indigo-100 flex items-center gap-1.5"
+            >
+              {demoCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              {demoCopied ? 'コピー済み！' : '公開URLをコピー'}
             </button>
             {reportsHref && (
               <Link
