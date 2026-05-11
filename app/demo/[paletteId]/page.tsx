@@ -91,7 +91,6 @@ export default async function PublicDemoPage({
           padding: '64px 24px 80px',
           color: '#fff',
           textAlign: 'center',
-          position: 'relative',
         }}
       >
         <div
@@ -121,7 +120,7 @@ export default async function PublicDemoPage({
       </div>
 
       {/* メイン */}
-      <div style={{ maxWidth: 720, margin: '-40px auto 0', padding: '0 20px 80px' }}>
+      <div style={{ maxWidth: 720, margin: '-40px auto 0', padding: '0 20px 80px', position: 'relative', zIndex: 2 }}>
         {/* ガイドカード */}
         <div
           style={{
