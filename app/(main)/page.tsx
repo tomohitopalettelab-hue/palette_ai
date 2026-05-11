@@ -258,6 +258,8 @@ function PaletteDesignInner() {
   const [palStudioOrderStep, setPalStudioOrderStep] = useState<'idle' | 'hearing' | 'submitting' | 'done'>('idle');
   const [palStudioOrderAnswers, setPalStudioOrderAnswers] = useState<Record<string, string>>({});
   const [palStudioOrderFiles, setPalStudioOrderFiles] = useState<File[]>([]);
+  const [palAixOrderStep, setPalAixOrderStep] = useState<'idle' | 'hearing' | 'submitting' | 'done'>('idle');
+  const [palAixOrderAnswers, setPalAixOrderAnswers] = useState<Record<string, string>>({});
   const [studioHtmlGenerationCount, setStudioHtmlGenerationCount] = useState(0);
   const [confirmMode, setConfirmMode] = useState<ConfirmMode>(null);
   const [studioRevisionTarget, setStudioRevisionTarget] = useState<string>('');
@@ -3425,6 +3427,7 @@ ${currentHtml}
   const ORDER_SERVICES = [
     { key: 'pal_trust', label: 'Pal Trust', description: '口コミ管理システム' },
     { key: 'pal_studio', label: 'Pal Studio', description: 'AIホームページ制作' },
+    { key: 'palette_aix', label: 'Palette AIX', description: '営業AIチャットBot' },
   ];
 
   const handleOrderButtonClick = () => {
@@ -3674,6 +3677,125 @@ ${currentHtml}
     }
   };
 
+  // ────────────────────────────────────────────────
+  // Palette AIX 発注ヒアリング
+  // ────────────────────────────────────────────────
+  const PALETTE_AIX_HEARING_FIELDS = [
+    // ── 共通（契約・請求）──
+    { key: 'shopName', label: '店舗名・会社名', required: true, type: 'text' as const },
+    { key: 'representativeName', label: '代表者名（担当者名）', required: true, type: 'text' as const },
+    { key: 'industry', label: '業種', required: true, type: 'text' as const },
+    { key: 'loginId', label: 'ログインID（半角英数字）', required: true, type: 'text' as const },
+    { key: 'loginPassword', label: 'ログインパスワード', required: true, type: 'text' as const },
+    { key: 'contactEmail', label: '連絡先メールアドレス', required: true, type: 'text' as const },
+    { key: 'priceInitial', label: '初期費用（税抜・円）', required: true, type: 'text' as const },
+    { key: 'initialFeePaymentMethod', label: '初期費用の支払方法', required: true, type: 'select' as const, options: ['スクエア', '請求書払い'] },
+    { key: 'priceYen', label: '月額費用（税抜・円）', required: true, type: 'text' as const },
+    { key: 'monthlyFeePaymentMethod', label: '月額費用の支払方法', required: true, type: 'select' as const, options: ['スクエア', '請求書払い'] },
+    { key: 'term', label: '契約期間（例: 12ヶ月）', required: true, type: 'text' as const },
+    { key: 'dateContract', label: '契約日', required: true, type: 'date' as const },
+    { key: 'dateDelivery', label: '納品希望月', required: true, type: 'month' as const },
+    { key: 'initialFeeDueDate', label: '初期費用支払予定日', required: true, type: 'date' as const },
+    { key: 'firstMonthlyDueDate', label: '初回月額支払予定日', required: true, type: 'date' as const },
+    // ── Palette AIX 固有 ──
+    { key: 'targetSiteUrls', label: '設置先HPのURL（複数の場合は改行区切り）', required: true, type: 'textarea' as const },
+    { key: 'botPurpose', label: 'Botの主目的', required: true, type: 'select' as const, options: ['問い合わせ獲得', '予約獲得', '資料請求獲得', 'LINE登録獲得', '商談獲得', 'その他'] },
+    { key: 'botPurposeOther', label: '└「その他」の場合の内容', required: false, type: 'text' as const },
+    { key: 'targetPersona', label: 'ターゲット顧客像（年齢層・性別・困りごとなど）', required: true, type: 'textarea' as const },
+    { key: 'servicesSummary', label: 'Botが提案するサービス概要（1〜5個程度を箇条書き）', required: true, type: 'textarea' as const },
+    { key: 'faqContent', label: 'よくあるQ&A（あれば、Q:〜 A:〜 形式の改行区切りでOK）', required: false, type: 'textarea' as const },
+    { key: 'notifyEmail', label: 'AI要約通知の宛先メール（訪問者リード送信時に飛びます）', required: true, type: 'text' as const },
+    { key: 'lineChannelToken', label: 'LINE通知 Channel Access Token（任意）', required: false, type: 'text' as const },
+    { key: 'lineUserId', label: 'LINE通知 User ID（任意）', required: false, type: 'text' as const },
+    { key: 'notes', label: '備考・要望', required: false, type: 'textarea' as const },
+  ];
+
+  const startPalAixOrderHearing = () => {
+    setConversationEnded(false);
+    setPalAixOrderStep('hearing');
+    setPalAixOrderAnswers({
+      initialFeePaymentMethod: 'スクエア',
+      monthlyFeePaymentMethod: 'スクエア',
+      priceInitial: '250000',
+      priceYen: '30000',
+      term: '12ヶ月',
+      botPurpose: '問い合わせ獲得',
+    });
+    appendAiMessage({
+      content: 'Palette AIX の発注ヒアリングを開始します。\nVIEWに表示されたフォームから入力して「発注する」を押してください。',
+    });
+  };
+
+  const submitPalAixOrder = async () => {
+    const a = palAixOrderAnswers;
+    const requiredKeys = [
+      'shopName', 'representativeName', 'industry', 'loginId', 'loginPassword', 'contactEmail',
+      'priceInitial', 'initialFeePaymentMethod', 'priceYen', 'monthlyFeePaymentMethod',
+      'term', 'dateContract', 'dateDelivery', 'initialFeeDueDate', 'firstMonthlyDueDate',
+      'targetSiteUrls', 'botPurpose', 'targetPersona', 'servicesSummary', 'notifyEmail',
+    ];
+    const missing = requiredKeys.find((k) => !a[k]);
+    if (missing) {
+      appendAiMessage({ content: '必須項目（*マーク）をすべて入力してください。' });
+      return;
+    }
+    if (a.botPurpose === 'その他' && !a.botPurposeOther) {
+      appendAiMessage({ content: '「Botの主目的」で「その他」を選択した場合、内容を入力してください。' });
+      return;
+    }
+    setPalAixOrderStep('submitting');
+    const paymentMethodMap: Record<string, string> = {
+      'スクエア': 'square',
+      '請求書払い': 'invoice',
+    };
+    try {
+      const res = await fetch('/api/palette-aix-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agencyPaletteId: authPaletteId,
+          shopName: a.shopName,
+          representativeName: a.representativeName,
+          industry: a.industry,
+          loginId: a.loginId,
+          loginPassword: a.loginPassword,
+          contactEmail: a.contactEmail,
+          priceInitial: a.priceInitial,
+          priceYen: a.priceYen,
+          initialFeePaymentMethod: paymentMethodMap[a.initialFeePaymentMethod] || 'square',
+          monthlyFeePaymentMethod: paymentMethodMap[a.monthlyFeePaymentMethod] || 'square',
+          term: a.term,
+          dateContract: a.dateContract,
+          dateDelivery: a.dateDelivery,
+          initialFeeDueDate: a.initialFeeDueDate,
+          firstMonthlyDueDate: a.firstMonthlyDueDate,
+          targetSiteUrls: a.targetSiteUrls,
+          botPurpose: a.botPurpose === 'その他' ? `その他: ${a.botPurposeOther}` : a.botPurpose,
+          targetPersona: a.targetPersona,
+          servicesSummary: a.servicesSummary,
+          faqContent: a.faqContent || '',
+          notifyEmail: a.notifyEmail,
+          lineChannelToken: a.lineChannelToken || '',
+          lineUserId: a.lineUserId || '',
+          notes: a.notes || '',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        appendAiMessage({
+          content: `Palette AIX の発注が完了しました！\n\n顧客ID: ${data.paletteId}\nログインID: ${a.loginId}\n店舗名: ${a.shopName}\n\n制作チームに自動通知済みです。`,
+        });
+        setPalAixOrderStep('done');
+      } else {
+        appendAiMessage({ content: `発注処理に失敗しました: ${data.error || '不明なエラー'}` });
+        setPalAixOrderStep('hearing');
+      }
+    } catch {
+      appendAiMessage({ content: '発注処理中にエラーが発生しました。再度お試しください。' });
+      setPalAixOrderStep('hearing');
+    }
+  };
+
   const handleActionButtonClick = (button: ActionButton) => {
     if (button.key === 'upload-media') {
       mediaInputRef.current?.click();
@@ -3806,7 +3928,11 @@ ${currentHtml}
       startPalStudioOrderHearing();
       return;
     }
-    if (button.key?.startsWith('order_') && button.key !== 'order_pal_trust' && button.key !== 'order_pal_studio') {
+    if (button.key === 'order_palette_aix') {
+      startPalAixOrderHearing();
+      return;
+    }
+    if (button.key?.startsWith('order_') && button.key !== 'order_pal_trust' && button.key !== 'order_pal_studio' && button.key !== 'order_palette_aix') {
       appendAiMessage({ content: 'このサービスの発注はまだ準備中です。' });
       return;
     }
@@ -5594,6 +5720,70 @@ ${currentHtml}
                       className="px-8 py-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white text-sm font-black shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-60"
                     >
                       {palStudioOrderStep === 'submitting' ? '発注処理中...' : '発注する'}
+                    </button>
+                  </div>
+                </div>
+              ) : palAixOrderStep === 'hearing' || palAixOrderStep === 'submitting' ? (
+                <div className="h-full overflow-y-auto p-6">
+                  <div className="mb-5">
+                    <h3 className="text-sm font-black text-slate-700 tracking-tight">Palette AIX 発注ヒアリング</h3>
+                    <p className="text-[10px] text-slate-400 mt-1">各項目を入力して「発注する」を押してください</p>
+                  </div>
+                  <div className="space-y-4">
+                    {PALETTE_AIX_HEARING_FIELDS.map((field) => {
+                      // 条件付き表示: Botの主目的=その他 のときのみ botPurposeOther
+                      if (field.key === 'botPurposeOther' && palAixOrderAnswers.botPurpose !== 'その他') return null;
+                      return (
+                        <div key={field.key}>
+                          <label className="block text-[11px] font-bold text-slate-500 mb-1">
+                            {field.label}{field.required && <span className="text-red-400 ml-0.5">*</span>}
+                          </label>
+                          {field.type === 'select' && (field as any).options ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {(field as any).options.map((opt: string) => (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  onClick={() => setPalAixOrderAnswers((prev) => ({ ...prev, [field.key]: opt }))}
+                                  className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all ${
+                                    palAixOrderAnswers[field.key] === opt
+                                      ? 'bg-fuchsia-50 border-fuchsia-300 text-fuchsia-700 shadow-sm'
+                                      : 'bg-white/80 border-slate-200 text-slate-500 hover:bg-white'
+                                  }`}
+                                >
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                          ) : field.type === 'textarea' ? (
+                            <textarea
+                              value={palAixOrderAnswers[field.key] || ''}
+                              onChange={(e) => setPalAixOrderAnswers((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                              placeholder={field.required ? '必須' : '任意（スキップ可）'}
+                              rows={3}
+                              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white/90 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-fuchsia-200 resize-none"
+                            />
+                          ) : (
+                            <input
+                              type={field.type === 'date' ? 'date' : field.type === 'month' ? 'month' : 'text'}
+                              value={palAixOrderAnswers[field.key] || ''}
+                              onChange={(e) => setPalAixOrderAnswers((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                              placeholder={field.required ? '必須' : '任意（スキップ可）'}
+                              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white/90 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-fuchsia-200"
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-6 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={submitPalAixOrder}
+                      disabled={palAixOrderStep === 'submitting'}
+                      className="px-8 py-3 rounded-2xl bg-gradient-to-r from-fuchsia-500 to-indigo-500 text-white text-sm font-black shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-60"
+                    >
+                      {palAixOrderStep === 'submitting' ? '発注処理中...' : '発注する'}
                     </button>
                   </div>
                 </div>
