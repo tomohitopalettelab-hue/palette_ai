@@ -2021,6 +2021,28 @@ function AppearanceTab({ config, update, embedCode, onCopy, copied, paletteId }:
             ]} />
           </div>
           <div>
+            <Label>初回アクセス時の挙動</Label>
+            <div className="p-3 rounded-lg bg-indigo-50 border border-indigo-200">
+              <label className="flex items-start gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={Boolean(a.autoOpen)}
+                  onChange={(e) => update(['appearance', 'autoOpen'], e.target.checked)}
+                  className="w-4 h-4 mt-0.5"
+                />
+                <div className="flex-1">
+                  <div className="text-xs font-bold text-slate-700">
+                    💬 ページを開いたら自動でチャットを開く
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">
+                    OFF (既定): バブルだけ表示、訪問者がクリックで開く<br />
+                    ON: 「表示タイミング」経過後に自動でパネルを開く
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+          <div>
             <Label>バブルサイズ</Label>
             <Select value={a.bubbleSize || 'medium'} onChange={(v: string) => update(['appearance', 'bubbleSize'], v)} options={[
               { value: 'small', label: '小（48px）' },

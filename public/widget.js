@@ -841,12 +841,18 @@
     }
     state.config = res.config;
     var delay = Number((res.config && res.config.appearance && res.config.appearance.welcomeDelay) || 0) || 0;
+    var autoOpen = !!(res.config && res.config.appearance && res.config.appearance.autoOpen);
     setTimeout(function () {
       render();
       // 初回render直後にバブルと吹き出しをフワッと登場させる
       requestAnimationFrame(function () {
         bubble.classList.add('ready');
         if (tooltip.textContent) tooltip.classList.add('ready');
+        // autoOpen=true なら、登場アニメ後に自動でパネルを開く
+        if (autoOpen && !state.open) {
+          // バブル登場のフワッとアニメ後、少し間を置いてから開く（自然に見せる）
+          setTimeout(togglePanel, 600);
+        }
       });
     }, delay * 1000);
   }).catch(function (err) {

@@ -177,6 +177,12 @@ export type BotConfig = {
     bubbleAnimation?: 'none' | 'pulse' | 'wobble' | 'bounce' | 'shimmer';
     bubbleTooltipText?: string;
     bubbleTooltipStyle?: 'speech' | 'pill' | 'card' | 'neon' | 'minimal';
+    /**
+     * ページロード後に自動でチャットパネルを開くか。
+     * - false (既定): バブルだけ表示、訪問者がクリックで開く
+     * - true: welcomeDelay 経過後に自動で開く
+     */
+    autoOpen?: boolean;
   };
   ngRules: {
     /** 禁止トピック (既存: 話題レベルでブロック) */
