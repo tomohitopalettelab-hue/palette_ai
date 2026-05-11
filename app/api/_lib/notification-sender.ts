@@ -112,7 +112,12 @@ const sendEmail = async (
     });
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      return { ok: false, error: `Resend ${res.status}: ${errText.slice(0, 200)}` };
+      // Resend サンドボックス制限の典型ケースは原因と対処を併記
+      let hint = '';
+      if (res.status === 403 && /testing emails to your own|verify a domain/i.test(errText)) {
+        hint = ' 👉 対処: https://resend.com/domains で送信元ドメインを認証 → Vercel 環境変数 RESEND_FROM_EMAIL に "bot@yourdomain.com" 等を設定 → 再デプロイ';
+      }
+      return { ok: false, error: `Resend ${res.status}: ${errText.slice(0, 200)}${hint}` };
     }
     return { ok: true };
   } catch (err: any) {
