@@ -161,8 +161,34 @@ export async function POST(req: Request) {
       }
     }
 
-    // --- 4. crm_productions 作成 (Pal Studio のヒアリング情報を hearing_data に保存) ---
+    // --- 4. crm_productions 作成 (発注情報すべてを hearing_data に保存) ---
+    // palette canvas の制作詳細画面で発注内容を一覧できるように、
+    // フォームで入力したすべての項目を hearing_data に格納する
     const hearingData = {
+      // ── 顧客・契約情報（共通） ──
+      shopName,
+      representativeName,
+      industry,
+      loginId,
+      loginPassword,
+      contactEmail,
+      // ── 料金・支払 ──
+      priceInitial,
+      priceYen,
+      initialFeePaymentMethod,
+      monthlyFeePaymentMethod,
+      // ── 期間・期日 ──
+      term,
+      dateContract: getStr(form, 'dateContract'),
+      dateDelivery: getStr(form, 'dateDelivery'),
+      initialFeeDueDate: getStr(form, 'initialFeeDueDate'),
+      firstMonthlyDueDate: getStr(form, 'firstMonthlyDueDate'),
+      desiredDeliveryDate,
+      // ── 代理店情報 ──
+      agencyPaletteId,
+      agencyName,
+      agencyEmail,
+      // ── Pal Studio 固有 ──
       sitePurpose,
       existingHpUrl,
       referenceHps,
@@ -175,12 +201,6 @@ export async function POST(req: Request) {
       requiredFeatures,
       notes,
       materials: materialUrls,
-      // 契約情報のメモ
-      priceInitial,
-      priceYen,
-      initialFeePaymentMethod,
-      monthlyFeePaymentMethod,
-      term,
     };
     try {
       await palDbPost('/api/productions', {
