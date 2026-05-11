@@ -437,7 +437,21 @@
 
     /* Mobile */
     @media (max-width: 480px) {
-      .panel { bottom: 0; right: 0; left: 0; width: 100%; max-width: 100%; height: 100vh; max-height: 100vh; border-radius: 0; }
+      .panel {
+        top: 0; bottom: 0; right: 0; left: 0;
+        width: 100%; max-width: 100%;
+        /* 100vh は URL バー含む高さで上下が切れるため、
+           dvh (dynamic viewport height) を使用。古いブラウザは vh にフォールバック */
+        height: 100vh;
+        height: 100dvh;
+        max-height: 100vh;
+        max-height: 100dvh;
+        border-radius: 0;
+        /* ノッチ/セーフエリア対応 (iOS) */
+        padding-top: env(safe-area-inset-top, 0);
+        padding-bottom: env(safe-area-inset-bottom, 0);
+        box-sizing: border-box;
+      }
       .bubble { bottom: 16px; right: 16px; }
     }
   `;
