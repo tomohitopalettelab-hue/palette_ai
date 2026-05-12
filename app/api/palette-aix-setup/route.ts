@@ -136,11 +136,37 @@ export async function POST(req: Request) {
       dealId = contractData?.contract?.id || null;
     }
 
-    // --- 3. crm_productions 作成 (Palette AIX ヒアリング情報) ---
+    // --- 3. crm_productions 作成 (発注情報すべてを hearing_data に保存) ---
+    // palette canvas の制作詳細画面で発注内容を一覧できるように、
+    // フォームで入力したすべての項目を hearing_data に格納する
     const siteUrlList = String(body.targetSiteUrls || '')
       .split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
     const hearingData = {
-      targetSiteUrls: siteUrlList,
+      // ── 顧客・契約情報（共通） ──
+      shopName: body.shopName,
+      representativeName: body.representativeName,
+      industry: body.industry,
+      loginId: body.loginId,
+      loginPassword: body.loginPassword,
+      contactEmail: body.contactEmail,
+      // ── 料金・支払 ──
+      priceInitial: body.priceInitial,
+      priceYen: body.priceYen,
+      initialFeePaymentMethod: body.initialFeePaymentMethod,
+      monthlyFeePaymentMethod: body.monthlyFeePaymentMethod,
+      // ── 期間・期日 ──
+      term: body.term,
+      dateContract: body.dateContract || '',
+      dateDelivery: body.dateDelivery || '',
+      initialFeeDueDate: body.initialFeeDueDate || '',
+      firstMonthlyDueDate: body.firstMonthlyDueDate || '',
+      // ── 代理店情報 ──
+      agencyPaletteId: body.agencyPaletteId || '',
+      agencyName,
+      agencyEmail,
+      // ── Palette AIX 固有 ──
+      targetSiteUrls: body.targetSiteUrls,  // 元の改行区切り文字列
+      targetSiteUrlsList: siteUrlList,       // 補助: 配列形式
       botPurpose: body.botPurpose,
       targetPersona: body.targetPersona,
       servicesSummary: body.servicesSummary,
@@ -148,12 +174,7 @@ export async function POST(req: Request) {
       notifyEmail: body.notifyEmail,
       lineChannelToken: body.lineChannelToken || '',
       lineUserId: body.lineUserId || '',
-      // 契約情報も参考用に
-      priceInitial: body.priceInitial,
-      priceYen: body.priceYen,
-      term: body.term,
-      initialFeePaymentMethod: body.initialFeePaymentMethod,
-      monthlyFeePaymentMethod: body.monthlyFeePaymentMethod,
+      notes: body.notes || '',
     };
     try {
       await palDbPost('/api/productions', {
