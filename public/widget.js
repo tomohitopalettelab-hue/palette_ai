@@ -839,6 +839,8 @@
     if (!res || !res.success) {
       if (res && res.reason === 'plan_required') {
         console.info('[palette-bot] Palette AIX plan required for paletteId=' + paletteId);
+      } else if (res && res.reason === 'suspended') {
+        console.info('[palette-bot] bot suspended for paletteId=' + paletteId);
       } else {
         console.warn('[palette-bot] config load failed:', res && res.error);
       }

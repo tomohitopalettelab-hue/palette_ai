@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { palDbGet } from '../../_lib/pal-db-client';
-import { listBotConfigPaletteIds } from '../../_lib/bot-store';
+import { listBotConfigPaletteIds, listSuspendedPaletteIds } from '../../_lib/bot-store';
 import { hasPaletteAixPlan } from '../../_lib/palette-aix-access';
 
 /**
@@ -13,10 +13,12 @@ import { hasPaletteAixPlan } from '../../_lib/palette-aix-access';
  */
 export async function GET() {
   try {
-    const [accountsRes, configPaletteIds] = await Promise.all([
+    const [accountsRes, configPaletteIds, suspendedIds] = await Promise.all([
       palDbGet('/api/accounts'),
       listBotConfigPaletteIds(),
+      listSuspendedPaletteIds(),
     ]);
+    const suspendedSet = new Set(suspendedIds.map((s) => s.toUpperCase()));
 
     const accountsData = await accountsRes.json().catch(() => ({}));
 
@@ -40,6 +42,7 @@ export async function GET() {
             industry: a.industry || '',
             botConfigured: configSet.has(pid),
             hasAixPlan,
+            suspended: suspendedSet.has(pid),
           };
         })
     );

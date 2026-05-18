@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getBotConfigOrDefault, listServices, listFaqs } from '../../_lib/bot-store';
+import { getBotConfigOrDefault, listServices, listFaqs, isAccountSuspended } from '../../_lib/bot-store';
 import { hasPaletteAixPlan } from '../../_lib/palette-aix-access';
 
 // CORS: widget.jsから任意のオリジンで呼ばれる
@@ -20,6 +20,15 @@ export async function GET(req: Request) {
 
     if (!paletteId || !/^[A-Z][0-9]{4}$/.test(paletteId)) {
       return NextResponse.json({ success: false, error: 'invalid paletteId' }, { status: 400, headers: corsHeaders });
+    }
+
+    // 管理画面からの停止チェック（URL停止）
+    const suspended = await isAccountSuspended(paletteId);
+    if (suspended) {
+      return NextResponse.json(
+        { success: false, error: 'このBotは停止中です。', reason: 'suspended' },
+        { status: 403, headers: corsHeaders },
+      );
     }
 
     // Palette AIX プラン契約チェック

@@ -465,6 +465,15 @@ const ensureTablesOnce = async (): Promise<void> => {
 
   // hearingFlow (manual mode) のステップ進行を保存するカラム（idempotent）
   await tryIgnoreDup(() => sql`ALTER TABLE bot_sessions ADD COLUMN IF NOT EXISTS hearing_step_index INT NOT NULL DEFAULT 0`);
+
+  // 管理画面からの「停止（URL停止）」状態を保持するテーブル
+  await tryIgnoreDup(() => sql`
+    CREATE TABLE IF NOT EXISTS bot_account_suspensions (
+      palette_id TEXT PRIMARY KEY,
+      suspended BOOLEAN NOT NULL DEFAULT FALSE,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
 };
 
 const ensureTables = async (): Promise<void> => {
@@ -607,6 +616,53 @@ export const listBotConfigPaletteIds = async (): Promise<string[]> => {
   await ensureTables();
   const result = await sql`SELECT palette_id FROM bot_configs ORDER BY updated_at DESC`;
   return result.rows.map((r: any) => String(r.palette_id));
+};
+
+// ============================================================
+// 停止（URL停止）/ 削除
+// ============================================================
+
+/** 指定 paletteId が管理画面から停止されているか */
+export const isAccountSuspended = async (paletteId: string): Promise<boolean> => {
+  await ensureTables();
+  const pid = String(paletteId || '').toUpperCase();
+  const result = await sql`SELECT suspended FROM bot_account_suspensions WHERE palette_id = ${pid} LIMIT 1`;
+  if (!result.rows.length) return false;
+  return Boolean(result.rows[0].suspended);
+};
+
+/** 停止フラグを設定（true=停止, false=再開） */
+export const setAccountSuspended = async (paletteId: string, suspended: boolean): Promise<void> => {
+  await ensureTables();
+  const pid = String(paletteId || '').toUpperCase();
+  await sql`
+    INSERT INTO bot_account_suspensions (palette_id, suspended, updated_at)
+    VALUES (${pid}, ${suspended}, NOW())
+    ON CONFLICT (palette_id) DO UPDATE SET
+      suspended = EXCLUDED.suspended,
+      updated_at = NOW()
+  `;
+};
+
+/** 停止中の paletteId 一覧（一覧画面の表示用） */
+export const listSuspendedPaletteIds = async (): Promise<string[]> => {
+  await ensureTables();
+  const result = await sql`SELECT palette_id FROM bot_account_suspensions WHERE suspended = TRUE`;
+  return result.rows.map((r: any) => String(r.palette_id).toUpperCase());
+};
+
+/**
+ * 顧客の Bot データを完全削除（config / services / faqs / sessions / 停止フラグ）。
+ * pal-db 側の契約には触れない（あくまで palette_ai 側のローカルデータ削除）。
+ */
+export const deleteBotAccount = async (paletteId: string): Promise<void> => {
+  await ensureTables();
+  const pid = String(paletteId || '').toUpperCase();
+  await sql`DELETE FROM bot_sessions WHERE palette_id = ${pid}`;
+  await sql`DELETE FROM bot_faqs WHERE palette_id = ${pid}`;
+  await sql`DELETE FROM bot_services WHERE palette_id = ${pid}`;
+  await sql`DELETE FROM bot_configs WHERE palette_id = ${pid}`;
+  await sql`DELETE FROM bot_account_suspensions WHERE palette_id = ${pid}`;
 };
 
 // ============================================================
