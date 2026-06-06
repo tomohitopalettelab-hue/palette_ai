@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function MyBotSettingsPage() {
   const store = await cookies();
-  const session = parseSessionValue(store.get(SESSION_COOKIE_NAME)?.value);
+  const session = await parseSessionValue(store.get(SESSION_COOKIE_NAME)?.value);
   const paletteId = (session?.paletteId || '').toUpperCase();
 
   // middleware で弾かれるはずだがフォールバック

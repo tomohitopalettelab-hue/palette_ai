@@ -10,10 +10,10 @@ const redirectToLogin = (req: NextRequest, role?: 'admin' | 'customer') => {
   return NextResponse.redirect(loginUrl);
 };
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
   const cookieValue = req.cookies.get(SESSION_COOKIE_NAME)?.value;
-  const session = parseSessionValue(cookieValue);
+  const session = await parseSessionValue(cookieValue);
 
   const isApiAdmin = path.startsWith('/api/admin/');
   const isAdminPath = !isApiAdmin && (path.startsWith('/admin/') || path === '/admin');

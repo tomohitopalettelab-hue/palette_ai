@@ -9,20 +9,13 @@ export type SessionPayload = {
 
 export const SESSION_COOKIE_NAME = 'palette_session';
 
-export const createSessionValue = (payload: SessionPayload): string => {
-  return encodeURIComponent(JSON.stringify(payload));
-};
+import { signCookie, verifyCookie } from './cookie-sign';
 
-export const parseSessionValue = (value?: string | null): SessionPayload | null => {
-  if (!value) return null;
-  try {
-    const parsed = JSON.parse(decodeURIComponent(value)) as SessionPayload;
-    if (!parsed || !parsed.role || !parsed.exp) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-};
+export const createSessionValue = (payload: SessionPayload): Promise<string> =>
+  signCookie(payload);
+
+export const parseSessionValue = (value?: string | null): Promise<SessionPayload | null> =>
+  verifyCookie<SessionPayload>(value, (p) => !!p.role && !!p.exp);
 
 export const isExpired = (payload: SessionPayload): boolean => {
   return Date.now() > payload.exp;

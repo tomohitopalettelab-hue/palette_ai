@@ -218,10 +218,10 @@ export async function POST(req: NextRequest) {
     const summary = await response.json().catch(() => ({}));
 
     // 顧客セッション cookie を発行 (/main/bot-settings 等への再ログインを不要にする)
-    const setCustomerCookie = (res: NextResponse) => {
+    const setCustomerCookie = async (res: NextResponse) => {
       res.cookies.set({
         name: SESSION_COOKIE_NAME,
-        value: createSessionValue({
+        value: await createSessionValue({
           role: 'customer',
           customerId: String(verifyData?.accountId || ''),
           paletteId,
