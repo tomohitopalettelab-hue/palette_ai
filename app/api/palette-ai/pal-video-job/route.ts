@@ -20,7 +20,10 @@ export async function POST(req: NextRequest) {
     const base = getCrmBaseUrl().replace(/\/$/, '');
     const response = await fetch(`${base}/api/crm/video-jobs`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-crm-service-key': process.env.CRM_SERVICE_KEY ?? '',
+      },
       body: JSON.stringify(body),
     });
 

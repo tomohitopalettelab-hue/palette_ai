@@ -41,6 +41,7 @@ const syncLeadToCrm = async (params: {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-crm-service-key': process.env.CRM_SERVICE_KEY ?? '',
         ...(process.env.CRM_API_KEY ? { 'x-api-key': process.env.CRM_API_KEY } : {}),
       },
       body: JSON.stringify({
