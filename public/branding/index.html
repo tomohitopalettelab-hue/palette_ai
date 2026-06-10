@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Palette AIX — Brand</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --line: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #6366f1;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 48px 24px 96px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, 'Hiragino Sans', 'Yu Gothic', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    h1 { margin: 0 0 8px; font-size: 28px; font-weight: 900; letter-spacing: -0.5px; }
+    .lead { color: var(--muted); margin: 0 0 32px; font-size: 14px; }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    .grid {
+      display: grid; gap: 24px;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .card h2 {
+      margin: 0; font-size: 14px; font-weight: 800; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .preview {
+      background: linear-gradient(135deg, #fafafa, #eef2ff);
+      border-radius: 16px;
+      padding: 32px;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 220px;
+    }
+    .preview.dark { background: linear-gradient(135deg, #0f172a, #1e1b4b); }
+    .preview img { max-width: 100%; max-height: 160px; height: auto; }
+    .meta {
+      font-size: 12px; color: var(--muted);
+    }
+    .meta b { color: var(--text); }
+    .row {
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+      font-size: 12px;
+    }
+    .row a {
+      display: inline-block;
+      padding: 4px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .row a:hover { background: #eef2ff; }
+    .sizes {
+      display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+      padding: 12px 0 0;
+    }
+    .size { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .size img { display: block; }
+    .size span { font-size: 10px; color: var(--muted); }
+    .wide {
+      grid-column: 1 / -1;
+    }
+    .wide .preview img { max-height: 100px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Palette AIX — Brand</h1>
+    <p class="lead">3 種のマーク案 + 横並びワードマーク。クリックで SVG 単体を開きます。</p>
+
+    <div class="grid">
+      <div class="card">
+        <h2>A. Aurora Spark</h2>
+        <div class="preview">
+          <img src="palette-aix-mark-aurora.svg" alt="Aurora"/>
+        </div>
+        <div class="meta">
+          グラデーション角丸スクエア + AIスパークル。<br/>
+          <b>用途:</b> 既存ブランド (indigo→fuchsia) と整合。アプリアイコン・ファビコン向け。
+        </div>
+        <div class="sizes">
+          <div class="size"><img src="palette-aix-mark-aurora.svg" width="64" height="64"/><span>64</span></div>
+          <div class="size"><img src="palette-aix-mark-aurora.svg" width="40" height="40"/><span>40</span></div>
+          <div class="size"><img src="palette-aix-mark-aurora.svg" width="24" height="24"/><span>24</span></div>
+          <div class="size"><img src="palette-aix-mark-aurora.svg" width="16" height="16"/><span>16</span></div>
+        </div>
+        <div class="row">
+          <a href="palette-aix-mark-aurora.svg" target="_blank">SVG を開く</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>B. Crossed X</h2>
+        <div class="preview dark">
+          <img src="palette-aix-mark-x.svg" alt="X"/>
+        </div>
+        <div class="meta">
+          ダークBG + 2色グラデーションが交差する X。<br/>
+          <b>用途:</b> ヒーロー・SNSアイコン。AIX の "X" を強く印象づけたい時。
+        </div>
+        <div class="sizes">
+          <div class="size"><img src="palette-aix-mark-x.svg" width="64" height="64"/><span>64</span></div>
+          <div class="size"><img src="palette-aix-mark-x.svg" width="40" height="40"/><span>40</span></div>
+          <div class="size"><img src="palette-aix-mark-x.svg" width="24" height="24"/><span>24</span></div>
+          <div class="size"><img src="palette-aix-mark-x.svg" width="16" height="16"/><span>16</span></div>
+        </div>
+        <div class="row">
+          <a href="palette-aix-mark-x.svg" target="_blank">SVG を開く</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>C. Palette Orb</h2>
+        <div class="preview">
+          <img src="palette-aix-mark-orb.svg" alt="Orb"/>
+        </div>
+        <div class="meta">
+          パレット曲線 + 3色ドット + 小さなスパークル。<br/>
+          <b>用途:</b> "Palette" の語感を残したい時。プレゼン資料・ステッカー向け。
+        </div>
+        <div class="sizes">
+          <div class="size"><img src="palette-aix-mark-orb.svg" width="64" height="64"/><span>64</span></div>
+          <div class="size"><img src="palette-aix-mark-orb.svg" width="40" height="40"/><span>40</span></div>
+          <div class="size"><img src="palette-aix-mark-orb.svg" width="24" height="24"/><span>24</span></div>
+          <div class="size"><img src="palette-aix-mark-orb.svg" width="16" height="16"/><span>16</span></div>
+        </div>
+        <div class="row">
+          <a href="palette-aix-mark-orb.svg" target="_blank">SVG を開く</a>
+        </div>
+      </div>
+
+      <div class="card wide">
+        <h2>横並びワードマーク (Aurora + Palette AIX)</h2>
+        <div class="preview">
+          <img src="palette-aix-wordmark-aurora.svg" alt="Wordmark"/>
+        </div>
+        <div class="meta">
+          ヘッダー / 名刺 / メール署名向け。
+        </div>
+        <div class="row">
+          <a href="palette-aix-wordmark-aurora.svg" target="_blank">SVG を開く</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
