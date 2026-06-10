@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getBotConfigOrDefault } from '../../../../_lib/bot-store';
 import { sendBotNotifications } from '../../../../_lib/notification-sender';
+import { assertAccessAllowed } from '../../../../_lib/agency-scope';
 
 /**
  * POST /api/admin/bot-settings/[paletteId]/notify-test
@@ -14,6 +15,8 @@ export async function POST(
   try {
     const { paletteId: raw } = await params;
     const paletteId = String(raw || '').trim().toUpperCase();
+    const access = await assertAccessAllowed(paletteId);
+    if (!access.allowed) return NextResponse.json({ success: false, error: access.error }, { status: access.status });
 
     const config = await getBotConfigOrDefault(paletteId);
     if (!config.goals?.notify?.enabled) {

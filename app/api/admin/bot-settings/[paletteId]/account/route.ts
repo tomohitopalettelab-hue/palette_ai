@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { setAccountSuspended, deleteBotAccount, isAccountSuspended } from '../../../../_lib/bot-store';
+import { assertAccessAllowed } from '../../../../_lib/agency-scope';
 
 const validate = (raw: string): string | null => {
   const pid = String(raw || '').trim().toUpperCase();
@@ -20,6 +21,8 @@ export async function GET(
     if (!paletteId) {
       return NextResponse.json({ success: false, error: 'invalid paletteId' }, { status: 400 });
     }
+    const access = await assertAccessAllowed(paletteId);
+    if (!access.allowed) return NextResponse.json({ success: false, error: access.error }, { status: access.status });
     const suspended = await isAccountSuspended(paletteId);
     return NextResponse.json({ success: true, paletteId, suspended });
   } catch (error: any) {

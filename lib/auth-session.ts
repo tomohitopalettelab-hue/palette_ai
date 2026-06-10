@@ -1,9 +1,13 @@
-export type SessionRole = 'admin' | 'customer';
+export type SessionRole = 'admin' | 'customer' | 'agency';
 
 export type SessionPayload = {
   role: SessionRole;
   customerId?: string;
   paletteId?: string;
+  /** role==='agency' のとき: crm_customers.id（代理店自身）*/
+  agencyId?: string;
+  /** role==='agency' のとき: 表示用の代理店名 */
+  agencyName?: string;
   exp: number;
 };
 

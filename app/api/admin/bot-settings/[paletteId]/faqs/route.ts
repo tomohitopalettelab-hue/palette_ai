@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { listFaqs, upsertFaq } from '../../../../_lib/bot-store';
+import { assertAccessAllowed } from '../../../../_lib/agency-scope';
 
 export async function GET(
   _req: Request,
@@ -8,6 +9,8 @@ export async function GET(
   try {
     const { paletteId: raw } = await params;
     const paletteId = String(raw || '').trim().toUpperCase();
+    const access = await assertAccessAllowed(paletteId);
+    if (!access.allowed) return NextResponse.json({ success: false, error: access.error }, { status: access.status });
     const faqs = await listFaqs(paletteId);
     return NextResponse.json({ success: true, faqs });
   } catch (error: any) {
@@ -23,6 +26,8 @@ export async function POST(
   try {
     const { paletteId: raw } = await params;
     const paletteId = String(raw || '').trim().toUpperCase();
+    const access = await assertAccessAllowed(paletteId);
+    if (!access.allowed) return NextResponse.json({ success: false, error: access.error }, { status: access.status });
     const body = await req.json();
     if (!body.question || !body.answer) {
       return NextResponse.json({ success: false, error: 'question and answer are required' }, { status: 400 });

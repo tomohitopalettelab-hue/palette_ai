@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { listSessions, getSessionStats } from '../../../../_lib/bot-store';
+import { assertAccessAllowed } from '../../../../_lib/agency-scope';
 
 export async function GET(
   req: Request,
@@ -8,6 +9,8 @@ export async function GET(
   try {
     const { paletteId: raw } = await params;
     const paletteId = String(raw || '').trim().toUpperCase();
+    const access = await assertAccessAllowed(paletteId);
+    if (!access.allowed) return NextResponse.json({ success: false, error: access.error }, { status: access.status });
     const { searchParams } = new URL(req.url);
     const minScore = Number(searchParams.get('minScore') || 0);
     const limit = Number(searchParams.get('limit') || 100);

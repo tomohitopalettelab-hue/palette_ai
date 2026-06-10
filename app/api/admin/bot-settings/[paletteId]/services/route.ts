@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { listServices, upsertService } from '../../../../_lib/bot-store';
+import { assertAccessAllowed } from '../../../../_lib/agency-scope';
 
 export async function GET(
   _req: Request,
@@ -8,6 +9,8 @@ export async function GET(
   try {
     const { paletteId: raw } = await params;
     const paletteId = String(raw || '').trim().toUpperCase();
+    const access = await assertAccessAllowed(paletteId);
+    if (!access.allowed) return NextResponse.json({ success: false, error: access.error }, { status: access.status });
     const services = await listServices(paletteId);
     return NextResponse.json({ success: true, services });
   } catch (error: any) {
@@ -23,6 +26,8 @@ export async function POST(
   try {
     const { paletteId: raw } = await params;
     const paletteId = String(raw || '').trim().toUpperCase();
+    const access = await assertAccessAllowed(paletteId);
+    if (!access.allowed) return NextResponse.json({ success: false, error: access.error }, { status: access.status });
     const body = await req.json();
     if (!body.name || typeof body.name !== 'string') {
       return NextResponse.json({ success: false, error: 'name is required' }, { status: 400 });

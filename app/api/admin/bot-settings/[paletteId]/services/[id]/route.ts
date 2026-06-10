@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { deleteService, getService, upsertService } from '../../../../../_lib/bot-store';
+import { assertAccessAllowed } from '../../../../../_lib/agency-scope';
 
 export async function PUT(
   req: Request,
@@ -8,6 +9,8 @@ export async function PUT(
   try {
     const { paletteId: rawP, id } = await params;
     const paletteId = String(rawP || '').trim().toUpperCase();
+    const access = await assertAccessAllowed(paletteId);
+    if (!access.allowed) return NextResponse.json({ success: false, error: access.error }, { status: access.status });
     const body = await req.json();
 
     const current = await getService(id);
@@ -41,7 +44,10 @@ export async function DELETE(
   { params }: { params: Promise<{ paletteId: string; id: string }> },
 ) {
   try {
-    const { id } = await params;
+    const { paletteId: rawP, id } = await params;
+    const paletteId = String(rawP || '').trim().toUpperCase();
+    const access = await assertAccessAllowed(paletteId);
+    if (!access.allowed) return NextResponse.json({ success: false, error: access.error }, { status: access.status });
     await deleteService(id);
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -14,9 +14,12 @@ type Account = {
 };
 
 type SortKey = 'all' | 'aix' | 'configured' | 'aix_configured' | 'aix_not_configured' | 'no_aix';
+type ViewerRole = 'admin' | 'customer' | 'agency' | null;
 
 export default function BotSettingsListPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [viewerRole, setViewerRole] = useState<ViewerRole>(null);
+  const [agencyName, setAgencyName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
@@ -24,6 +27,7 @@ export default function BotSettingsListPage() {
   const [busyId, setBusyId] = useState<string>('');
   const [notice, setNotice] = useState<string>('');
   const [deleteTarget, setDeleteTarget] = useState<Account | null>(null);
+  const isAdmin = viewerRole === 'admin';
 
   const load = async () => {
     setLoading(true);
@@ -35,6 +39,8 @@ export default function BotSettingsListPage() {
         throw new Error(data?.error || '顧客一覧の取得に失敗しました');
       }
       setAccounts(Array.isArray(data.accounts) ? data.accounts : []);
+      setViewerRole((data.viewerRole as ViewerRole) || null);
+      setAgencyName(String(data.agencyName || ''));
     } catch (err: any) {
       setError(err?.message || 'error');
     } finally {
@@ -175,7 +181,11 @@ export default function BotSettingsListPage() {
           </div>
           <div>
             <h1 className="text-2xl font-black text-slate-800">営業Bot設定</h1>
-            <p className="text-sm text-slate-500">顧客ごとにチャットbotの設定を編集できます</p>
+            <p className="text-sm text-slate-500">
+              {viewerRole === 'agency'
+                ? `代理店: ${agencyName || '—'} / 担当顧客のBot設定を編集できます`
+                : '顧客ごとにチャットbotの設定を編集できます'}
+            </p>
           </div>
         </div>
 
@@ -266,28 +276,30 @@ export default function BotSettingsListPage() {
                     <span className="text-xs text-slate-500">編集する →</span>
                   </div>
                 </Link>
-                <div className="flex items-center gap-2 mt-3">
-                  <button
-                    type="button"
-                    onClick={() => handleToggleSuspend(a)}
-                    disabled={busyId === a.paletteId}
-                    className={`flex-1 px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors disabled:opacity-50 ${
-                      a.suspended
-                        ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                        : 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
-                    }`}
-                  >
-                    {busyId === a.paletteId ? '...' : a.suspended ? '▶ 再開' : '⏸ 停止'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteTarget(a)}
-                    disabled={busyId === a.paletteId}
-                    className="px-3 py-1.5 rounded-lg border border-red-300 bg-red-50 text-red-600 text-xs font-bold hover:bg-red-100 transition-colors disabled:opacity-50"
-                  >
-                    削除
-                  </button>
-                </div>
+                {isAdmin && (
+                  <div className="flex items-center gap-2 mt-3">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSuspend(a)}
+                      disabled={busyId === a.paletteId}
+                      className={`flex-1 px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors disabled:opacity-50 ${
+                        a.suspended
+                          ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                          : 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                      }`}
+                    >
+                      {busyId === a.paletteId ? '...' : a.suspended ? '▶ 再開' : '⏸ 停止'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(a)}
+                      disabled={busyId === a.paletteId}
+                      className="px-3 py-1.5 rounded-lg border border-red-300 bg-red-50 text-red-600 text-xs font-bold hover:bg-red-100 transition-colors disabled:opacity-50"
+                    >
+                      削除
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
             {filtered.length === 0 && (

@@ -9,6 +9,7 @@ import {
   getBotConfig,
   DEFAULT_CONFIG,
 } from '../../../../_lib/bot-store';
+import { assertAccessAllowed } from '../../../../_lib/agency-scope';
 
 /**
  * POST /api/admin/bot-settings/[paletteId]/auto-setup
@@ -181,6 +182,8 @@ export async function POST(
     if (!paletteId || !/^[A-Z][0-9]{4}$/.test(paletteId)) {
       return NextResponse.json({ success: false, error: 'invalid paletteId' }, { status: 400 });
     }
+    const access = await assertAccessAllowed(paletteId);
+    if (!access.allowed) return NextResponse.json({ success: false, error: access.error }, { status: access.status });
 
     const body = await req.json().catch(() => ({}));
     let url = String(body?.url || '').trim();
