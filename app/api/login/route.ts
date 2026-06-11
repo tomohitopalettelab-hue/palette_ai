@@ -64,7 +64,7 @@ export async function POST(req: Request) {
         paletteId,
         exp: Date.now() + 1000 * 60 * 60 * 12,
       };
-      redirectTo = resolveNextPath(body.next, '/main');
+      redirectTo = resolveNextPath(body.next, '/main/bot-settings');
     }
 
     if (role === 'agency') {

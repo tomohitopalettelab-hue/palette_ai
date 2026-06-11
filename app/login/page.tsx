@@ -36,7 +36,7 @@ function LoginPageInner() {
         setError(data?.error || 'ログインに失敗しました。');
         return;
       }
-      const fallback = role === 'admin' ? '/admin' : role === 'agency' ? '/admin/bot-settings' : '/main';
+      const fallback = role === 'admin' ? '/admin/bot-settings' : role === 'agency' ? '/admin/bot-settings' : '/main/bot-settings';
       router.push(data.redirectTo || fallback);
       router.refresh();
     } catch {

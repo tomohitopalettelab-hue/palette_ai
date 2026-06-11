@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Bot, MessageSquare, Flame, CheckCircle2, LogOut, ArrowLeft } from 'lucide-react';
+import { Bot, MessageSquare, Flame, LogOut, ArrowLeft } from 'lucide-react';
 
 type Stats = {
   total: number;
@@ -14,57 +14,42 @@ type Stats = {
 
 export default function ReportsDashboard() {
   const [paletteId, setPaletteId] = useState<string>('');
-  const [authenticated, setAuthenticated] = useState(false);
-  const [authInput, setAuthInput] = useState({ loginId: '', password: '' });
-  const [authError, setAuthError] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
 
   const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [planError, setPlanError] = useState('');
 
-  // Restore session from localStorage
+  // セッション (palette_session cookie) から paletteId を取得。
+  // middleware が /main/reports を保護しているため、未ログインはここに来ない想定だが
+  // 念のため 401 なら /login へ。
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const saved = localStorage.getItem('reports_palette_id');
-    if (saved && /^[A-Z][0-9]{4}$/.test(saved)) {
-      setPaletteId(saved);
-      setAuthenticated(true);
-    }
+    const init = async () => {
+      try {
+        const res = await fetch('/api/main/me', { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.success) {
+          window.location.href = '/login?role=customer&next=/main/reports';
+          return;
+        }
+        const pid = String(data.paletteId || '').toUpperCase();
+        setPaletteId(pid);
+        // sessions ページ (localStorage 参照) との互換のため保存
+        try { localStorage.setItem('reports_palette_id', pid); } catch { /* noop */ }
+      } catch {
+        window.location.href = '/login?role=customer&next=/main/reports';
+      }
+    };
+    void init();
   }, []);
 
-  const handleAuth = async () => {
-    setAuthError('');
-    setAuthLoading(true);
-    try {
-      const res = await fetch('/api/chat-auth/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paletteId: authInput.loginId, password: authInput.password }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.success) {
-        throw new Error(data?.error || 'ログインに失敗しました');
-      }
-      const pid = String(data.paletteId || '').toUpperCase();
-      localStorage.setItem('reports_palette_id', pid);
-      setPaletteId(pid);
-      setAuthenticated(true);
-    } catch (err: any) {
-      setAuthError(err?.message || 'error');
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('reports_palette_id');
-    setPaletteId('');
-    setAuthenticated(false);
+  const handleLogout = async () => {
+    try { await fetch('/api/logout', { method: 'POST' }); } catch { /* noop */ }
+    try { localStorage.removeItem('reports_palette_id'); } catch { /* noop */ }
+    window.location.href = '/login?role=customer';
   };
 
   useEffect(() => {
-    if (!authenticated || !paletteId) return;
+    if (!paletteId) return;
     const load = async () => {
       setLoading(true);
       setPlanError('');
@@ -81,55 +66,7 @@ export default function ReportsDashboard() {
       }
     };
     void load();
-  }, [authenticated, paletteId]);
-
-  if (!authenticated) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-2xl border border-slate-200 p-8 max-w-md w-full">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-slate-800">Bot レポート</h1>
-              <p className="text-xs text-slate-500">顧客IDでログイン</p>
-            </div>
-          </div>
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-bold text-slate-600 mb-1 block">顧客ID</label>
-              <input
-                type="text"
-                value={authInput.loginId}
-                onChange={(e) => setAuthInput({ ...authInput, loginId: e.target.value.toUpperCase() })}
-                placeholder="A0001"
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white outline-none text-sm focus:border-indigo-300"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-600 mb-1 block">パスワード</label>
-              <input
-                type="password"
-                value={authInput.password}
-                onChange={(e) => setAuthInput({ ...authInput, password: e.target.value })}
-                onKeyDown={(e) => e.key === 'Enter' && handleAuth()}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white outline-none text-sm focus:border-indigo-300"
-              />
-            </div>
-            {authError && <div className="text-xs text-red-500">{authError}</div>}
-            <button
-              onClick={handleAuth}
-              disabled={authLoading}
-              className="w-full px-4 py-2.5 rounded-lg bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white font-bold text-sm hover:opacity-90 disabled:opacity-50"
-            >
-              {authLoading ? 'ログイン中...' : 'ログイン'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  }, [paletteId]);
 
   const dist = stats?.scoreDistribution || {};
   const hotCount = (dist['4'] || 0) + (dist['5'] || 0);
@@ -145,12 +82,11 @@ export default function ReportsDashboard() {
             <Link href="/main/bot-settings" className="text-slate-400 hover:text-slate-600" aria-label="Bot設定に戻る">
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/branding/palette-aix-mark-x.svg" alt="Palette AIX" className="w-10 h-10 rounded-xl" />
             <div>
               <h1 className="text-2xl font-black text-slate-800">営業Bot レポート</h1>
-              <p className="text-xs text-slate-500">{paletteId}</p>
+              <p className="text-xs text-slate-500">{paletteId || '...'}</p>
             </div>
           </div>
           <button onClick={handleLogout} className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
@@ -171,9 +107,6 @@ export default function ReportsDashboard() {
               営業Botレポートをご利用いただくには「Palette AIX」プランのご契約が必要です。<br />
               詳しくはPalette Labまでお問い合わせください。
             </p>
-            <button onClick={handleLogout} className="mt-6 text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 mx-auto">
-              <LogOut className="w-3.5 h-3.5" />別のアカウントでログイン
-            </button>
           </div>
         ) : stats ? (
           <>
