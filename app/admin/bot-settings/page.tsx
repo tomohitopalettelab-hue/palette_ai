@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Bot, Search, Settings, MessageSquare } from 'lucide-react';
+import { Search, Settings } from 'lucide-react';
 
 type Account = {
   paletteId: string;
@@ -176,9 +176,8 @@ export default function BotSettingsListPage() {
       )}
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 flex items-center justify-center">
-            <Bot className="w-5 h-5 text-white" />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/branding/palette-aix-mark-x.svg" alt="Palette AIX" className="w-10 h-10 rounded-xl" />
           <div>
             <h1 className="text-2xl font-black text-slate-800">営業Bot設定</h1>
             <p className="text-sm text-slate-500">

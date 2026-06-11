@@ -210,13 +210,26 @@ export default async function PublicDemoPage({
       {/* フッター */}
       <div
         style={{
-          textAlign: 'center',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
           padding: '24px 16px 48px',
           fontSize: 11,
           color: '#94a3b8',
         }}
       >
-        Powered by <span style={{ fontWeight: 700, color: '#475569' }}>Palette AIX</span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/branding/palette-aix-mark-x.svg"
+          alt=""
+          width={20}
+          height={20}
+          style={{ borderRadius: 5, display: 'block' }}
+        />
+        <span>
+          Powered by <span style={{ fontWeight: 700, color: '#475569' }}>Palette AIX</span>
+        </span>
       </div>
 
       {hasPlan && (

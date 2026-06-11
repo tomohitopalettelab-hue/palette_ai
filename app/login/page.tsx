@@ -56,7 +56,11 @@ function LoginPageInner() {
   return (
     <main className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
-        <h1 className="text-xl font-black text-slate-800 mb-1">Palette Login</h1>
+        <div className="flex items-center gap-2.5 mb-1">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/branding/palette-aix-mark-x.svg" alt="Palette AIX" className="w-9 h-9 rounded-lg" />
+          <h1 className="text-xl font-black text-slate-800">Palette Login</h1>
+        </div>
         <p className="text-xs text-slate-500 mb-4">
           {role === 'admin' ? '管理者ログイン' : role === 'agency' ? '代理店ログイン' : 'お客様ログイン'}
         </p>

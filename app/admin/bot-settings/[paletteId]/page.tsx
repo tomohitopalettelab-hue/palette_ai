@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, use as usePromise } from 'react';
 import Link from 'next/link';
 import {
-  Bot, ArrowLeft, Save, Copy, Check, Plus, Trash2, MessageSquare, Code,
+  ArrowLeft, Save, Copy, Check, Plus, Trash2, MessageSquare, Code,
   Sparkles, Settings2, HelpCircle, Palette, Heart, Package, PlayCircle, X, AlertTriangle,
   Workflow, ArrowUp, ArrowDown,
 } from 'lucide-react';
@@ -240,9 +240,8 @@ export function BotSettingsEditor({
               </Link>
             )}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-fuchsia-500 flex items-center justify-center">
-                <Bot className="w-4 h-4 text-white" />
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/branding/palette-aix-mark-x.svg" alt="Palette AIX" className="w-8 h-8 rounded-lg" />
               <div>
                 <h1 className="text-lg font-black text-slate-800">{paletteId} Bot設定</h1>
                 {savedAt && <p className="text-[10px] text-emerald-600">保存済: {savedAt}</p>}

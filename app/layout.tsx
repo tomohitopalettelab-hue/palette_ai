@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "Palette AI",
   description: "AI Chat Application",
   icons: {
-    icon: "/favicon.png",
+    icon: "/branding/palette-aix-mark-x.svg",
   },
 };
 
