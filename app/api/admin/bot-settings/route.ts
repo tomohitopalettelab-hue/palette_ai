@@ -54,7 +54,7 @@ export async function GET() {
 
     const configSet = new Set(configPaletteIds.map((s) => s.toUpperCase()));
 
-    const accounts = await Promise.all(
+    const accountsAll = await Promise.all(
       accountsRaw
         .filter((a: any) => /^[A-Z][0-9]{4}$/.test(String(a.paletteId || '').toUpperCase()))
         // agency スコープがあれば、その paletteIds のみに絞る
@@ -75,6 +75,9 @@ export async function GET() {
           };
         })
     );
+
+    // Palette AIX 契約のある顧客のみ表示
+    const accounts = accountsAll.filter((a) => a.hasAixPlan);
 
     return NextResponse.json({
       success: true,

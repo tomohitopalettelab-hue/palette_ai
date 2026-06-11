@@ -13,7 +13,7 @@ type Account = {
   suspended?: boolean;
 };
 
-type SortKey = 'all' | 'aix' | 'configured' | 'aix_configured' | 'aix_not_configured' | 'no_aix';
+type SortKey = 'all' | 'configured' | 'not_configured' | 'suspended';
 type ViewerRole = 'admin' | 'customer' | 'agency' | null;
 
 export default function BotSettingsListPage() {
@@ -97,12 +97,10 @@ export default function BotSettingsListPage() {
     const q = searchText.trim().toLowerCase();
     let list = accounts;
 
-    // フィルタ
-    if (filterKey === 'aix') list = list.filter((a) => a.hasAixPlan);
-    else if (filterKey === 'configured') list = list.filter((a) => a.botConfigured);
-    else if (filterKey === 'aix_configured') list = list.filter((a) => a.hasAixPlan && a.botConfigured);
-    else if (filterKey === 'aix_not_configured') list = list.filter((a) => a.hasAixPlan && !a.botConfigured);
-    else if (filterKey === 'no_aix') list = list.filter((a) => !a.hasAixPlan);
+    // フィルタ (一覧は AIX 契約顧客のみが API から返る)
+    if (filterKey === 'configured') list = list.filter((a) => a.botConfigured);
+    else if (filterKey === 'not_configured') list = list.filter((a) => !a.botConfigured);
+    else if (filterKey === 'suspended') list = list.filter((a) => a.suspended);
 
     // 検索
     if (q) {
@@ -113,9 +111,8 @@ export default function BotSettingsListPage() {
       );
     }
 
-    // ソート: AIX契約 > 設定済み > paletteId
+    // ソート: 設定済み > paletteId
     return [...list].sort((a, b) => {
-      if (a.hasAixPlan !== b.hasAixPlan) return a.hasAixPlan ? -1 : 1;
       if (a.botConfigured !== b.botConfigured) return a.botConfigured ? -1 : 1;
       return a.paletteId.localeCompare(b.paletteId);
     });
@@ -123,11 +120,9 @@ export default function BotSettingsListPage() {
 
   const counts = useMemo(() => ({
     all: accounts.length,
-    aix: accounts.filter((a) => a.hasAixPlan).length,
     configured: accounts.filter((a) => a.botConfigured).length,
-    aix_configured: accounts.filter((a) => a.hasAixPlan && a.botConfigured).length,
-    aix_not_configured: accounts.filter((a) => a.hasAixPlan && !a.botConfigured).length,
-    no_aix: accounts.filter((a) => !a.hasAixPlan).length,
+    not_configured: accounts.filter((a) => !a.botConfigured).length,
+    suspended: accounts.filter((a) => a.suspended).length,
   }), [accounts]);
 
   return (
@@ -202,11 +197,9 @@ export default function BotSettingsListPage() {
           <div className="mt-3 flex items-center gap-1.5 flex-wrap">
             {([
               { key: 'all', label: 'すべて', color: 'slate' },
-              { key: 'aix', label: 'AIX契約', color: 'indigo' },
-              { key: 'aix_configured', label: 'AIX・設定済', color: 'emerald' },
-              { key: 'aix_not_configured', label: 'AIX・未設定', color: 'amber' },
               { key: 'configured', label: '設定済', color: 'emerald' },
-              { key: 'no_aix', label: 'AIX未契約', color: 'slate' },
+              { key: 'not_configured', label: '未設定', color: 'amber' },
+              { key: 'suspended', label: '停止中', color: 'amber' },
             ] as const).map((f) => (
               <button
                 key={f.key}
@@ -222,7 +215,7 @@ export default function BotSettingsListPage() {
             ))}
           </div>
           <div className="mt-2 text-[10px] text-slate-400 flex items-center gap-3 flex-wrap">
-            <span>並び順: AIX契約あり → 設定済み → 顧客ID順</span>
+            <span>Palette AIX 契約中の顧客のみ表示 / 並び順: 設定済み → 顧客ID順</span>
           </div>
         </div>
 
@@ -237,7 +230,7 @@ export default function BotSettingsListPage() {
                 className={`bg-white rounded-2xl border p-5 transition-all ${
                   a.suspended
                     ? 'border-amber-300 bg-amber-50/40'
-                    : a.hasAixPlan ? 'border-slate-200 hover:border-indigo-300' : 'border-slate-200 opacity-60 hover:opacity-100'
+                    : 'border-slate-200 hover:border-indigo-300'
                 }`}
               >
                 <Link href={`/admin/bot-settings/${a.paletteId}`} className="block group">
@@ -248,9 +241,6 @@ export default function BotSettingsListPage() {
                       {a.industry && <p className="text-xs text-slate-500 mt-1">{a.industry}</p>}
                     </div>
                     <div className="flex flex-col gap-1 shrink-0 items-end">
-                      {a.hasAixPlan && (
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-gradient-to-r from-indigo-500 to-fuchsia-500 text-white">AIX</span>
-                      )}
                       {a.botConfigured ? (
                         <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-600">設定済</span>
                       ) : (
@@ -261,13 +251,9 @@ export default function BotSettingsListPage() {
                       )}
                     </div>
                   </div>
-                  {a.suspended ? (
+                  {a.suspended && (
                     <div className="text-[10px] text-amber-700 bg-amber-100 rounded-lg px-2 py-1 mb-2">
                       ⏸ 停止中（サイトに設置してもBotは表示されません）
-                    </div>
-                  ) : !a.hasAixPlan && (
-                    <div className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-2 py-1 mb-2">
-                      ⚠ Palette AIX 未契約（Botは動作しません）
                     </div>
                   )}
                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
