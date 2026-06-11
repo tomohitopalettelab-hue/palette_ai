@@ -38,44 +38,39 @@ function LoginPageInner() {
   };
 
   return (
-    <main className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-slate-950">
-      {/* 背景: ブランドグラデーションのオーラ */}
+    <main className="relative w-full min-h-screen flex items-center justify-center px-4 py-12 overflow-hidden bg-slate-50">
+      {/* 背景: やわらかいブランドカラーのオーラ */}
       <div
         aria-hidden
-        className="absolute -top-40 -left-40 w-[480px] h-[480px] rounded-full opacity-30 blur-3xl"
+        className="absolute -top-32 -left-32 w-[420px] h-[420px] md:w-[560px] md:h-[560px] rounded-full opacity-[0.13] blur-3xl pointer-events-none"
         style={{ background: 'radial-gradient(circle, #6366f1 0%, transparent 70%)' }}
       />
       <div
         aria-hidden
-        className="absolute -bottom-48 -right-32 w-[520px] h-[520px] rounded-full opacity-25 blur-3xl"
+        className="absolute -bottom-40 -right-28 w-[460px] h-[460px] md:w-[600px] md:h-[600px] rounded-full opacity-[0.11] blur-3xl pointer-events-none"
         style={{ background: 'radial-gradient(circle, #d946ef 0%, transparent 70%)' }}
       />
-      <div
-        aria-hidden
-        className="absolute top-1/3 left-2/3 w-[300px] h-[300px] rounded-full opacity-20 blur-3xl"
-        style={{ background: 'radial-gradient(circle, #a855f7 0%, transparent 70%)' }}
-      />
 
-      <div className="relative w-full max-w-sm">
+      <div className="relative w-full max-w-sm md:max-w-md">
         {/* ロゴ + ブランド */}
         <div className="flex flex-col items-center mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/branding/palette-aix-mark-x.svg"
             alt="Palette AIX"
-            className="w-16 h-16 rounded-2xl shadow-[0_8px_32px_rgba(168,85,247,0.45)]"
+            className="w-14 h-14 md:w-16 md:h-16 rounded-2xl shadow-lg shadow-purple-300/40"
           />
-          <h1 className="mt-4 text-2xl font-black tracking-tight text-white">
-            Palette <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-fuchsia-400 bg-clip-text text-transparent">AIX</span>
+          <h1 className="mt-4 text-2xl md:text-3xl font-black tracking-tight text-slate-800">
+            Palette <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 bg-clip-text text-transparent">AIX</span>
           </h1>
-          <p className="mt-1 text-xs text-slate-400">AI チャットボット管理</p>
+          <p className="mt-1 text-xs md:text-sm text-slate-500">AI チャットボット管理</p>
         </div>
 
         {/* カード */}
-        <div className="bg-white/[0.07] backdrop-blur-xl border border-white/10 rounded-3xl p-7 shadow-2xl">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-xl shadow-slate-200/60">
+          <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
             <div>
-              <label htmlFor="login-id" className="block text-[11px] font-bold text-slate-300 mb-1.5 tracking-wide">
+              <label htmlFor="login-id" className="block text-[11px] md:text-xs font-bold text-slate-600 mb-1.5 tracking-wide">
                 ID
               </label>
               <input
@@ -83,13 +78,13 @@ function LoginPageInner() {
                 value={id}
                 onChange={(e) => setId(e.target.value)}
                 autoComplete="username"
-                className="w-full px-3.5 py-3 rounded-xl bg-white/[0.06] border border-white/10 text-sm text-white placeholder-slate-500 outline-none transition focus:border-indigo-400/60 focus:bg-white/[0.09] focus:ring-2 focus:ring-indigo-500/20"
+                className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-200"
                 placeholder="ログインID"
               />
             </div>
 
             <div>
-              <label htmlFor="login-pw" className="block text-[11px] font-bold text-slate-300 mb-1.5 tracking-wide">
+              <label htmlFor="login-pw" className="block text-[11px] md:text-xs font-bold text-slate-600 mb-1.5 tracking-wide">
                 Password
               </label>
               <input
@@ -98,13 +93,13 @@ function LoginPageInner() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
-                className="w-full px-3.5 py-3 rounded-xl bg-white/[0.06] border border-white/10 text-sm text-white placeholder-slate-500 outline-none transition focus:border-indigo-400/60 focus:bg-white/[0.09] focus:ring-2 focus:ring-indigo-500/20"
+                className="w-full px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-200"
                 placeholder="パスワード"
               />
             </div>
 
             {error && (
-              <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                 {error}
               </p>
             )}
@@ -112,14 +107,14 @@ function LoginPageInner() {
             <button
               type="submit"
               disabled={isLoading || !id || !password}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 text-white text-sm font-bold tracking-wide shadow-lg shadow-purple-500/25 transition hover:opacity-90 hover:shadow-purple-500/40 active:scale-[0.99] disabled:opacity-40 disabled:shadow-none"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 text-white text-sm font-bold tracking-wide shadow-lg shadow-purple-300/40 transition hover:opacity-90 hover:shadow-purple-300/60 active:scale-[0.99] disabled:opacity-40 disabled:shadow-none"
             >
               {isLoading ? 'ログイン中...' : 'ログイン'}
             </button>
           </form>
         </div>
 
-        <p className="mt-6 text-center text-[10px] text-slate-500">
+        <p className="mt-6 text-center text-[10px] md:text-xs text-slate-400">
           アカウント種別は自動判定されます（お客様 / 代理店 / 管理者）
         </p>
       </div>
@@ -129,7 +124,7 @@ function LoginPageInner() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<main className="min-h-screen bg-slate-950" />}>
+    <Suspense fallback={<main className="min-h-screen bg-slate-50" />}>
       <LoginPageInner />
     </Suspense>
   );

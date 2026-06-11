@@ -1,0 +1,14 @@
+/* /login 用：globals.css の body 中央 flex / 100vh 固定を解除
+   (body { display:flex } のままだと main が内容幅に縮んで
+    PC でもスマホ幅に見えてしまう) */
+html, body {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 100vh !important;
+  overflow: auto !important;
+  overflow-x: hidden !important;
+  display: block !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  background-color: #f8fafc !important;
+}
