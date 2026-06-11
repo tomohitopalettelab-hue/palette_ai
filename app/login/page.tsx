@@ -114,9 +114,6 @@ function LoginPageInner() {
           </form>
         </div>
 
-        <p className="mt-6 text-center text-[10px] md:text-xs text-slate-400">
-          アカウント種別は自動判定されます（お客様 / 代理店 / 管理者）
-        </p>
       </div>
     </main>
   );
