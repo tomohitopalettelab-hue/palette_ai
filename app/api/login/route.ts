@@ -45,7 +45,8 @@ export async function POST(req: Request) {
     const adminPass = process.env.ADMIN_PASSWORD?.trim();
     if (adminUser && adminPass && id === adminUser && password === adminPass) {
       session = { role: 'admin', exp };
-      redirectTo = resolveNextPath(body.next, '/admin/bot-settings', '/');
+      // admin の next は /admin 配下のみ尊重 (customer 用 next が残っているとループするため)
+      redirectTo = resolveNextPath(body.next, '/admin/bot-settings', '/admin');
     }
 
     // 2. 代理店
