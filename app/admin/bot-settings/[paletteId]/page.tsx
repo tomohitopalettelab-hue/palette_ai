@@ -135,6 +135,23 @@ export function BotSettingsEditor({
     await fetch(`/api/admin/bot-settings/${paletteId}/services/${id}`, { method: 'DELETE' });
     setServices((prev) => prev.filter((s) => s.id !== id));
   };
+  const deleteAllServices = async () => {
+    if (services.length === 0) return;
+    if (!confirm(`サービスを${services.length}件すべて削除しますか？この操作は取り消せません。`)) return;
+    const targets = [...services];
+    setServices([]); // 楽観的に即時クリア
+    const results = await Promise.allSettled(
+      targets.map((s) =>
+        fetch(`/api/admin/bot-settings/${paletteId}/services/${s.id}`, { method: 'DELETE' }),
+      ),
+    );
+    // 失敗したものは戻す
+    const failed = targets.filter((_, i) => results[i].status === 'rejected');
+    if (failed.length > 0) {
+      setServices(failed);
+      setError(`${failed.length}件の削除に失敗しました。再度お試しください。`);
+    }
+  };
 
   // FAQ CRUD
   const addFaq = async () => {
@@ -376,6 +393,7 @@ export function BotSettingsEditor({
             onChange={updateService}
             onSave={saveService}
             onDelete={deleteServ}
+            onDeleteAll={deleteAllServices}
           />
         )}
         {tab === 'faqs' && (
@@ -787,14 +805,21 @@ function BasicTab({ config, update }: any) {
 
 // ─── Services Tab ────────────────────────────────────
 
-function ServicesTab({ services, onAdd, onChange, onSave, onDelete }: any) {
+function ServicesTab({ services, onAdd, onChange, onSave, onDelete, onDeleteAll }: any) {
   return (
     <>
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-4 gap-2">
         <p className="text-sm text-slate-600">botが訪問者に提案するサービス・商品を登録してください。</p>
-        <button onClick={onAdd} className="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 hover:bg-indigo-600">
-          <Plus className="w-3.5 h-3.5" />サービス追加
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {services.length > 0 && (
+            <button onClick={onDeleteAll} className="px-3 py-1.5 rounded-lg border border-red-200 text-red-500 text-xs font-bold flex items-center gap-1.5 hover:bg-red-50">
+              <Trash2 className="w-3.5 h-3.5" />一括削除（{services.length}件）
+            </button>
+          )}
+          <button onClick={onAdd} className="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 hover:bg-indigo-600">
+            <Plus className="w-3.5 h-3.5" />サービス追加
+          </button>
+        </div>
       </div>
       {services.length === 0 && <div className="text-center py-10 text-sm text-slate-400">サービスがまだありません</div>}
       {services.map((s: Service) => (
