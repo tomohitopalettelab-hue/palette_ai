@@ -39,11 +39,16 @@ export async function generateMetadata({
  */
 export default async function PublicDemoPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ paletteId: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { paletteId: raw } = await params;
   const paletteId = String(raw || '').toUpperCase();
+  const sp = await searchParams;
+  // デモモード: ?demo=1 で契約・停止状態に関わらず Bot を体験できる（会話ログは保存されない）
+  const isDemo = sp?.demo === '1';
 
   if (!/^[A-Z][0-9]{4}$/.test(paletteId)) notFound();
 
@@ -51,6 +56,8 @@ export default async function PublicDemoPage({
   if (!config) notFound();
 
   const hasPlan = await hasPaletteAixPlan(paletteId);
+  // デモモードでは契約がなくても Bot を起動する
+  const widgetEnabled = hasPlan || isDemo;
 
   const b = config.basic || {};
   const a = config.appearance || {};
@@ -109,6 +116,23 @@ export default async function PublicDemoPage({
         >
           ✨ AI チャットアシスタント・デモ
         </div>
+        {isDemo && (
+          <div
+            style={{
+              display: 'block',
+              margin: '0 auto 12px',
+              maxWidth: 'fit-content',
+              padding: '4px 12px',
+              borderRadius: 999,
+              background: 'rgba(0,0,0,0.25)',
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: '0.04em',
+            }}
+          >
+            🎬 DEMO MODE（会話ログは保存されません）
+          </div>
+        )}
         <h1 style={{ fontSize: 32, fontWeight: 900, margin: '0 0 8px', letterSpacing: '-0.01em' }}>
           {shopName}
         </h1>
@@ -190,7 +214,7 @@ export default async function PublicDemoPage({
         )}
 
         {/* 契約状況メッセージ */}
-        {!hasPlan && (
+        {!hasPlan && !isDemo && (
           <div
             style={{
               marginTop: 16,
@@ -203,6 +227,23 @@ export default async function PublicDemoPage({
             }}
           >
             ⚠️ このBotは現在公開停止中です。プラン契約をご確認ください。
+          </div>
+        )}
+
+        {/* デモモード注記 */}
+        {isDemo && (
+          <div
+            style={{
+              marginTop: 16,
+              padding: 16,
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: 12,
+              fontSize: 12,
+              color: '#1e40af',
+            }}
+          >
+            🎬 これはデモ（体験）モードです。契約状況に関わらず Bot をお試しいただけます。この会話は保存されず、管理画面のログや通知には反映されません。
           </div>
         )}
       </div>
@@ -232,8 +273,8 @@ export default async function PublicDemoPage({
         </span>
       </div>
 
-      {hasPlan && (
-        <Script src={`/widget.js?id=${paletteId}&t=${Date.now()}`} strategy="afterInteractive" />
+      {widgetEnabled && (
+        <Script src={`/widget.js?id=${paletteId}${isDemo ? '&demo=1' : ''}&t=${Date.now()}`} strategy="afterInteractive" />
       )}
     </div>
   );

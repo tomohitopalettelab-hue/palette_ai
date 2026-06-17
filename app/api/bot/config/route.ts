@@ -17,27 +17,31 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const paletteId = (searchParams.get('paletteId') || searchParams.get('id') || '').trim().toUpperCase();
+    // デモモード: 契約不要の体験URL（/demo/[id]?demo=1）。停止・契約チェックをスキップ。
+    const isDemo = searchParams.get('demo') === '1';
 
     if (!paletteId || !/^[A-Z][0-9]{4}$/.test(paletteId)) {
       return NextResponse.json({ success: false, error: 'invalid paletteId' }, { status: 400, headers: corsHeaders });
     }
 
-    // 管理画面からの停止チェック（URL停止）
-    const suspended = await isAccountSuspended(paletteId);
-    if (suspended) {
-      return NextResponse.json(
-        { success: false, error: 'このBotは停止中です。', reason: 'suspended' },
-        { status: 403, headers: corsHeaders },
-      );
-    }
+    if (!isDemo) {
+      // 管理画面からの停止チェック（URL停止）
+      const suspended = await isAccountSuspended(paletteId);
+      if (suspended) {
+        return NextResponse.json(
+          { success: false, error: 'このBotは停止中です。', reason: 'suspended' },
+          { status: 403, headers: corsHeaders },
+        );
+      }
 
-    // Palette AIX プラン契約チェック
-    const hasPlan = await hasPaletteAixPlan(paletteId);
-    if (!hasPlan) {
-      return NextResponse.json(
-        { success: false, error: 'Palette AIX プランが必要です。ご契約内容をご確認ください。', reason: 'plan_required' },
-        { status: 403, headers: corsHeaders },
-      );
+      // Palette AIX プラン契約チェック
+      const hasPlan = await hasPaletteAixPlan(paletteId);
+      if (!hasPlan) {
+        return NextResponse.json(
+          { success: false, error: 'Palette AIX プランが必要です。ご契約内容をご確認ください。', reason: 'plan_required' },
+          { status: 403, headers: corsHeaders },
+        );
+      }
     }
 
     const [config, services, faqs] = await Promise.all([

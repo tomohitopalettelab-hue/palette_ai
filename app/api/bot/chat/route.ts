@@ -19,6 +19,9 @@ export async function POST(req: Request) {
     const message = String(body.message || '').trim();
     const sessionId = body.sessionId ? String(body.sessionId) : null;
     const visitorId = String(body.visitorId || `vis-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+    // デモモード: 契約不要の体験URL（/demo/[id]?demo=1）からの会話。
+    // 契約チェックをスキップし、会話は is_demo フラグ付きで保存（管理画面・統計・通知から除外）。
+    const isDemo = body.demo === true || body.demo === 1 || body.demo === '1';
 
     if (!paletteId || !/^[A-Z][0-9]{4}$/.test(paletteId)) {
       return NextResponse.json({ success: false, error: 'invalid paletteId' }, { status: 400, headers: corsHeaders });
@@ -27,13 +30,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'message is required' }, { status: 400, headers: corsHeaders });
     }
 
-    // Palette AIX プラン契約チェック
-    const hasPlan = await hasPaletteAixPlan(paletteId);
-    if (!hasPlan) {
-      return NextResponse.json(
-        { success: false, error: 'Palette AIX プランが必要です', reason: 'plan_required' },
-        { status: 403, headers: corsHeaders },
-      );
+    // Palette AIX プラン契約チェック（デモモードはスキップ）
+    if (!isDemo) {
+      const hasPlan = await hasPaletteAixPlan(paletteId);
+      if (!hasPlan) {
+        return NextResponse.json(
+          { success: false, error: 'Palette AIX プランが必要です', reason: 'plan_required' },
+          { status: 403, headers: corsHeaders },
+        );
+      }
     }
 
     const userAgent = req.headers.get('user-agent') || undefined;
@@ -46,6 +51,7 @@ export async function POST(req: Request) {
       visitorId,
       userAgent,
       referrer,
+      isDemo,
     });
 
     return NextResponse.json({ success: true, ...result }, { headers: corsHeaders });

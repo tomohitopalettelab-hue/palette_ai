@@ -61,6 +61,7 @@ export function BotSettingsEditor({
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [demoCopied, setDemoCopied] = useState(false);
+  const [demoModeCopied, setDemoModeCopied] = useState(false);
   const [autoUrl, setAutoUrl] = useState('');
   const [autoRunning, setAutoRunning] = useState(false);
   const [autoResult, setAutoResult] = useState<string>('');
@@ -234,6 +235,15 @@ export function BotSettingsEditor({
     setTimeout(() => setDemoCopied(false), 2000);
   };
 
+  // デモURL（契約不要・会話ログ非保存）。商談で見込み客に Bot を体験してもらう用。
+  const demoModeUrl = typeof window !== 'undefined' ? `${window.location.origin}/demo/${paletteId}?demo=1` : '';
+  const copyDemoModeUrl = () => {
+    if (!demoModeUrl) return;
+    navigator.clipboard.writeText(demoModeUrl);
+    setDemoModeCopied(true);
+    setTimeout(() => setDemoModeCopied(false), 2000);
+  };
+
   const updateConfigField = (path: string[], value: any) => {
     setConfig((prev: any) => {
       const next = { ...prev };
@@ -296,6 +306,14 @@ export function BotSettingsEditor({
             >
               {demoCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               {demoCopied ? 'コピー済み！' : '公開URLをコピー'}
+            </button>
+            <button
+              onClick={copyDemoModeUrl}
+              title={`${demoModeUrl}（契約不要・会話ログは保存されません）`}
+              className="px-3 py-1.5 rounded-lg bg-fuchsia-50 border border-fuchsia-200 text-xs font-bold text-fuchsia-700 hover:bg-fuchsia-100 flex items-center gap-1.5"
+            >
+              {demoModeCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              {demoModeCopied ? 'コピー済み！' : 'デモURLをコピー'}
             </button>
             {reportsHref && (
               <Link

@@ -271,6 +271,8 @@ export type BotSession = {
    * ステップ数を超えたら auto モードにフォールバック。
    */
   hearingStepIndex?: number;
+  /** デモモード（契約不要の体験URL）で発生したセッション。管理画面・統計・CRM/通知から除外。 */
+  isDemo?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -470,6 +472,9 @@ const ensureTablesOnce = async (): Promise<void> => {
   // hearingFlow (manual mode) のステップ進行を保存するカラム（idempotent）
   await tryIgnoreDup(() => sql`ALTER TABLE bot_sessions ADD COLUMN IF NOT EXISTS hearing_step_index INT NOT NULL DEFAULT 0`);
 
+  // デモモード（契約不要の体験URL）で発生したセッション。管理画面・統計・CRM/通知から除外する（idempotent）
+  await tryIgnoreDup(() => sql`ALTER TABLE bot_sessions ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE`);
+
   // 管理画面からの「停止（URL停止）」状態を保持するテーブル
   await tryIgnoreDup(() => sql`
     CREATE TABLE IF NOT EXISTS bot_account_suspensions (
@@ -562,6 +567,7 @@ const rowToSession = (row: any): BotSession => ({
   referrer: row.referrer || null,
   syncedToCrm: Boolean(row.synced_to_crm),
   hearingStepIndex: Number(row.hearing_step_index ?? 0),
+  isDemo: Boolean(row.is_demo),
   createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at || ''),
   updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at || ''),
 });
@@ -767,12 +773,13 @@ export const createSession = async (params: {
   visitorId: string;
   userAgent?: string;
   referrer?: string;
+  isDemo?: boolean;
 }): Promise<BotSession> => {
   await ensureTables();
   const id = genId('sess');
   const result = await sql`
-    INSERT INTO bot_sessions (id, palette_id, visitor_id, stage, buy_intent_score, matched_service_ids, messages, user_agent, referrer, created_at, updated_at)
-    VALUES (${id}, ${params.paletteId}, ${params.visitorId}, 'hearing', 1, '[]'::jsonb, '[]'::jsonb, ${params.userAgent || null}, ${params.referrer || null}, NOW(), NOW())
+    INSERT INTO bot_sessions (id, palette_id, visitor_id, stage, buy_intent_score, matched_service_ids, messages, user_agent, referrer, is_demo, created_at, updated_at)
+    VALUES (${id}, ${params.paletteId}, ${params.visitorId}, 'hearing', 1, '[]'::jsonb, '[]'::jsonb, ${params.userAgent || null}, ${params.referrer || null}, ${params.isDemo ?? false}, NOW(), NOW())
     RETURNING *
   `;
   return rowToSession(result.rows[0]);
@@ -848,13 +855,13 @@ export const listSessions = async (
   const result = options.closedOnly
     ? await sql`
         SELECT * FROM bot_sessions
-        WHERE palette_id = ${paletteId} AND closed = true AND buy_intent_score >= ${minScore}
+        WHERE palette_id = ${paletteId} AND closed = true AND buy_intent_score >= ${minScore} AND is_demo = false
         ORDER BY updated_at DESC
         LIMIT ${limit}
       `
     : await sql`
         SELECT * FROM bot_sessions
-        WHERE palette_id = ${paletteId} AND buy_intent_score >= ${minScore}
+        WHERE palette_id = ${paletteId} AND buy_intent_score >= ${minScore} AND is_demo = false
         ORDER BY updated_at DESC
         LIMIT ${limit}
       `;
@@ -870,13 +877,13 @@ export const getSessionStats = async (paletteId: string): Promise<{
 }> => {
   await ensureTables();
 
-  const totalRes = await sql`SELECT COUNT(*)::int AS n FROM bot_sessions WHERE palette_id = ${paletteId}`;
-  const todayRes = await sql`SELECT COUNT(*)::int AS n FROM bot_sessions WHERE palette_id = ${paletteId} AND created_at >= NOW() - INTERVAL '1 day'`;
-  const weekRes = await sql`SELECT COUNT(*)::int AS n FROM bot_sessions WHERE palette_id = ${paletteId} AND created_at >= NOW() - INTERVAL '7 days'`;
-  const closedRes = await sql`SELECT COUNT(*)::int AS n FROM bot_sessions WHERE palette_id = ${paletteId} AND closed = true`;
+  const totalRes = await sql`SELECT COUNT(*)::int AS n FROM bot_sessions WHERE palette_id = ${paletteId} AND is_demo = false`;
+  const todayRes = await sql`SELECT COUNT(*)::int AS n FROM bot_sessions WHERE palette_id = ${paletteId} AND is_demo = false AND created_at >= NOW() - INTERVAL '1 day'`;
+  const weekRes = await sql`SELECT COUNT(*)::int AS n FROM bot_sessions WHERE palette_id = ${paletteId} AND is_demo = false AND created_at >= NOW() - INTERVAL '7 days'`;
+  const closedRes = await sql`SELECT COUNT(*)::int AS n FROM bot_sessions WHERE palette_id = ${paletteId} AND is_demo = false AND closed = true`;
   const distRes = await sql`
     SELECT buy_intent_score::text AS score, COUNT(*)::int AS n
-    FROM bot_sessions WHERE palette_id = ${paletteId}
+    FROM bot_sessions WHERE palette_id = ${paletteId} AND is_demo = false
     GROUP BY buy_intent_score
   `;
 

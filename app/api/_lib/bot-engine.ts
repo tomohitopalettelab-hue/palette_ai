@@ -902,6 +902,7 @@ export const processBotTurn = async (params: {
   visitorId: string;
   userAgent?: string;
   referrer?: string;
+  isDemo?: boolean;
 }): Promise<BotTurnResult> => {
   const paletteId = params.paletteId.toUpperCase();
 
@@ -922,6 +923,7 @@ export const processBotTurn = async (params: {
       visitorId: params.visitorId,
       userAgent: params.userAgent,
       referrer: params.referrer,
+      isDemo: params.isDemo,
     });
   }
 

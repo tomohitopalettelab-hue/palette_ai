@@ -22,9 +22,12 @@
 
   // paletteId: ?id=A0005 or data-palette-id
   var paletteId = '';
+  // デモモード: ?demo=1 が付いていれば契約チェックをスキップし、会話を is_demo として扱う
+  var isDemo = false;
   try {
     var url = new URL(scriptSrc);
     paletteId = (url.searchParams.get('id') || '').toUpperCase();
+    isDemo = url.searchParams.get('demo') === '1';
   } catch (e) { /* noop */ }
   if (!paletteId && currentScript) {
     paletteId = (currentScript.getAttribute('data-palette-id') || '').toUpperCase();
@@ -821,6 +824,7 @@
       sessionId: state.sessionId,
       message: text,
       visitorId: visitorId,
+      demo: isDemo ? 1 : 0,
     }).then(function (res) {
       if (res && res.success) {
         state.sessionId = res.sessionId;
@@ -848,7 +852,7 @@
   // ────────────────────────────────────────────────
   // Init
   // ────────────────────────────────────────────────
-  apiGet('/api/bot/config?id=' + paletteId).then(function (res) {
+  apiGet('/api/bot/config?id=' + paletteId + (isDemo ? '&demo=1' : '')).then(function (res) {
     if (!res || !res.success) {
       if (res && res.reason === 'plan_required') {
         console.info('[palette-bot] Palette AIX plan required for paletteId=' + paletteId);

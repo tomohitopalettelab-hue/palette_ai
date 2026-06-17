@@ -102,7 +102,8 @@ export async function POST(req: Request) {
     // - または closedAction がある (meeting/inquiry/reservation等 CTA クリック) -> 通知
     let notifyResult: Record<string, { ok: boolean; error?: string }> | null = null;
     try {
-      const shouldNotify = hasMeaningfulLead || Boolean(closedAction);
+      // デモセッションは通知しない（体験用のため運用者に届けない）
+      const shouldNotify = !session.isDemo && (hasMeaningfulLead || Boolean(closedAction));
       if (updatedSession && shouldNotify) {
         const config = await getBotConfigOrDefault(session.paletteId);
         if (config.goals?.notify?.enabled) {
