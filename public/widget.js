@@ -64,7 +64,7 @@
 
     /* Floating bubble */
     .bubble {
-      position: fixed; bottom: 24px;
+      position: fixed; bottom: var(--bubble-offset-y, 24px);
       width: var(--bubble-size, 60px); height: var(--bubble-size, 60px);
       border-radius: var(--bubble-radius, 50%);
       background: var(--bubble-bg, var(--color, #6366f1));
@@ -82,8 +82,8 @@
         box-shadow 0.25s,
         visibility 0s linear 0.35s;
     }
-    .bubble.right { right: 24px; }
-    .bubble.left { left: 24px; }
+    .bubble.right { right: var(--bubble-offset-x, 24px); }
+    .bubble.left { left: var(--bubble-offset-x, 24px); }
     .bubble.ready {
       opacity: 1;
       visibility: visible;
@@ -203,7 +203,7 @@
 
     /* Main panel */
     .panel {
-      position: fixed; bottom: 100px; width: 400px; max-width: calc(100vw - 32px);
+      position: fixed; bottom: calc(var(--bubble-offset-y, 24px) + 76px); width: 400px; max-width: calc(100vw - 32px);
       height: 620px; max-height: calc(100vh - 140px);
       background: rgba(255,255,255,0.65);
       backdrop-filter: blur(20px) saturate(180%);
@@ -235,8 +235,8 @@
         transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1),
         visibility 0s linear 0s;
     }
-    .panel.right { right: 24px; transform-origin: bottom right; }
-    .panel.left { left: 24px; transform-origin: bottom left; }
+    .panel.right { right: var(--bubble-offset-x, 24px); transform-origin: bottom right; }
+    .panel.left { left: var(--bubble-offset-x, 24px); transform-origin: bottom left; }
 
     /* 新規メッセージの軽いフェードイン */
     .msg {
@@ -524,6 +524,14 @@
     var position = appearance.bubblePosition === 'left' ? 'left' : 'right';
     var bubbleSize = appearance.bubbleSize === 'small' ? '48px'
       : appearance.bubbleSize === 'large' ? '72px' : '60px';
+    // 位置オフセット (px)。未指定/不正値は既定 24px。0〜400 にクランプ
+    var clampPx = function (v, def) {
+      var n = Number(v);
+      if (!isFinite(n)) return def;
+      return Math.max(0, Math.min(400, n));
+    };
+    var offsetX = clampPx(appearance.bubbleOffsetX, 24);
+    var offsetY = clampPx(appearance.bubbleOffsetY, 24);
     var animation = appearance.bubbleAnimation || 'none';
     var tooltipText = typeof appearance.bubbleTooltipText === 'string' ? appearance.bubbleTooltipText : 'AIに相談する';
     var tooltipStyle = appearance.bubbleTooltipStyle || 'speech';
@@ -534,6 +542,10 @@
     bubble.style.setProperty('--bubble-bg', bubbleBg);
     bubble.style.setProperty('--bubble-radius', bubbleRadius);
     bubble.style.setProperty('--bubble-size', bubbleSize);
+    bubble.style.setProperty('--bubble-offset-x', offsetX + 'px');
+    bubble.style.setProperty('--bubble-offset-y', offsetY + 'px');
+    panel.style.setProperty('--bubble-offset-x', offsetX + 'px');
+    panel.style.setProperty('--bubble-offset-y', offsetY + 'px');
     tooltip.style.setProperty('--color', color);
     tooltip.style.setProperty('--bubble-size', bubbleSize);
     // position (left/right) のみ更新。ready / hidden / open クラスは init と togglePanel が管理
@@ -595,9 +607,10 @@
     input.type = 'text';
     input.placeholder = 'メッセージを入力...';
     input.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !(e.nativeEvent && e.nativeEvent.isComposing) && input.value.trim()) {
-        sendMessage(input.value.trim());
-      }
+      // IME変換中のEnterは送信しない (バニラJSなので e.isComposing / keyCode 229 を直接見る)
+      if (e.key !== 'Enter') return;
+      if (e.isComposing || e.keyCode === 229) return;
+      if (input.value.trim()) sendMessage(input.value.trim());
     });
     var sendBtn = document.createElement('button');
     sendBtn.className = 'send-btn';

@@ -172,6 +172,10 @@ export type BotConfig = {
     bubbleShape?: 'circle' | 'rounded' | 'square';
     iconStyle?: 'chat' | 'ai' | 'sparkle' | 'heart' | 'robot';
     bubblePosition?: 'right' | 'left';
+    /** バブルの横方向の余白 (px, 既定24)。0〜400 */
+    bubbleOffsetX?: number;
+    /** バブルの下端からの余白 (px, 既定24)。0〜400 */
+    bubbleOffsetY?: number;
     gradient?: boolean;
     bubbleSize?: 'small' | 'medium' | 'large';
     bubbleAnimation?: 'none' | 'pulse' | 'wobble' | 'bounce' | 'shimmer';

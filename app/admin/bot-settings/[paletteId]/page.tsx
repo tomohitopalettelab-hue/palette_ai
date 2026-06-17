@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, use as usePromise } from 'reac
 import Link from 'next/link';
 import {
   ArrowLeft, Save, Copy, Check, Plus, Trash2, MessageSquare, Code,
-  Sparkles, Settings2, HelpCircle, Palette, Heart, Package, PlayCircle, X, AlertTriangle,
+  Sparkles, Settings2, HelpCircle, Palette, Package, PlayCircle, X, AlertTriangle,
   Workflow, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
@@ -38,7 +38,7 @@ type Faq = {
   priority: number;
 };
 
-type TabKey = 'basic' | 'services' | 'faqs' | 'conversation' | 'flow' | 'nurture' | 'rules' | 'appearance';
+type TabKey = 'basic' | 'services' | 'faqs' | 'conversation' | 'flow' | 'rules' | 'appearance';
 
 export function BotSettingsEditor({
   paletteId,
@@ -240,7 +240,6 @@ export function BotSettingsEditor({
     { key: 'faqs', label: 'Q&A', icon: HelpCircle },
     { key: 'conversation', label: '会話設計', icon: MessageSquare },
     { key: 'flow', label: 'ヒアリングフロー', icon: Workflow },
-    { key: 'nurture', label: '追客', icon: Heart },
     { key: 'rules', label: 'NG・ルール', icon: AlertTriangle },
     { key: 'appearance', label: '見た目・埋込', icon: Palette },
   ];
@@ -391,7 +390,6 @@ export function BotSettingsEditor({
         )}
         {tab === 'conversation' && <ConversationTab config={config} update={updateConfigField} paletteId={paletteId} />}
         {tab === 'flow' && <FlowTab config={config} update={updateConfigField} paletteId={paletteId} />}
-        {tab === 'nurture' && <NurtureTab config={config} update={updateConfigField} />}
         {tab === 'rules' && <RulesTab config={config} update={updateConfigField} />}
         {tab === 'appearance' && (
           <AppearanceTab
@@ -1267,10 +1265,9 @@ function ConversationTab({ config, update, paletteId }: any) {
               <div>
                 <Label>「もう少し考える」を押された時の分岐</Label>
                 <Select
-                  value={g.meeting?.declineFallback || 'nurture'}
+                  value={(g.meeting?.declineFallback === 'nurture' ? 'document' : g.meeting?.declineFallback) || 'document'}
                   onChange={(v: string) => update(['goals', 'meeting', 'declineFallback'], v)}
                   options={[
-                    { value: 'nurture', label: '追客オプションを提示' },
                     { value: 'document', label: '資料請求に切り替え' },
                     { value: 'line', label: 'LINE登録に切り替え' },
                   ]}
@@ -1573,95 +1570,6 @@ function ConversationTab({ config, update, paletteId }: any) {
 }
 
 // ─── Nurture Tab ────────────────────────────────────
-
-function NurtureTab({ config, update }: any) {
-  const n = config.nurture || {};
-  const options = n.options || [];
-  return (
-    <>
-      <Card title="追客モード（検討します系の対応）">
-        <div className="space-y-4">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={Boolean(n.enabled)}
-              onChange={(e) => update(['nurture', 'enabled'], e.target.checked)}
-            />
-            <span className="text-sm font-bold">追客モードを有効にする</span>
-          </label>
-          <div>
-            <Label>モード</Label>
-            <Select value={n.mode} onChange={(v: string) => update(['nurture', 'mode'], v)} options={[
-              { value: 'soft', label: 'ソフト（1つ提案）' },
-              { value: 'hard', label: 'ハード（断られたら次を提案）' },
-            ]} />
-          </div>
-        </div>
-      </Card>
-
-      <Card title="追客オプション（優先度順）">
-        {options.length === 0 && <p className="text-xs text-slate-400 mb-3">LINE登録・資料請求など追客手段を登録してください</p>}
-        <div className="space-y-3">
-          {options.map((o: any, i: number) => (
-            <div key={i} className="p-3 rounded-lg border border-slate-200 space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <TextInput
-                  value={o.type}
-                  onChange={(v: string) => {
-                    const next = [...options];
-                    next[i] = { ...next[i], type: v };
-                    update(['nurture', 'options'], next);
-                  }}
-                  placeholder="line / document / mail"
-                />
-                <TextInput
-                  value={o.label}
-                  onChange={(v: string) => {
-                    const next = [...options];
-                    next[i] = { ...next[i], label: v };
-                    update(['nurture', 'options'], next);
-                  }}
-                  placeholder="LINE友だち追加"
-                />
-              </div>
-              <TextInput
-                value={o.url}
-                onChange={(v: string) => {
-                  const next = [...options];
-                  next[i] = { ...next[i], url: v };
-                  update(['nurture', 'options'], next);
-                }}
-                placeholder="URL"
-              />
-              <TextArea
-                value={o.message}
-                onChange={(v: string) => {
-                  const next = [...options];
-                  next[i] = { ...next[i], message: v };
-                  update(['nurture', 'options'], next);
-                }}
-                placeholder="提案時のメッセージ"
-                rows={2}
-              />
-              <button
-                onClick={() => {
-                  const next = [...options];
-                  next.splice(i, 1);
-                  update(['nurture', 'options'], next);
-                }}
-                className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1"
-              ><Trash2 className="w-3 h-3" />削除</button>
-            </div>
-          ))}
-          <button
-            onClick={() => update(['nurture', 'options'], [...options, { type: '', label: '', url: '', message: '' }])}
-            className="text-xs text-indigo-500 hover:underline flex items-center gap-1"
-          ><Plus className="w-3 h-3" />オプション追加</button>
-        </div>
-      </Card>
-    </>
-  );
-}
 
 // ─── ゴール別リード項目エディタ（共通） ───────────────────
 
@@ -2030,11 +1938,41 @@ function AppearanceTab({ config, update, embedCode, onCopy, copied, paletteId }:
             ]} />
           </div>
           <div>
-            <Label>表示位置</Label>
+            <Label>表示位置（左右）</Label>
             <Select value={a.bubblePosition} onChange={(v: string) => update(['appearance', 'bubblePosition'], v)} options={[
               { value: 'right', label: '右下' },
               { value: 'left', label: '左下' },
             ]} />
+          </div>
+          <div className="md:col-span-2">
+            <Label>バブルの位置を微調整（px）</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="flex justify-between items-baseline mb-1">
+                  <span className="text-[10px] font-bold text-slate-500">{a.bubblePosition === 'left' ? '左' : '右'}からの距離</span>
+                  <span className="text-sm font-black text-indigo-600">{Number(a.bubbleOffsetX ?? 24)}<span className="text-[10px] text-slate-400 ml-0.5">px</span></span>
+                </div>
+                <input
+                  type="range" min={0} max={120} step={4}
+                  value={Number(a.bubbleOffsetX ?? 24)}
+                  onChange={(e) => update(['appearance', 'bubbleOffsetX'], Number(e.target.value))}
+                  className="w-full accent-indigo-500"
+                />
+              </div>
+              <div>
+                <div className="flex justify-between items-baseline mb-1">
+                  <span className="text-[10px] font-bold text-slate-500">下からの距離</span>
+                  <span className="text-sm font-black text-indigo-600">{Number(a.bubbleOffsetY ?? 24)}<span className="text-[10px] text-slate-400 ml-0.5">px</span></span>
+                </div>
+                <input
+                  type="range" min={0} max={240} step={4}
+                  value={Number(a.bubbleOffsetY ?? 24)}
+                  onChange={(e) => update(['appearance', 'bubbleOffsetY'], Number(e.target.value))}
+                  className="w-full accent-indigo-500"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">既定は左右・下とも 24px。サイト固有のボタンと重なる場合に調整してください（スマホは全画面表示のため影響しません）。</p>
           </div>
           <div>
             <Label>表示タイミング</Label>
