@@ -25,12 +25,16 @@ export async function middleware(req: NextRequest) {
   const isAgencyAllowedApiAdmin =
     path === '/api/admin/bot-settings' ||
     /^\/api\/admin\/bot-settings\/[A-Z][0-9]{4}(\/|$)/i.test(path);
-  // 代理店に許可しない破壊的操作（admin 専用：account の PATCH/DELETE）
+  // 代理店に許可しない破壊的操作（admin 専用）
+  //  - account の PATCH/DELETE（停止/削除）
+  //  - 会話ログ（sessions）の DELETE（個別/一括）
   // GET（状態参照）は agency でも許可
   const method = (req.method || 'GET').toUpperCase();
-  const isAgencyDestructiveApi =
-    /^\/api\/admin\/bot-settings\/[A-Z][0-9]{4}\/account$/i.test(path) &&
-    method !== 'GET';
+  const isAccountMutation =
+    /^\/api\/admin\/bot-settings\/[A-Z][0-9]{4}\/account$/i.test(path) && method !== 'GET';
+  const isSessionsDelete =
+    /^\/api\/admin\/bot-settings\/[A-Z][0-9]{4}\/sessions(\/[^/]+)?$/i.test(path) && method === 'DELETE';
+  const isAgencyDestructiveApi = isAccountMutation || isSessionsDelete;
 
   // 未認証 or 期限切れ
   if (!session || isExpired(session)) {

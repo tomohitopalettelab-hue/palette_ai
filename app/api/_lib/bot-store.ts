@@ -823,6 +823,20 @@ export const updateSession = async (id: string, patch: Partial<BotSession>): Pro
   return result.rows.length ? rowToSession(result.rows[0]) : null;
 };
 
+export const deleteSession = async (id: string, paletteId: string): Promise<boolean> => {
+  await ensureTables();
+  const pid = String(paletteId || '').toUpperCase();
+  const result = await sql`DELETE FROM bot_sessions WHERE id = ${id} AND palette_id = ${pid}`;
+  return (result.rowCount ?? 0) > 0;
+};
+
+export const deleteAllSessions = async (paletteId: string): Promise<number> => {
+  await ensureTables();
+  const pid = String(paletteId || '').toUpperCase();
+  const result = await sql`DELETE FROM bot_sessions WHERE palette_id = ${pid}`;
+  return result.rowCount ?? 0;
+};
+
 export const listSessions = async (
   paletteId: string,
   options: { limit?: number; minScore?: number; closedOnly?: boolean } = {},

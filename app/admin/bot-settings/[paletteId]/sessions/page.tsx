@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use as usePromise } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, MessageSquare, Flame, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Flame, CheckCircle2, Trash2 } from 'lucide-react';
 
 type Summary = {
   id: string;
@@ -31,6 +31,9 @@ export default function SessionsListPage({ params }: { params: Promise<{ palette
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [minScore, setMinScore] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingAll, setDeletingAll] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -49,6 +52,48 @@ export default function SessionsListPage({ params }: { params: Promise<{ palette
     void load();
   }, [paletteId, minScore]);
 
+  const deleteOne = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (deletingId || deletingAll) return;
+    if (!confirm('この会話ログを削除しますか？この操作は取り消せません。')) return;
+    setError(null);
+    setDeletingId(id);
+    const prev = sessions;
+    setSessions((cur) => cur.filter((s) => s.id !== id)); // 楽観更新
+    try {
+      const res = await fetch(`/api/admin/bot-settings/${paletteId}/sessions/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok || !data?.success) throw new Error(data?.error || '削除に失敗しました');
+      setStats((st) => (st ? { ...st, total: Math.max(0, st.total - 1) } : st));
+    } catch (err: any) {
+      setSessions(prev); // 失敗時は戻す
+      setError(err?.message || '削除に失敗しました');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const deleteAll = async () => {
+    if (deletingId || deletingAll || sessions.length === 0) return;
+    if (!confirm(`表示中の${sessions.length}件を含む、この顧客の会話ログをすべて削除しますか？この操作は取り消せません。`)) return;
+    setError(null);
+    setDeletingAll(true);
+    const prev = sessions;
+    setSessions([]); // 楽観更新
+    try {
+      const res = await fetch(`/api/admin/bot-settings/${paletteId}/sessions`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok || !data?.success) throw new Error(data?.error || '一括削除に失敗しました');
+      setStats((st) => (st ? { ...st, total: 0, todayCount: 0, weekCount: 0, closed: 0 } : st));
+    } catch (err: any) {
+      setSessions(prev); // 失敗時は戻す
+      setError(err?.message || '一括削除に失敗しました');
+    } finally {
+      setDeletingAll(false);
+    }
+  };
+
   const scoreColor = (s: number) =>
     s >= 4 ? 'bg-red-50 text-red-600'
     : s === 3 ? 'bg-amber-50 text-amber-600'
@@ -63,7 +108,21 @@ export default function SessionsListPage({ params }: { params: Promise<{ palette
           </Link>
           <MessageSquare className="w-5 h-5 text-indigo-500" />
           <h1 className="text-2xl font-black text-slate-800">{paletteId} 会話ログ</h1>
+          {sessions.length > 0 && (
+            <button
+              onClick={deleteAll}
+              disabled={deletingAll || !!deletingId}
+              className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-red-600 border border-red-200 bg-white hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {deletingAll ? '削除中...' : `すべて削除（${sessions.length}件）`}
+            </button>
+          )}
         </div>
+
+        {error && (
+          <div className="mb-4 px-4 py-2 rounded-lg bg-red-50 border border-red-200 text-xs font-bold text-red-600">{error}</div>
+        )}
 
         {/* Stats */}
         {stats && (
@@ -117,6 +176,14 @@ export default function SessionsListPage({ params }: { params: Promise<{ palette
                 <div className="text-[10px] text-slate-400">{new Date(s.updatedAt).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
                 <div className="text-[9px] text-slate-400">{s.messageCount}件</div>
               </div>
+              <button
+                onClick={(e) => deleteOne(e, s.id)}
+                disabled={deletingId === s.id || deletingAll}
+                title="この会話ログを削除"
+                className="shrink-0 p-2 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </Link>
           ))}
         </div>
