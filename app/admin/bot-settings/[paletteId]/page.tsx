@@ -161,6 +161,23 @@ export function BotSettingsEditor({
     await fetch(`/api/admin/bot-settings/${paletteId}/faqs/${id}`, { method: 'DELETE' });
     setFaqs((prev) => prev.filter((f) => f.id !== id));
   };
+  const deleteAllFaqs = async () => {
+    if (faqs.length === 0) return;
+    if (!confirm(`Q&Aを${faqs.length}件すべて削除しますか？この操作は取り消せません。`)) return;
+    const targets = [...faqs];
+    setFaqs([]); // 楽観的に即時クリア
+    const results = await Promise.allSettled(
+      targets.map((f) =>
+        fetch(`/api/admin/bot-settings/${paletteId}/faqs/${f.id}`, { method: 'DELETE' }),
+      ),
+    );
+    // 失敗したものは戻す
+    const failed = targets.filter((_, i) => results[i].status === 'rejected');
+    if (failed.length > 0) {
+      setFaqs(failed);
+      setError(`${failed.length}件の削除に失敗しました。再度お試しください。`);
+    }
+  };
 
   const runAutoSetup = async () => {
     if (!autoUrl.trim() || autoRunning) return;
@@ -369,6 +386,7 @@ export function BotSettingsEditor({
             onChange={updateFaq}
             onSave={saveFaq}
             onDelete={deleteFaq}
+            onDeleteAll={deleteAllFaqs}
           />
         )}
         {tab === 'conversation' && <ConversationTab config={config} update={updateConfigField} paletteId={paletteId} />}
@@ -822,14 +840,21 @@ function ServicesTab({ services, onAdd, onChange, onSave, onDelete }: any) {
 
 // ─── FAQs Tab ────────────────────────────────────
 
-function FaqsTab({ faqs, onAdd, onChange, onSave, onDelete }: any) {
+function FaqsTab({ faqs, onAdd, onChange, onSave, onDelete, onDeleteAll }: any) {
   return (
     <>
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-4 gap-2">
         <p className="text-sm text-slate-600">よくある質問と回答を登録してください。botが会話中に参照します。</p>
-        <button onClick={onAdd} className="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 hover:bg-indigo-600">
-          <Plus className="w-3.5 h-3.5" />Q&A追加
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {faqs.length > 0 && (
+            <button onClick={onDeleteAll} className="px-3 py-1.5 rounded-lg border border-red-200 text-red-500 text-xs font-bold flex items-center gap-1.5 hover:bg-red-50">
+              <Trash2 className="w-3.5 h-3.5" />一括削除（{faqs.length}件）
+            </button>
+          )}
+          <button onClick={onAdd} className="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 hover:bg-indigo-600">
+            <Plus className="w-3.5 h-3.5" />Q&A追加
+          </button>
+        </div>
       </div>
       {faqs.length === 0 && <div className="text-center py-10 text-sm text-slate-400">Q&Aがまだありません</div>}
       {faqs.map((f: Faq) => (
