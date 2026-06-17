@@ -830,7 +830,9 @@
         state.sessionId = res.sessionId;
         state.messages.push({ role: 'bot', content: res.reply, ui: res.ui });
       } else {
-        state.messages.push({ role: 'bot', content: 'すみません、エラーが発生しました。' });
+        // サーバーがユーザー向け文言（レート制限等）を返した場合はそれを表示
+        var msg = (res && res.error) ? res.error : 'すみません、エラーが発生しました。';
+        state.messages.push({ role: 'bot', content: msg });
       }
     }).catch(function () {
       state.messages.push({ role: 'bot', content: '接続エラーです。' });

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { processBotTurn } from '../../_lib/bot-engine';
 import { hasPaletteAixPlan } from '../../_lib/palette-aix-access';
+import { checkDemoRateLimit, getClientIp } from '../../_lib/rate-limit';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,6 +38,21 @@ export async function POST(req: Request) {
         return NextResponse.json(
           { success: false, error: 'Palette AIX プランが必要です', reason: 'plan_required' },
           { status: 403, headers: corsHeaders },
+        );
+      }
+    } else {
+      // デモモードは契約チェックを回避できるため、IP 単位で1時間あたりの通数を制限し
+      // OpenAI の無制限消費（不正利用）を防ぐ。
+      const ip = getClientIp(req);
+      const rl = await checkDemoRateLimit('bot-chat', ip);
+      if (!rl.allowed) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'デモのご利用が混み合っています。しばらく時間をおいてからお試しください。',
+            reason: 'rate_limited',
+          },
+          { status: 429, headers: { ...corsHeaders, 'Retry-After': String(rl.retryAfterSec) } },
         );
       }
     }
