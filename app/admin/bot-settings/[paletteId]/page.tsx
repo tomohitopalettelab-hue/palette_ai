@@ -132,14 +132,17 @@ export function BotSettingsEditor({
 
   // Service CRUD
   const addService = async () => {
+    // 新規は一覧の一番上に出す: 既存の最小 sortOrder より小さい値を割り当てる
+    // （一覧は sort_order ASC なので最小値が先頭になる）
+    const minSort = services.reduce((m, s) => Math.min(m, s.sortOrder ?? 0), 0);
     const res = await fetch(`/api/admin/bot-settings/${paletteId}/services`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: '新しいサービス', sortOrder: services.length }),
+      body: JSON.stringify({ name: '新しいサービス', sortOrder: minSort - 1 }),
     });
     if (!isAuthed(res)) return; // セッション切れ → ログインへ
     const data = await res.json();
-    if (data?.success && data.service) setServices((prev) => [...prev, data.service]);
+    if (data?.success && data.service) setServices((prev) => [data.service, ...prev]);
   };
   const updateService = async (id: string, patch: Partial<Service>) => {
     setServices((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -185,7 +188,7 @@ export function BotSettingsEditor({
     });
     if (!isAuthed(res)) return; // セッション切れ → ログインへ
     const data = await res.json();
-    if (data?.success && data.faq) setFaqs((prev) => [...prev, data.faq]);
+    if (data?.success && data.faq) setFaqs((prev) => [data.faq, ...prev]);
   };
   const updateFaq = (id: string, patch: Partial<Faq>) => {
     setFaqs((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));

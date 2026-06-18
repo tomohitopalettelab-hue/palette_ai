@@ -736,9 +736,16 @@ export const deleteService = async (id: string): Promise<void> => {
 // bot_faqs CRUD
 // ============================================================
 
-export const listFaqs = async (paletteId: string): Promise<BotFaq[]> => {
+export const listFaqs = async (
+  paletteId: string,
+  opts: { newestFirst?: boolean } = {},
+): Promise<BotFaq[]> => {
   await ensureTables();
-  const result = await sql`SELECT * FROM bot_faqs WHERE palette_id = ${paletteId} ORDER BY priority ASC, created_at ASC`;
+  // newestFirst: 管理画面の編集一覧用（新規追加が一番上に来る）。
+  // 既定は Bot プロンプト用の priority 昇順。
+  const result = opts.newestFirst
+    ? await sql`SELECT * FROM bot_faqs WHERE palette_id = ${paletteId} ORDER BY created_at DESC`
+    : await sql`SELECT * FROM bot_faqs WHERE palette_id = ${paletteId} ORDER BY priority ASC, created_at ASC`;
   return result.rows.map(rowToFaq);
 };
 

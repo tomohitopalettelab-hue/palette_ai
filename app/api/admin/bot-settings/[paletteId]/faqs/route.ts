@@ -11,7 +11,8 @@ export async function GET(
     const paletteId = String(raw || '').trim().toUpperCase();
     const access = await assertAccessAllowed(paletteId);
     if (!access.allowed) return NextResponse.json({ success: false, error: access.error }, { status: access.status });
-    const faqs = await listFaqs(paletteId);
+    // 管理画面の編集一覧は新しい順（新規追加が一番上）
+    const faqs = await listFaqs(paletteId, { newestFirst: true });
     return NextResponse.json({ success: true, faqs });
   } catch (error: any) {
     console.error('list faqs error:', error);
