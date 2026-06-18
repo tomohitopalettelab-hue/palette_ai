@@ -40,6 +40,23 @@ type Faq = {
 
 type TabKey = 'basic' | 'services' | 'faqs' | 'conversation' | 'flow' | 'rules' | 'appearance';
 
+/**
+ * セッション切れ(401)を検知したらログイン画面へ誘導する。
+ * 編集画面を開いたまま 12h セッションが期限切れになると、保存や追加が
+ * 「unauthorized」表示や無反応になるため、再ログインへ自然に流す。
+ * 戻り値: true=認証OK(処理続行) / false=401でリダイレクト中(呼び出し側は return)
+ */
+const isAuthed = (res: Response): boolean => {
+  if (res.status === 401) {
+    if (typeof window !== 'undefined') {
+      const next = encodeURIComponent(window.location.pathname + window.location.search);
+      window.location.href = `/login?next=${next}`;
+    }
+    return false;
+  }
+  return true;
+};
+
 export function BotSettingsEditor({
   paletteId,
   backHref,
@@ -77,6 +94,7 @@ export function BotSettingsEditor({
         fetch(`/api/admin/bot-settings/${paletteId}/services`, { cache: 'no-store' }),
         fetch(`/api/admin/bot-settings/${paletteId}/faqs`, { cache: 'no-store' }),
       ]);
+      if (!isAuthed(cRes)) return; // セッション切れ → ログインへ
       const cData = await cRes.json();
       const sData = await sRes.json();
       const fData = await fRes.json();
@@ -101,6 +119,7 @@ export function BotSettingsEditor({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
       });
+      if (!isAuthed(res)) return; // セッション切れ → ログインへ
       const data = await res.json();
       if (!res.ok || !data?.success) throw new Error(data?.error || 'save failed');
       setSavedAt(new Date().toLocaleTimeString('ja-JP'));
@@ -118,6 +137,7 @@ export function BotSettingsEditor({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: '新しいサービス', sortOrder: services.length }),
     });
+    if (!isAuthed(res)) return; // セッション切れ → ログインへ
     const data = await res.json();
     if (data?.success && data.service) setServices((prev) => [...prev, data.service]);
   };
@@ -125,15 +145,17 @@ export function BotSettingsEditor({
     setServices((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   };
   const saveService = async (s: Service) => {
-    await fetch(`/api/admin/bot-settings/${paletteId}/services/${s.id}`, {
+    const res = await fetch(`/api/admin/bot-settings/${paletteId}/services/${s.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(s),
     });
+    if (!isAuthed(res)) return; // セッション切れ → ログインへ
   };
   const deleteServ = async (id: string) => {
     if (!confirm('このサービスを削除しますか？')) return;
-    await fetch(`/api/admin/bot-settings/${paletteId}/services/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/admin/bot-settings/${paletteId}/services/${id}`, { method: 'DELETE' });
+    if (!isAuthed(res)) return; // セッション切れ → ログインへ
     setServices((prev) => prev.filter((s) => s.id !== id));
   };
   const deleteAllServices = async () => {
@@ -161,6 +183,7 @@ export function BotSettingsEditor({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question: '新しい質問', answer: '回答', priority: 3 }),
     });
+    if (!isAuthed(res)) return; // セッション切れ → ログインへ
     const data = await res.json();
     if (data?.success && data.faq) setFaqs((prev) => [...prev, data.faq]);
   };
@@ -168,15 +191,17 @@ export function BotSettingsEditor({
     setFaqs((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
   };
   const saveFaq = async (f: Faq) => {
-    await fetch(`/api/admin/bot-settings/${paletteId}/faqs/${f.id}`, {
+    const res = await fetch(`/api/admin/bot-settings/${paletteId}/faqs/${f.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(f),
     });
+    if (!isAuthed(res)) return; // セッション切れ → ログインへ
   };
   const deleteFaq = async (id: string) => {
     if (!confirm('このFAQを削除しますか？')) return;
-    await fetch(`/api/admin/bot-settings/${paletteId}/faqs/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/admin/bot-settings/${paletteId}/faqs/${id}`, { method: 'DELETE' });
+    if (!isAuthed(res)) return; // セッション切れ → ログインへ
     setFaqs((prev) => prev.filter((f) => f.id !== id));
   };
   const deleteAllFaqs = async () => {
