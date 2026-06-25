@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   ArrowLeft, Save, Copy, Check, Plus, Trash2, MessageSquare, Code,
   Sparkles, Settings2, HelpCircle, Palette, Package, PlayCircle, X, AlertTriangle,
-  Workflow, ArrowUp, ArrowDown,
+  Workflow, ArrowUp, ArrowDown, Phone,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { WIDGET_TEMPLATES, ICON_SVG_PATHS, getBubbleRadius, getBubbleGradient, type WidgetTemplate } from '../_lib/widget-templates';
@@ -38,7 +38,7 @@ type Faq = {
   priority: number;
 };
 
-type TabKey = 'basic' | 'services' | 'faqs' | 'conversation' | 'flow' | 'rules' | 'appearance';
+type TabKey = 'basic' | 'services' | 'faqs' | 'conversation' | 'flow' | 'rules' | 'appearance' | 'reception';
 
 /**
  * セッション切れ(401)を検知したらログイン画面へ誘導する。
@@ -79,6 +79,9 @@ export function BotSettingsEditor({
   const [copied, setCopied] = useState(false);
   const [demoCopied, setDemoCopied] = useState(false);
   const [demoModeCopied, setDemoModeCopied] = useState(false);
+  const [receptionDid, setReceptionDid] = useState('');
+  const [didSaving, setDidSaving] = useState(false);
+  const [didSaved, setDidSaved] = useState(false);
   const [autoUrl, setAutoUrl] = useState('');
   const [autoRunning, setAutoRunning] = useState(false);
   const [autoResult, setAutoResult] = useState<string>('');
@@ -109,6 +112,39 @@ export function BotSettingsEditor({
   }, [paletteId]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // AI電話受付の着信DIDを読み込む
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch(`/api/admin/bot-settings/${paletteId}/reception-number`, { cache: 'no-store' });
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d?.success) setReceptionDid(d.did || '');
+      } catch { /* noop */ }
+    })();
+  }, [paletteId]);
+
+  const saveReceptionDid = async () => {
+    setDidSaving(true);
+    setDidSaved(false);
+    try {
+      const res = await fetch(`/api/admin/bot-settings/${paletteId}/reception-number`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ did: receptionDid.trim() }),
+      });
+      if (!isAuthed(res)) return;
+      const d = await res.json();
+      if (!res.ok || !d?.success) throw new Error(d?.error || '保存に失敗しました');
+      setDidSaved(true);
+      setTimeout(() => setDidSaved(false), 2000);
+    } catch (err: any) {
+      setError(err?.message || 'error');
+    } finally {
+      setDidSaving(false);
+    }
+  };
 
   const saveConfig = async () => {
     if (!config) return;
@@ -297,6 +333,7 @@ export function BotSettingsEditor({
     { key: 'flow', label: 'ヒアリングフロー', icon: Workflow },
     { key: 'rules', label: 'NG・ルール', icon: AlertTriangle },
     { key: 'appearance', label: '見た目・埋込', icon: Palette },
+    { key: 'reception', label: 'AI電話受付', icon: Phone },
   ];
 
   return (
@@ -463,6 +500,17 @@ export function BotSettingsEditor({
             onCopy={copyEmbed}
             copied={copied}
             paletteId={paletteId}
+          />
+        )}
+        {tab === 'reception' && (
+          <ReceptionTab
+            config={config}
+            update={updateConfigField}
+            did={receptionDid}
+            onDidChange={setReceptionDid}
+            onSaveDid={saveReceptionDid}
+            didSaving={didSaving}
+            didSaved={didSaved}
           />
         )}
       </div>
@@ -1711,6 +1759,107 @@ const DEFAULT_MEETING_LEAD_FIELDS: LeadField[] = [
   { key: 'email', label: 'メールアドレス', required: true },
   { key: 'phone', label: '電話番号', required: true },
 ];
+
+// ─── AI電話受付 Tab ────────────────────────────
+
+function ReceptionTab({ config, update, did, onDidChange, onSaveDid, didSaving, didSaved }: any) {
+  const r = config.reception || {};
+  const set = (key: string, value: any) => update(['reception', key], value);
+
+  return (
+    <>
+      <div className="mb-4 px-4 py-3 rounded-xl bg-indigo-50 border border-indigo-100 text-xs text-indigo-800 leading-relaxed">
+        <b>AI電話受付（ベータ）</b><br />
+        電話をAIが受け、よくある質問・営業時間・予約受付・伝言を自動応対します。伝言は下の「通知先」（会話設計の通知設定）に届きます。<br />
+        導入は <b>クライアントの既存電話番号の「着信転送」先に、割り当てた着信番号(DID)を設定</b>する運用です。
+      </div>
+
+      <Card title="基本設定">
+        <div className="mb-4">
+          <ToggleSwitch checked={!!r.enabled} onChange={(v: boolean) => set('enabled', v)} label="AI電話受付を有効にする" />
+        </div>
+        <div className="mb-4">
+          <Label>第一声（受け答えの冒頭）</Label>
+          <TextArea
+            value={r.greeting}
+            onChange={(v: string) => set('greeting', v)}
+            placeholder="お電話ありがとうございます。{shopName}でございます。ご用件をお伺いします。"
+            rows={2}
+          />
+          <p className="text-[11px] text-slate-400 mt-1">{'{shopName}'} は基本情報の店舗名に自動置換されます。</p>
+        </div>
+        <div>
+          <Label>対応範囲・AIへの指示</Label>
+          <TextArea
+            value={r.scope}
+            onChange={(v: string) => set('scope', v)}
+            placeholder="予約の受付、営業時間・場所・サービス内容のご案内、担当者への取り次ぎ、不在時の伝言。"
+            rows={3}
+          />
+          <p className="text-[11px] text-slate-400 mt-1">サービス・Q&A・基本情報の内容も受付AIが参照します。</p>
+        </div>
+      </Card>
+
+      <Card title="取り次ぎ（有人転送）">
+        <div className="mb-4">
+          <ToggleSwitch checked={!!r.transferEnabled} onChange={(v: boolean) => set('transferEnabled', v)} label="必要時にスタッフへ電話を転送する" />
+        </div>
+        <div>
+          <Label>取り次ぎ先の電話番号</Label>
+          <TextInput value={r.transferNumber} onChange={(v: string) => set('transferNumber', v)} placeholder="例: 09012345678" />
+        </div>
+      </Card>
+
+      <Card title="営業時間外の対応">
+        <div className="mb-4">
+          <Label>動作</Label>
+          <Select
+            value={r.afterHoursMode || 'message'}
+            onChange={(v: string) => set('afterHoursMode', v)}
+            options={[
+              { value: 'message', label: '伝言を受ける' },
+              { value: 'transfer', label: '転送先へ回す' },
+              { value: 'announce', label: '案内のみ（伝言なし）' },
+            ]}
+          />
+          <p className="text-[11px] text-slate-400 mt-1">営業時間は「基本情報 / NG・ルール」の設定を参照します。</p>
+        </div>
+        <div>
+          <Label>営業時間外の冒頭メッセージ</Label>
+          <TextArea
+            value={r.afterHoursMessage}
+            onChange={(v: string) => set('afterHoursMessage', v)}
+            placeholder="本日の営業は終了いたしました。ご用件を承りますので、発信音のあとにお話しください。"
+            rows={2}
+          />
+        </div>
+      </Card>
+
+      <Card title="着信番号（DID）の割り当て">
+        <p className="text-xs text-slate-500 mb-3 leading-relaxed">
+          ① Twilio で取得した着信番号（DID）を入力して保存<br />
+          ② クライアントの既存電話番号の「着信転送」先に、この番号を設定してもらう<br />
+          <span className="text-amber-600">※ 転送元→この番号への転送通話料はクライアント側の回線に発生します。</span>
+        </p>
+        <Label>着信番号 / DID（E.164推奨）</Label>
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <TextInput value={did} onChange={onDidChange} placeholder="例: +815012345678" />
+          </div>
+          <button
+            onClick={onSaveDid}
+            disabled={didSaving}
+            className="px-4 py-2 rounded-lg bg-indigo-500 text-white text-xs font-bold hover:bg-indigo-600 disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+          >
+            {didSaved ? <Check className="w-3.5 h-3.5" /> : null}
+            {didSaving ? '保存中...' : didSaved ? '保存済み' : '番号を保存'}
+          </button>
+        </div>
+        <p className="text-[11px] text-slate-400 mt-2">設定変更は上部の「保存」も押してください（DIDの割り当てはこのボタンで即時保存されます）。</p>
+      </Card>
+    </>
+  );
+}
 
 // ─── Rules Tab (NG・運用ルール) ────────────────────────────
 

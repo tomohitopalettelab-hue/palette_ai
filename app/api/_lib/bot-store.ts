@@ -213,6 +213,25 @@ export type BotConfig = {
     /** 困った時のフォールバック先 (既存) */
     fallbackAction?: 'inquiry' | 'phone' | 'email';
   };
+  /** AI電話受付（インバウンド）設定。Pipecat が音声応対に利用する。 */
+  reception?: {
+    /** 受付機能の有効/無効 */
+    enabled?: boolean;
+    /** 第一声（{shopName} は店舗名に置換）。 */
+    greeting?: string;
+    /** 対応範囲・指示（自由記述、AIプロンプトに流す） */
+    scope?: string;
+    /** 有人取り次ぎを許可するか */
+    transferEnabled?: boolean;
+    /** 取り次ぎ先電話番号（スタッフ） */
+    transferNumber?: string;
+    /** 営業時間外の動作: message=伝言/transfer=転送/announce=案内のみ */
+    afterHoursMode?: 'message' | 'transfer' | 'announce';
+    /** 営業時間外の冒頭メッセージ */
+    afterHoursMessage?: string;
+    /** TTSボイス指定（任意・空なら既定） */
+    voice?: string;
+  };
   updatedAt: string;
 };
 
@@ -376,6 +395,16 @@ export const DEFAULT_CONFIG: Omit<BotConfig, 'paletteId' | 'updatedAt'> = {
     customRules: '',
     fallbackAction: 'inquiry',
   },
+  reception: {
+    enabled: false,
+    greeting: 'お電話ありがとうございます。{shopName}でございます。ご用件をお伺いします。',
+    scope: '予約の受付、営業時間・場所・サービス内容のご案内、担当者への取り次ぎ、不在時の伝言。',
+    transferEnabled: false,
+    transferNumber: '',
+    afterHoursMode: 'message',
+    afterHoursMessage: '本日の営業は終了いたしました。ご用件を承りますので、発信音のあとにお話しください。',
+    voice: '',
+  },
 };
 
 // ============================================================
@@ -412,6 +441,19 @@ const ensureTablesOnce = async (): Promise<void> => {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+
+  // AI電話受付の設定（reception）カラム（idempotent）
+  await tryIgnoreDup(() => sql`ALTER TABLE bot_configs ADD COLUMN IF NOT EXISTS reception JSONB NOT NULL DEFAULT '{}'::jsonb`);
+
+  // Twilio 着信DID → paletteId の対応表（受付の着信ルーティング用）
+  await tryIgnoreDup(() => sql`
+    CREATE TABLE IF NOT EXISTS voice_reception_numbers (
+      did TEXT PRIMARY KEY,
+      palette_id TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await tryIgnoreDup(() => sql`CREATE INDEX IF NOT EXISTS voice_reception_numbers_palette_idx ON voice_reception_numbers (palette_id)`);
 
   await tryIgnoreDup(() => sql`
     CREATE TABLE IF NOT EXISTS bot_services (
@@ -521,6 +563,7 @@ const rowToConfig = (row: any): BotConfig => ({
   nurture: asJson(row.nurture, {}),
   appearance: asJson(row.appearance, {}),
   ngRules: asJson(row.ng_rules, {}),
+  reception: { ...DEFAULT_CONFIG.reception, ...asJson(row.reception, {}) },
   updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at || ''),
 });
 
@@ -594,10 +637,11 @@ export const upsertBotConfig = async (config: Partial<BotConfig> & { paletteId: 
   const nurture = JSON.stringify(config.nurture ?? DEFAULT_CONFIG.nurture);
   const appearance = JSON.stringify(config.appearance ?? DEFAULT_CONFIG.appearance);
   const ngRules = JSON.stringify(config.ngRules ?? DEFAULT_CONFIG.ngRules);
+  const reception = JSON.stringify(config.reception ?? DEFAULT_CONFIG.reception);
 
   const result = await sql`
-    INSERT INTO bot_configs (palette_id, basic, tone, conversation, goals, nurture, appearance, ng_rules, updated_at)
-    VALUES (${paletteId}, ${basic}::jsonb, ${tone}::jsonb, ${conversation}::jsonb, ${goals}::jsonb, ${nurture}::jsonb, ${appearance}::jsonb, ${ngRules}::jsonb, NOW())
+    INSERT INTO bot_configs (palette_id, basic, tone, conversation, goals, nurture, appearance, ng_rules, reception, updated_at)
+    VALUES (${paletteId}, ${basic}::jsonb, ${tone}::jsonb, ${conversation}::jsonb, ${goals}::jsonb, ${nurture}::jsonb, ${appearance}::jsonb, ${ngRules}::jsonb, ${reception}::jsonb, NOW())
     ON CONFLICT (palette_id) DO UPDATE SET
       basic = EXCLUDED.basic,
       tone = EXCLUDED.tone,
@@ -606,6 +650,7 @@ export const upsertBotConfig = async (config: Partial<BotConfig> & { paletteId: 
       nurture = EXCLUDED.nurture,
       appearance = EXCLUDED.appearance,
       ng_rules = EXCLUDED.ng_rules,
+      reception = EXCLUDED.reception,
       updated_at = NOW()
     RETURNING *
   `;
@@ -626,6 +671,66 @@ export const listBotConfigPaletteIds = async (): Promise<string[]> => {
   await ensureTables();
   const result = await sql`SELECT palette_id FROM bot_configs ORDER BY updated_at DESC`;
   return result.rows.map((r: any) => String(r.palette_id));
+};
+
+// ============================================================
+// AI電話受付（インバウンド）: DID ↔ paletteId マッピング
+// ============================================================
+
+/** paletteId に割り当てられた Twilio 着信DID（未設定なら null） */
+export const getReceptionDid = async (paletteId: string): Promise<string | null> => {
+  await ensureTables();
+  const pid = String(paletteId || '').toUpperCase();
+  const result = await sql`SELECT did FROM voice_reception_numbers WHERE palette_id = ${pid} ORDER BY created_at ASC LIMIT 1`;
+  return result.rows.length ? String(result.rows[0].did) : null;
+};
+
+/** DID を paletteId に割り当て（DIDはグローバル一意。既存の割当があれば付け替え） */
+export const setReceptionDid = async (paletteId: string, didRaw: string): Promise<void> => {
+  await ensureTables();
+  const pid = String(paletteId || '').toUpperCase();
+  const did = String(didRaw || '').trim();
+  if (!did) return;
+  // この paletteId の既存DIDは一旦削除（1 paletteId = 1 DID 運用）
+  await sql`DELETE FROM voice_reception_numbers WHERE palette_id = ${pid}`;
+  await sql`
+    INSERT INTO voice_reception_numbers (did, palette_id, created_at)
+    VALUES (${did}, ${pid}, NOW())
+    ON CONFLICT (did) DO UPDATE SET palette_id = EXCLUDED.palette_id, created_at = NOW()
+  `;
+};
+
+/** paletteId の DID 割当を解除 */
+export const clearReceptionDid = async (paletteId: string): Promise<void> => {
+  await ensureTables();
+  const pid = String(paletteId || '').toUpperCase();
+  await sql`DELETE FROM voice_reception_numbers WHERE palette_id = ${pid}`;
+};
+
+/**
+ * 着信DID から受付に必要な文脈一式を解決する（Pipecat 用）。
+ * 該当なし or 受付無効なら null。
+ */
+export const getReceptionContextByDid = async (didRaw: string): Promise<{
+  paletteId: string;
+  reception: NonNullable<BotConfig['reception']>;
+  basic: BotConfig['basic'];
+  services: BotService[];
+  faqs: BotFaq[];
+} | null> => {
+  await ensureTables();
+  const did = String(didRaw || '').trim();
+  if (!did) return null;
+  const map = await sql`SELECT palette_id FROM voice_reception_numbers WHERE did = ${did} LIMIT 1`;
+  if (!map.rows.length) return null;
+  const paletteId = String(map.rows[0].palette_id).toUpperCase();
+  const config = await getBotConfigOrDefault(paletteId);
+  const reception = { ...DEFAULT_CONFIG.reception, ...(config.reception || {}) } as NonNullable<BotConfig['reception']>;
+  const [services, faqs] = await Promise.all([
+    listServices(paletteId, true),
+    listFaqs(paletteId),
+  ]);
+  return { paletteId, reception, basic: config.basic, services, faqs };
 };
 
 // ============================================================
