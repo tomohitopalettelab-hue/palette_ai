@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { processBotTurn } from '../../_lib/bot-engine';
 import { hasPaletteAixPlan } from '../../_lib/palette-aix-access';
+import { isAccountSuspended } from '../../_lib/bot-store';
 import { checkDemoRateLimit, getClientIp } from '../../_lib/rate-limit';
 
 const corsHeaders = {
@@ -31,8 +32,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'message is required' }, { status: 400, headers: corsHeaders });
     }
 
-    // Palette AIX プラン契約チェック（デモモードはスキップ）
+    // Palette AIX プラン契約チェック＋一時停止チェック（デモモードはスキップ）
     if (!isDemo) {
+      // Palette Lab で一時停止された顧客のBotは応答しない。
+      if (await isAccountSuspended(paletteId)) {
+        return NextResponse.json(
+          { success: false, error: 'このBotは停止中です。', reason: 'suspended' },
+          { status: 403, headers: corsHeaders },
+        );
+      }
       const hasPlan = await hasPaletteAixPlan(paletteId);
       if (!hasPlan) {
         return NextResponse.json(

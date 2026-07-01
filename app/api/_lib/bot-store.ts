@@ -1,4 +1,5 @@
 import { sql } from '@vercel/postgres';
+import { palDbGet } from './pal-db-client';
 
 if (!process.env.POSTGRES_URL) {
   process.env.POSTGRES_URL =
@@ -742,8 +743,14 @@ export const isAccountSuspended = async (paletteId: string): Promise<boolean> =>
   await ensureTables();
   const pid = String(paletteId || '').toUpperCase();
   const result = await sql`SELECT suspended FROM bot_account_suspensions WHERE palette_id = ${pid} LIMIT 1`;
-  if (!result.rows.length) return false;
-  return Boolean(result.rows[0].suspended);
+  if (result.rows.length && Boolean(result.rows[0].suspended)) return true;
+  // Palette Lab の顧客サービス一時停止（accounts.status!=='active'）も反映。Canvas障害時は false（fail-open）。
+  try {
+    const r = await palDbGet(`/api/account-active?paletteId=${encodeURIComponent(pid)}`);
+    const d = (await r.json().catch(() => ({}))) as { active?: boolean };
+    if (d && d.active === false) return true;
+  } catch { /* fail-open */ }
+  return false;
 };
 
 /** 停止フラグを設定（true=停止, false=再開） */
