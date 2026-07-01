@@ -46,6 +46,26 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
+  // 一時停止(suspended)中の顧客はアクセス遮断（利用中セッションも即遮断）。
+  // 新規ログインは verify-chat-login 側で既にブロック済み。Canvas障害時は fail-open。
+  if (session.role === 'customer' && session.customerId) {
+    let active = true;
+    try {
+      const base = (process.env.PAL_DB_BASE_URL || '').replace(/\/$/, '');
+      if (base) {
+        const r = await fetch(`${base}/api/pal-db/account-active?id=${encodeURIComponent(String(session.customerId))}`, { cache: 'no-store' });
+        const d = (await r.json().catch(() => ({}))) as { active?: boolean };
+        if (d && d.active === false) active = false;
+      }
+    } catch { /* fail-open */ }
+    if (!active) {
+      if (isApiAdmin) return NextResponse.json({ success: false, error: 'このアカウントは停止中です' }, { status: 403 });
+      const res = redirectToLogin(req, 'customer');
+      res.cookies.set({ name: SESSION_COOKIE_NAME, value: '', path: '/', maxAge: 0 });
+      return res;
+    }
+  }
+
   // /api/admin/... は、admin 全許可 / customer 自分分のみ / agency は bot-settings 配下のみ（破壊系除く）
   if (isApiAdmin) {
     if (session.role === 'admin') return NextResponse.next();
