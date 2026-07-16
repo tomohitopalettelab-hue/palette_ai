@@ -70,6 +70,8 @@ export type BotConfig = {
     closingIntensity?: number;
     closingMatrix?: Record<string, string[]>;
     preFlourish?: string;
+    /** リードフォーム（お客様情報の入力欄）を出す直前の案内文 */
+    leadFormMessage?: string;
     leadFields?: Array<{ key: string; label: string; required: boolean }>;
     /**
      * ヒアリングフロー設定。
@@ -327,6 +329,7 @@ export const DEFAULT_CONFIG: Omit<BotConfig, 'paletteId' | 'updatedAt'> = {
       '1': ['line'],
     },
     preFlourish: 'なるほど、それならおすすめがあります。',
+    leadFormMessage: 'ありがとうございます！担当者からご連絡させていただきますので、お客様情報を数点だけ教えてください。',
     leadFields: [
       { key: 'name', label: 'お名前', required: true },
       { key: 'phone', label: 'お電話番号', required: false },

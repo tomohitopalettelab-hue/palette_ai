@@ -1177,9 +1177,11 @@ export const processBotTurn = async (params: {
     { ...session, messages: newMessages, matchedServiceIds: allMatchedIds },
   );
 
-  // リードフォームを出すとき（notify経由の場合など）は、親しみやすい案内文に上書き
+  // リードフォームを出すとき（notify経由の場合など）は、案内文に上書き
+  // 管理画面（会話設計）で編集可能。未設定なら既定文。
   if (ui.type === 'lead_form') {
-    aiResp.reply = 'ありがとうございます！担当者からご連絡させていただきますので、お客様情報を数点だけ教えてください。';
+    aiResp.reply = (config.conversation?.leadFormMessage || '').trim()
+      || 'ありがとうございます！担当者からご連絡させていただきますので、お客様情報を数点だけ教えてください。';
   }
 
   // Save bot message

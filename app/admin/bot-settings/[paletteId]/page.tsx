@@ -1073,6 +1073,15 @@ function ConversationTab({ config, update, paletteId }: any) {
               placeholder="こんにちは！何かお困りですか？"
             />
           </div>
+          <div>
+            <Label>お客様情報フォームの案内文</Label>
+            <TextArea
+              value={c.leadFormMessage}
+              onChange={(v: string) => update(['conversation', 'leadFormMessage'], v)}
+              placeholder="ありがとうございます！担当者からご連絡させていただきますので、お客様情報を数点だけ教えてください。"
+            />
+            <p className="text-[10px] text-slate-400 mt-1">名前・連絡先などの入力欄を出す直前に表示される一文です。空欄なら既定の文言になります。</p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <SliderNumber
               label="最小ヒアリング回数"
