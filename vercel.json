@@ -1,0 +1,3 @@
+{
+  "ignoreCommand": "git log -1 --pretty=%s | grep -q '^auto: ' && exit 0 || exit 1"
+}
