@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getReceptionDid, setReceptionDid, clearReceptionDid } from '../../../../_lib/bot-store';
+import { getReceptionDid, setReceptionDid, clearReceptionDid, DidTakenError } from '../../../../_lib/bot-store';
 import { assertAccessAllowed } from '../../../../_lib/agency-scope';
 
 // AI電話受付: この paletteId に割り当てる Twilio 着信DID の取得/設定/解除
@@ -39,6 +39,9 @@ export async function PUT(
     }
     return NextResponse.json({ success: true, did });
   } catch (error: any) {
+    if (error instanceof DidTakenError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 409 });
+    }
     console.error('set reception did error:', error);
     return NextResponse.json({ success: false, error: 'internal error' }, { status: 500 });
   }

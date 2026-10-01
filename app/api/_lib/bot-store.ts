@@ -689,18 +689,27 @@ export const getReceptionDid = async (paletteId: string): Promise<string | null>
   return result.rows.length ? String(result.rows[0].did) : null;
 };
 
-/** DID を paletteId に割り当て（DIDはグローバル一意。既存の割当があれば付け替え） */
+export class DidTakenError extends Error {
+  constructor() { super('この番号は別の顧客に割り当て済みです'); }
+}
+
+/** DID を paletteId に割り当て（DIDはグローバル一意。他社に割当済みなら DidTakenError） */
 export const setReceptionDid = async (paletteId: string, didRaw: string): Promise<void> => {
   await ensureTables();
   const pid = String(paletteId || '').toUpperCase();
   const did = String(didRaw || '').trim();
   if (!did) return;
+  // 他社に割り当て済みのDIDは奪えない（付け替えは先方の解除が先）
+  const owner = await sql`SELECT palette_id FROM voice_reception_numbers WHERE did = ${did} LIMIT 1`;
+  if (owner.rows[0] && String(owner.rows[0].palette_id).toUpperCase() !== pid) {
+    throw new DidTakenError();
+  }
   // この paletteId の既存DIDは一旦削除（1 paletteId = 1 DID 運用）
   await sql`DELETE FROM voice_reception_numbers WHERE palette_id = ${pid}`;
   await sql`
     INSERT INTO voice_reception_numbers (did, palette_id, created_at)
     VALUES (${did}, ${pid}, NOW())
-    ON CONFLICT (did) DO UPDATE SET palette_id = EXCLUDED.palette_id, created_at = NOW()
+    ON CONFLICT (did) DO NOTHING
   `;
 };
 
@@ -842,9 +851,9 @@ export const upsertService = async (service: Partial<BotService> & { paletteId: 
   return rowToService(result.rows[0]);
 };
 
-export const deleteService = async (id: string): Promise<void> => {
+export const deleteService = async (id: string, paletteId: string): Promise<void> => {
   await ensureTables();
-  await sql`DELETE FROM bot_services WHERE id = ${id}`;
+  await sql`DELETE FROM bot_services WHERE id = ${id} AND palette_id = ${paletteId}`;
 };
 
 // ============================================================
@@ -876,14 +885,16 @@ export const upsertFaq = async (faq: Partial<BotFaq> & { paletteId: string; ques
       answer = EXCLUDED.answer,
       category = EXCLUDED.category,
       priority = EXCLUDED.priority
+    WHERE bot_faqs.palette_id = EXCLUDED.palette_id
     RETURNING *
   `;
+  if (!result.rows[0]) throw new Error('faq belongs to another paletteId');
   return rowToFaq(result.rows[0]);
 };
 
-export const deleteFaq = async (id: string): Promise<void> => {
+export const deleteFaq = async (id: string, paletteId: string): Promise<void> => {
   await ensureTables();
-  await sql`DELETE FROM bot_faqs WHERE id = ${id}`;
+  await sql`DELETE FROM bot_faqs WHERE id = ${id} AND palette_id = ${paletteId}`;
 };
 
 // ============================================================

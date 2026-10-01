@@ -36,7 +36,7 @@ export async function DELETE(
     const paletteId = String(rawP || '').trim().toUpperCase();
     const access = await assertAccessAllowed(paletteId);
     if (!access.allowed) return NextResponse.json({ success: false, error: access.error }, { status: access.status });
-    await deleteFaq(id);
+    await deleteFaq(id, paletteId);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('delete faq error:', error);

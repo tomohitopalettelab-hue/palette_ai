@@ -63,7 +63,8 @@ export async function GET(req: Request) {
           cardShow: config.conversation.cardShow,
           leadFields: config.conversation.leadFields,
         },
-        goals: config.goals,
+        // notify（LINEトークン・通知先メール・Webhook）は公開しない
+        goals: { ...config.goals, notify: undefined },
         nurture: config.nurture,
         appearance: config.appearance,
       },

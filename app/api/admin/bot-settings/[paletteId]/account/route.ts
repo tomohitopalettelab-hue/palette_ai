@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import { setAccountSuspended, deleteBotAccount, isAccountSuspended } from '../../../../_lib/bot-store';
+import { cookies } from 'next/headers';
 import { assertAccessAllowed } from '../../../../_lib/agency-scope';
+import { parseSessionValue, SESSION_COOKIE_NAME } from '../../../../../../lib/auth-session';
+
+/** 停止/再開・削除は Palette Lab 管理者だけ（顧客・代理店は不可） */
+const isAdminSession = async (): Promise<boolean> => {
+  const store = await cookies();
+  const session = await parseSessionValue(store.get(SESSION_COOKIE_NAME)?.value);
+  return session?.role === 'admin';
+};
 
 const validate = (raw: string): string | null => {
   const pid = String(raw || '').trim().toUpperCase();
@@ -41,6 +50,9 @@ export async function PATCH(
   { params }: { params: Promise<{ paletteId: string }> },
 ) {
   try {
+    if (!(await isAdminSession())) {
+      return NextResponse.json({ success: false, error: 'forbidden' }, { status: 403 });
+    }
     const { paletteId: raw } = await params;
     const paletteId = validate(raw);
     if (!paletteId) {
@@ -68,6 +80,9 @@ export async function DELETE(
   { params }: { params: Promise<{ paletteId: string }> },
 ) {
   try {
+    if (!(await isAdminSession())) {
+      return NextResponse.json({ success: false, error: 'forbidden' }, { status: 403 });
+    }
     const { paletteId: raw } = await params;
     const paletteId = validate(raw);
     if (!paletteId) {
